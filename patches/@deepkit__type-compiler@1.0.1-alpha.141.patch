@@ -1,0 +1,10 @@
+diff --git a/dist/esm/src/resolver.js b/dist/esm/src/resolver.js
+index abd5f4ba6f399982149ebe898721901d48c3b426..1ce6a14df90a8bd6af9f324899b03a76181c1ea9 100644
+--- a/dist/esm/src/resolver.js
++++ b/dist/esm/src/resolver.js
+@@ -1,4 +1,4 @@
+-import * as micromatch from 'micromatch';
++import micromatch from 'micromatch';
+ import ts from 'typescript';
+ const { createSourceFile, resolveModuleName, isStringLiteral, JSDocParsingMode, ScriptTarget } = ts;
+ export function patternMatch(path, patterns, base) {
