@@ -3,12 +3,7 @@ import { AppModule, ControllerConfig, createModule } from '@deepkit/app';
 import { Services } from './services';
 import { RestateServer } from './restate-server';
 import { restateClassDecorator } from './decorator';
-import {
-  restateContextType,
-  RestateKeyedContextImpl,
-  restateKeyedContextType,
-  SCOPE,
-} from './types';
+import { restateContextType, restateKeyedContextType, SCOPE } from './types';
 import {
   createServiceProxy,
   getRestateServiceDeps,
@@ -42,21 +37,29 @@ export class RestateModule extends createModule({
     const resolver = restateClassDecorator._fetch(controller);
     if (!resolver) return;
 
-    module.addProvider({
-      provide: restateKeyedContextType,
-      scope: SCOPE,
-      useFactory() {
-        throw new Error('You cannot use a keyed context in a unkeyed service');
-      },
-    });
+    if (!module.isProvided(restateKeyedContextType)) {
+      module.addProvider({
+        provide: restateKeyedContextType,
+        scope: SCOPE,
+        useFactory() {
+          throw new Error(
+            'You cannot use a keyed context in an unkeyed service',
+          );
+        },
+      });
+    }
 
-    module.addProvider({
-      provide: restateContextType,
-      scope: SCOPE,
-      useFactory() {
-        throw new Error('You cannot use a unkeyed context in a keyed service');
-      },
-    });
+    if (!module.isProvided(restateContextType)) {
+      module.addProvider({
+        provide: restateContextType,
+        scope: SCOPE,
+        useFactory() {
+          throw new Error(
+            'You cannot use an unkeyed context in a keyed service',
+          );
+        },
+      });
+    }
 
     const metadata = getRestateServiceMetadata(controller);
     const restateServiceDeps = getRestateServiceDeps(metadata.classType);

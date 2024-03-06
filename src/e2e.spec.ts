@@ -30,7 +30,7 @@ test('e2e', async () => {
   }
 
   const app = createTestingApp({
-    imports: [new RestateModule()],
+    imports: [new RestateModule({ port: 9081 })],
     controllers: [UserController],
   });
   void app.startServer();
@@ -40,30 +40,28 @@ test('e2e', async () => {
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ uri: 'http://0.0.0.0:9080' }),
+    body: JSON.stringify({ uri: 'http://0.0.0.0:9081' }),
   });
-  expect(await response.json()).toMatchInlineSnapshot(`
-    {
-      "id": "dp_16WOCWdvHvijJpuoQtGGmJj",
-      "services": [
-        {
-          "deployment_id": "dp_16WOCWdvHvijJpuoQtGGmJj",
-          "instance_type": "Keyed",
-          "methods": [
-            {
-              "input_type": "RpcRequest",
-              "key_field_number": 1,
-              "name": "create",
-              "output_type": "RpcResponse",
-            },
-          ],
-          "name": "user",
-          "public": true,
-          "revision": 9,
-        },
-      ],
-    }
-  `);
+  expect(await response.json()).toMatchObject({
+    id: expect.any(String),
+    services: [
+      {
+        deployment_id: expect.any(String),
+        instance_type: 'Keyed',
+        methods: [
+          {
+            input_type: 'RpcRequest',
+            key_field_number: 1,
+            name: 'create',
+            output_type: 'RpcResponse',
+          },
+        ],
+        name: 'user',
+        public: true,
+        revision: expect.any(Number),
+      },
+    ],
+  });
 
   const client = new RestateClient('http://0.0.0.0:8080');
 
@@ -72,10 +70,9 @@ test('e2e', async () => {
   const result = await client.rpc(user.create('Test'), {
     key: uuid(),
   });
-  expect(result).toMatchInlineSnapshot(`
-    User {
-      "id": "6e4183dd-aac7-48a5-ab81-28943ae13a3d",
-      "username": "Test",
-    }
-  `);
+  expect(result).toBeInstanceOf(User);
+  expect(result).toMatchObject({
+    id: expect.any(String),
+    username: 'Test',
+  });
 });

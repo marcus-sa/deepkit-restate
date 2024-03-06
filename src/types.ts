@@ -1,5 +1,6 @@
 import { Type, typeOf } from '@deepkit/type';
 import { Context, KeyedContext } from '@restatedev/restate-sdk';
+import { getContainerToken } from '@deepkit/injector';
 
 export interface CustomContext {
   send(call: RestateServiceMethodCall): Promise<void>;
@@ -36,15 +37,19 @@ export type RestateContext = CustomContext &
 
 export const restateContextType = typeOf<RestateContext>();
 
+export const restateContextToken = getContainerToken(restateContextType);
+
 export interface RestateKeyedContext
   extends CustomContext,
     Omit<KeyedContext, 'rpc' | 'send' | 'sendDelayed'> {
   readonly key: string;
 }
 
-export class RestateKeyedContextImpl {}
-
 export const restateKeyedContextType = typeOf<RestateKeyedContext>();
+
+export const restateKeyedContextToken = getContainerToken(
+  restateKeyedContextType,
+);
 
 export const restateServiceType = typeOf<RestateService<string, any>>();
 

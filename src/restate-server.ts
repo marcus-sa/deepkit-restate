@@ -1,39 +1,21 @@
 import { eventDispatcher } from '@deepkit/event';
 import { onServerMainBootstrap } from '@deepkit/framework';
-import { InjectorContext, InjectorModule } from '@deepkit/injector';
+import { InjectorContext } from '@deepkit/injector';
 import * as restate from '@restatedev/restate-sdk';
-import {
-  deserialize,
-  reflect,
-  serialize,
-  serializer,
-  Type,
-  TypeClass,
-} from '@deepkit/type';
-import assert from 'node:assert';
+import { deserialize, serialize, serializer } from '@deepkit/type';
 
 import { Service, Services } from './services';
-import {
-  restateClassDecorator,
-  RestateServiceMetadata,
-  RestateServiceMethodMetadata,
-} from './decorator';
+import { RestateServiceMethodMetadata } from './decorator';
 import { RestateConfig } from './restate.module';
-import {
-  createServiceProxy,
-  getRestateServiceMetadata,
-  getRestateServiceName,
-  getRestateServiceDeps,
-} from './utils';
+import { getRestateServiceName } from './utils';
 import {
   CustomContext,
   RestateServiceMethodCall,
-  restateKeyedContextType,
-  restateContextType,
   RestateContext,
   RestateKeyedContext,
   SCOPE,
-  RestateKeyedContextImpl,
+  restateKeyedContextToken,
+  restateContextToken,
 } from './types';
 
 export class RestateServer {
@@ -98,7 +80,7 @@ export class RestateServer {
           const injector = this.createScopedInjector();
 
           const ctx = this.createContext(_ctx);
-          injector.set(restateContextType, ctx, module);
+          injector.set(restateContextToken, ctx, module);
 
           const instance = injector.get(controller, module);
           return await this.callServiceMethod(instance, method, args);
@@ -126,7 +108,7 @@ export class RestateServer {
           const ctx = this.createContext(_ctx);
           Object.assign(ctx, { key });
 
-          injector.set(restateKeyedContextType, ctx, module);
+          injector.set(restateKeyedContextToken, ctx, module);
 
           const instance = injector.get(controller, module);
           return await this.callServiceMethod(instance, method, args);
