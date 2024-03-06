@@ -1,10 +1,11 @@
 {
   "name": "deepkit-restate",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "type": "module",
   "main": "./lib/index.cjs",
   "module": "./lib/index.js",
   "typings": "./lib/index.d.ts",
+  "files": ["README.md", "lib"],
   "scripts": {
     "postinstall": "deepkit-type-install",
     "build": "vite build --ssr",
