@@ -47,6 +47,12 @@ export function getClassConstructorParameters(
 
 export function isRestateServiceType(type: Type): boolean {
   if (type.kind === ReflectionKind.class) return false;
+  if (
+    type.typeName !== restateServiceType.typeName &&
+    type.originTypes?.[0].typeName !== restateServiceType.typeName
+  ) {
+    return false;
+  }
   return isExtendable(type, restateServiceType);
 }
 

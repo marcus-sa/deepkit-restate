@@ -12,7 +12,7 @@ import {
 } from '@deepkit/type';
 import assert from 'node:assert';
 
-import { Router, Routers } from './routers';
+import { Service, Services } from './services';
 import {
   restateClassDecorator,
   RestateServiceMetadata,
@@ -32,6 +32,8 @@ import {
   restateContextType,
   RestateContext,
   RestateKeyedContext,
+  SCOPE,
+  RestateKeyedContextImpl,
 } from './types';
 
 export class RestateServer {
@@ -39,7 +41,7 @@ export class RestateServer {
 
   constructor(
     private readonly config: RestateConfig,
-    private readonly routers: Routers,
+    private readonly services: Services,
     private readonly injectorContext: InjectorContext,
   ) {}
 
@@ -78,14 +80,14 @@ export class RestateServer {
   }
 
   createScopedInjector(): InjectorContext {
-    return this.injectorContext.createChildScope('restate');
+    return this.injectorContext.createChildScope(SCOPE);
   }
 
-  createUnKeyedRouter(
-    { controller, module }: Router<unknown>,
-    metadata: RestateServiceMetadata,
-    restateServiceDeps: readonly Type[],
-  ): restate.UnKeyedRouter<unknown> {
+  createUnKeyedRouter({
+    controller,
+    module,
+    metadata,
+  }: Service<unknown>): restate.UnKeyedRouter<unknown> {
     return [...metadata.methods].reduce(
       (routes, method) => ({
         ...routes,
@@ -96,18 +98,41 @@ export class RestateServer {
           const injector = this.createScopedInjector();
 
           const ctx = this.createContext(_ctx);
-          injector.set(restateContextType, ctx);
-
-          for (const dependency of restateServiceDeps) {
-            const proxy = createServiceProxy(dependency);
-            injector.set(dependency, proxy);
-          }
+          injector.set(restateContextType, ctx, module);
 
           const instance = injector.get(controller, module);
           return await this.callServiceMethod(instance, method, args);
         },
       }),
       {} as restate.UnKeyedRouter<unknown>,
+    );
+  }
+
+  createKeyedRouter({
+    controller,
+    module,
+    metadata,
+  }: Service<unknown>): restate.KeyedRouter<unknown> {
+    return [...metadata.methods].reduce(
+      (routes, method) => ({
+        ...routes,
+        [method.name]: async (
+          _ctx: restate.KeyedContext,
+          key: string,
+          args: readonly unknown[],
+        ) => {
+          const injector = this.createScopedInjector();
+
+          const ctx = this.createContext(_ctx);
+          Object.assign(ctx, { key });
+
+          injector.set(restateKeyedContextType, ctx, module);
+
+          const instance = injector.get(controller, module);
+          return await this.callServiceMethod(instance, method, args);
+        },
+      }),
+      {} as restate.KeyedRouter<unknown>,
     );
   }
 
@@ -126,62 +151,16 @@ export class RestateServer {
     );
   }
 
-  createKeyedRouter(
-    { controller, module }: Router<unknown>,
-    metadata: RestateServiceMetadata,
-    restateServiceDeps: readonly Type[],
-  ): restate.KeyedRouter<unknown> {
-    return [...metadata.methods].reduce(
-      (routes, method) => ({
-        ...routes,
-        [method.name]: async (
-          _ctx: restate.KeyedContext,
-          key: string,
-          args: readonly unknown[],
-        ) => {
-          const injector = this.createScopedInjector();
-
-          const ctx = this.createContext(_ctx);
-          Object.assign(ctx, { key });
-
-          injector.set(restateKeyedContextType, ctx);
-
-          for (const dependency of restateServiceDeps) {
-            const proxy = createServiceProxy(dependency);
-            injector.set(dependency, proxy);
-          }
-
-          const resolver = injector.resolve(module, controller);
-          const instance = resolver();
-          return await this.callServiceMethod(instance, method, args);
-        },
-      }),
-      {} as restate.KeyedRouter<unknown>,
-    );
-  }
-
   @eventDispatcher.listen(onServerMainBootstrap)
   async listen() {
-    for (const { controller, module } of this.routers) {
-      const metadata = getRestateServiceMetadata(controller);
+    for (const service of this.services) {
+      const serviceName = getRestateServiceName(service.metadata.type);
 
-      const serviceName = getRestateServiceName(metadata.type);
-
-      const restateServiceDeps = getRestateServiceDeps(metadata.classType);
-
-      if (metadata.keyed) {
-        const router = this.createKeyedRouter(
-          { controller, module },
-          metadata,
-          restateServiceDeps,
-        );
+      if (service.metadata.keyed) {
+        const router = this.createKeyedRouter(service);
         this.endpoint.bindKeyedRouter(serviceName, router);
       } else {
-        const router = this.createUnKeyedRouter(
-          { controller, module },
-          metadata,
-          restateServiceDeps,
-        );
+        const router = this.createUnKeyedRouter(service);
         this.endpoint.bindRouter(serviceName, router);
       }
     }

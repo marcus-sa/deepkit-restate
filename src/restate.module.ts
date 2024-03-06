@@ -1,10 +1,19 @@
 import { AppModule, ControllerConfig, createModule } from '@deepkit/app';
-import { provide } from '@deepkit/injector';
 
-import { Routers } from './routers';
+import { Services } from './services';
 import { RestateServer } from './restate-server';
 import { restateClassDecorator } from './decorator';
-import { RestateContext, RestateKeyedContext } from './types';
+import {
+  restateContextType,
+  RestateKeyedContextImpl,
+  restateKeyedContextType,
+  SCOPE,
+} from './types';
+import {
+  createServiceProxy,
+  getRestateServiceDeps,
+  getRestateServiceMetadata,
+} from './utils';
 
 export class RestateConfig {
   readonly port: number = 9080;
@@ -13,30 +22,15 @@ export class RestateConfig {
 export class RestateModule extends createModule({
   config: RestateConfig,
   listeners: [RestateServer],
+  forRoot: true,
 }) {
-  readonly routers = new Routers();
+  readonly services = new Services();
 
   override process() {
     this.addProvider({
-      provide: Routers,
-      useValue: this.routers,
+      provide: Services,
+      useValue: this.services,
     });
-    // this.addProvider(
-    //   provide<RestateKeyedContext>({
-    //     scope: 'restate',
-    //     useFactory() {
-    //       throw new Error('Unimplemented');
-    //     },
-    //   }),
-    // );
-    // this.addProvider(
-    //   provide<RestateContext>({
-    //     scope: 'restate',
-    //     useFactory() {
-    //       throw new Error('Unimplemented');
-    //     },
-    //   }),
-    // );
   }
 
   override processController(
@@ -48,10 +42,39 @@ export class RestateModule extends createModule({
     const resolver = restateClassDecorator._fetch(controller);
     if (!resolver) return;
 
-    if (!module.isProvided(controller)) {
-      module.addProvider({ provide: controller, scope: 'restate' });
+    module.addProvider({
+      provide: restateKeyedContextType,
+      scope: SCOPE,
+      useFactory() {
+        throw new Error('You cannot use a keyed context in a unkeyed service');
+      },
+    });
+
+    module.addProvider({
+      provide: restateContextType,
+      scope: SCOPE,
+      useFactory() {
+        throw new Error('You cannot use a unkeyed context in a keyed service');
+      },
+    });
+
+    const metadata = getRestateServiceMetadata(controller);
+    const restateServiceDeps = getRestateServiceDeps(metadata.classType);
+
+    for (const dependency of restateServiceDeps) {
+      if (!module.isProvided(dependency)) {
+        module.addProvider({
+          provide: dependency,
+          scope: SCOPE,
+          useValue: createServiceProxy(dependency),
+        });
+      }
     }
 
-    this.routers.add({ controller, module });
+    if (!module.isProvided(controller)) {
+      module.addProvider({ provide: controller, scope: SCOPE });
+    }
+
+    this.services.add({ controller, module, metadata });
   }
 }

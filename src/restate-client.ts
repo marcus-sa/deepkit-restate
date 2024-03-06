@@ -4,7 +4,8 @@ import { createServiceProxy } from './utils';
 import { RestateServiceMethodCall, RestateService } from './types';
 
 export interface RestateClientOptions {
-  readonly authToken: string;
+  // Not implemented (see https://discord.com/channels/1128210118216007792/1214635273141616761/1214932617435156510)
+  // readonly authToken: string;
 }
 
 export interface RestateClientCallOptions {
@@ -32,7 +33,7 @@ export function isRestateApiError(value: any): value is RestateApiError {
 export class RestateClient {
   constructor(
     private readonly url: string, // ingress
-    private readonly options: RestateClientOptions,
+    private readonly options?: RestateClientOptions,
   ) {}
 
   service<T extends RestateService<string, any>>(type?: ReceiveType<T>): T {
@@ -50,10 +51,10 @@ export class RestateClient {
     { key }: RestateClientCallOptions = {},
   ): Promise<R> {
     if (keyed && key == null) {
-      throw new Error('Missing key');
+      throw new Error('Missing key for keyed service');
     }
     if (key != null && !keyed) {
-      throw new Error('Unnecessary key');
+      throw new Error('Unnecessary key for unkeyed service');
     }
 
     const response = await fetch(`${this.url}/${service}/${method}`, {
@@ -61,7 +62,7 @@ export class RestateClient {
       headers: {
         'Content-Type': 'application/json',
         'idempotency-key': key != null ? key.toString() : uuid(),
-        Authorization: `Bearer ${this.options.authToken}`,
+        // Authorization: `Bearer ${this.options.authToken}`,
       },
       body: JSON.stringify({
         key: key != null ? key.toString() : undefined,
@@ -93,7 +94,7 @@ export class RestateClient {
       headers: {
         'Content-Type': 'application/json',
         'idempotency-key': key != null ? key.toString() : uuid(),
-        Authorization: `Bearer ${this.options.authToken}`,
+        // Authorization: `Bearer ${this.options.authToken}`,
       },
       body: JSON.stringify({
         service,

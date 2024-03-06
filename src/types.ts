@@ -42,6 +42,10 @@ export interface RestateKeyedContext
   readonly key: string;
 }
 
+export class RestateKeyedContextImpl {}
+
 export const restateKeyedContextType = typeOf<RestateKeyedContext>();
 
 export const restateServiceType = typeOf<RestateService<string, any>>();
+
+export const SCOPE = 'restate';

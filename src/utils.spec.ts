@@ -1,6 +1,6 @@
 import { assertType, reflect, ReflectionKind, typeOf } from '@deepkit/type';
 
-import { RestateService } from './types';
+import { RestateKeyedContext, RestateService } from './types';
 import {
   createServiceProxy,
   getClassConstructorParameters,
@@ -27,6 +27,8 @@ describe('isRestateServiceType', () => {
     class TestService {}
 
     expect(isRestateServiceType(reflect(TestService))).toBe(false);
+
+    expect(isRestateServiceType(typeOf<RestateKeyedContext>())).toBe(false);
   });
 });
 
