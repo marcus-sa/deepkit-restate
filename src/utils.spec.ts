@@ -1,8 +1,7 @@
 import {
-  assertType,
   reflect,
+  ReflectionFunction,
   ReflectionKind,
-  ReflectionMethod,
   typeOf,
 } from '@deepkit/type';
 
@@ -10,10 +9,12 @@ import { RestateKeyedContext, RestateService } from './types';
 import {
   createServiceProxy,
   getClassConstructorParameters,
+  getReflectionFunctionArgsType,
   getRestateServiceDeps,
   getRestateServiceName,
   getRestateServiceOptions,
   getTypeArgument,
+  getUnwrappedReflectionFunctionReturnType,
   isRestateServiceType,
 } from './utils';
 import { describe } from 'vitest';
@@ -117,7 +118,6 @@ test('createServiceProxy', () => {
       "keyed": true,
     }
   `);
-  expect(result.returnType.kind).toBe(ReflectionKind.string);
 });
 
 test('getRestateDependenciesForService', () => {
@@ -135,6 +135,44 @@ test('getRestateDependenciesForService', () => {
 
   const deps = getRestateServiceDeps(TestService);
   expect(deps).toHaveLength(1);
+});
+
+test('getReflectionFunctionArgsType', () => {
+  function createUser(username: string, password: string): void {}
+
+  const reflectionFunction = ReflectionFunction.from(createUser);
+
+  expect(getReflectionFunctionArgsType(reflectionFunction)).toMatchObject({
+    kind: ReflectionKind.tuple,
+    types: [
+      {
+        kind: ReflectionKind.tupleMember,
+        name: 'username',
+        type: {
+          kind: ReflectionKind.string,
+        },
+      },
+      {
+        kind: ReflectionKind.tupleMember,
+        name: 'password',
+        type: {
+          kind: ReflectionKind.string,
+        },
+      },
+    ],
+  });
+});
+
+test('getUnwrappedReflectionFunctionReturnType', () => {
+  async function test(): Promise<void> {}
+
+  const reflectionFunction = ReflectionFunction.from(test);
+
+  expect(
+    getUnwrappedReflectionFunctionReturnType(reflectionFunction),
+  ).toMatchObject({
+    kind: ReflectionKind.void,
+  });
 });
 
 describe('createServiceProxy', () => {

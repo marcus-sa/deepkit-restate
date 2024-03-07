@@ -2,21 +2,14 @@ import { eventDispatcher } from '@deepkit/event';
 import { onServerMainBootstrap } from '@deepkit/framework';
 import { InjectorContext } from '@deepkit/injector';
 import * as restate from '@restatedev/restate-sdk';
-import {
-  assert,
-  deserialize,
-  integer,
-  PositiveNoZero,
-  serialize,
-  serializer,
-} from '@deepkit/type';
+import { assert, integer, PositiveNoZero } from '@deepkit/type';
 
 import { Service, Services } from './services';
 import { RestateServiceMethodMetadata } from './decorator';
 import { RestateConfig } from './restate.module';
-import { RestateApiInvocation } from './restate-client';
-import { getRestateServiceName } from './utils';
+import { assertArgs, getRestateServiceName } from './utils';
 import {
+  RestateApiInvocation,
   CustomContext,
   RestateServiceMethodCall,
   RestateContext,
@@ -24,6 +17,7 @@ import {
   SCOPE,
   restateKeyedContextToken,
   restateContextToken,
+  RestateClientCallOptions,
 } from './types';
 
 export class RestateServer {
@@ -39,37 +33,44 @@ export class RestateServer {
     ctx: restate.Context | restate.KeyedContext,
   ): RestateContext | RestateKeyedContext {
     return Object.assign(ctx, <CustomContext>{
-      send: async ({
-        service,
-        method,
-        args,
-      }: RestateServiceMethodCall): Promise<RestateApiInvocation> => {
+      send: async (
+        { service, method, args, options: { keyed } }: RestateServiceMethodCall,
+        { key }: RestateClientCallOptions = {},
+      ): Promise<RestateApiInvocation> => {
+        assertArgs({ keyed }, { key });
         const client = ctx.send({ path: service });
-        return await (client as any)[method].bind(client)(...args);
+        return keyed
+          ? await (client as any)[method].bind(client)(key, ...args)
+          : await (client as any)[method].bind(client)(...args);
       },
       sendDelayed: async (
-        { service, method, args }: RestateServiceMethodCall,
+        { service, method, args, options: { keyed } }: RestateServiceMethodCall,
         ms: number,
+        { key }: RestateClientCallOptions = {},
       ): Promise<RestateApiInvocation> => {
         assert<integer & PositiveNoZero>(ms);
+        assertArgs({ keyed }, { key });
         const client = ctx.sendDelayed({ path: service }, ms);
-        return await (client as any)[method].bind(client)(...args);
+        return keyed
+          ? await (client as any)[method].bind(client)(key, ...args)
+          : await (client as any)[method].bind(client)(...args);
       },
-      rpc: async <T>({
-        service,
-        method,
-        args,
-        returnType,
-      }: RestateServiceMethodCall): Promise<T> => {
+      rpc: async <T>(
+        {
+          service,
+          method,
+          args,
+          deserializeReturn,
+          options: { keyed },
+        }: RestateServiceMethodCall,
+        { key }: RestateClientCallOptions = {},
+      ): Promise<T> => {
+        assertArgs({ keyed }, { key });
         const client = ctx.rpc({ path: service });
-        const result = await (client as any)[method].bind(client)(...args);
-        return deserialize(
-          result,
-          { loosely: false },
-          serializer,
-          undefined,
-          returnType,
-        );
+        const result = keyed
+          ? await (client as any)[method].bind(client)(key, ...args)
+          : await (client as any)[method].bind(client)(...args);
+        return deserializeReturn(result, { loosely: false });
       },
     });
   }

@@ -2,8 +2,6 @@ import assert from 'node:assert';
 import { ClassType } from '@deepkit/core';
 import {
   assertType,
-  deserialize,
-  getSerializeFunction,
   isExtendable,
   ReceiveType,
   reflect,
@@ -17,12 +15,14 @@ import {
   TypePropertySignature,
   TypeTuple,
   TypeTupleMember,
+  ReflectionFunction,
   SerializeFunction,
-  ReflectionMethod,
+  deserializeFunction,
+  serializer,
 } from '@deepkit/type';
 
-import { restateClassDecorator, RestateServiceMetadata } from './decorator';
 import {
+  RestateClientCallOptions,
   RestateService,
   RestateServiceMethodCall,
   RestateServiceOptions,
@@ -114,27 +114,33 @@ export function getRestateServiceOptions(type: Type): RestateServiceOptions {
 }
 
 interface ServiceProxyMethod {
-  readonly returnType: Type;
   readonly serializeArgs: SerializeFunction;
+  readonly deserializeReturn: SerializeFunction;
 }
 
-export function createServiceMethodArgsType(
-  reflectionMethod: ReflectionMethod,
+export function getReflectionFunctionArgsType(
+  reflectionFunction: ReflectionFunction,
 ): TypeTuple {
   const argsType: TypeTuple = {
     kind: ReflectionKind.tuple,
     types: [],
   };
 
-  argsType.types = reflectionMethod.parameters.map(
-    (parameter): TypeTupleMember => ({
-      ...parameter.parameter,
+  argsType.types = reflectionFunction.parameters.map(
+    ({ parameter }): TypeTupleMember => ({
+      ...parameter,
       parent: argsType,
       kind: ReflectionKind.tupleMember,
     }),
   );
 
   return argsType;
+}
+
+export function getUnwrappedReflectionFunctionReturnType(
+  reflectionFunction: ReflectionFunction,
+): Type {
+  return unwrapType(reflectionFunction.getReturnType());
 }
 
 export function createServiceProxy<T extends RestateService<string, any>>(
@@ -156,19 +162,25 @@ export function createServiceProxy<T extends RestateService<string, any>>(
       get(target: any, method: string) {
         if (!methods[method]) {
           const reflectionMethod = reflectionClass.getMethod(method);
-          const returnType = unwrapType(reflectionMethod.getReturnType());
 
-          const argsType = createServiceMethodArgsType(reflectionMethod);
-
+          const argsType = getReflectionFunctionArgsType(reflectionMethod);
           const serializeArgs = serializeFunction(
-            undefined,
+            serializer,
             undefined,
             argsType,
           );
 
-          methods[method] = { returnType, serializeArgs };
+          const returnType =
+            getUnwrappedReflectionFunctionReturnType(reflectionMethod);
+          const deserializeReturn = deserializeFunction(
+            serializer,
+            undefined,
+            returnType,
+          );
+
+          methods[method] = { serializeArgs, deserializeReturn };
         }
-        const { returnType, serializeArgs } = methods[method];
+        const { serializeArgs, deserializeReturn } = methods[method];
 
         return (..._args: readonly unknown[]): RestateServiceMethodCall => {
           const args = serializeArgs(_args);
@@ -177,7 +189,7 @@ export function createServiceProxy<T extends RestateService<string, any>>(
             service,
             method,
             args,
-            returnType,
+            deserializeReturn,
           };
         };
       },
@@ -185,10 +197,14 @@ export function createServiceProxy<T extends RestateService<string, any>>(
   );
 }
 
-export function getRestateServiceMetadata(
-  classType: ClassType,
-): RestateServiceMetadata {
-  const metadata = restateClassDecorator._fetch(classType);
-  assert(metadata, 'Missing metadata');
-  return metadata;
+export function assertArgs(
+  { keyed }: RestateServiceOptions,
+  { key }: RestateClientCallOptions,
+) {
+  if (keyed && key == null) {
+    throw new Error('Missing key for keyed service');
+  }
+  if (key != null && !keyed) {
+    throw new Error('Unnecessary key for unkeyed service');
+  }
 }

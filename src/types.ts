@@ -1,14 +1,28 @@
-import { Type, typeOf } from '@deepkit/type';
+import { SerializeFunction, Type, typeOf } from '@deepkit/type';
 import { Context, KeyedContext } from '@restatedev/restate-sdk';
 import { getContainerToken } from '@deepkit/injector';
 
-import { RestateApiInvocation } from './restate-client';
+export interface RestateApiInvocation {
+  readonly id: string;
+}
+
+export interface RestateClientCallOptions {
+  readonly key?: string | number;
+}
 
 export interface CustomContext {
-  send(call: RestateServiceMethodCall): Promise<RestateApiInvocation>;
+  send(
+    call: RestateServiceMethodCall,
+    options?: RestateClientCallOptions,
+  ): Promise<RestateApiInvocation>;
+  send(
+    call: RestateServiceMethodCall,
+    options?: RestateClientCallOptions,
+  ): Promise<RestateApiInvocation>;
   sendDelayed(
     call: RestateServiceMethodCall,
     ms: number,
+    options?: RestateClientCallOptions,
   ): Promise<RestateApiInvocation>;
   rpc<R, A extends any[]>(call: RestateServiceMethodCall<R, A>): Promise<R>;
 }
@@ -19,7 +33,7 @@ export interface RestateServiceMethodCall<R = never, A extends any[] = []> {
   readonly method: string;
   // Will be serialized
   readonly args: A;
-  readonly returnType: Type;
+  readonly deserializeReturn: SerializeFunction;
 }
 
 type RestateServiceMethod<F> = F extends (...args: infer P) => infer R

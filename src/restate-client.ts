@@ -1,18 +1,17 @@
 import {
-  deserialize,
   integer,
   PositiveNoZero,
   ReceiveType,
-  serializer,
   uuid,
   assert,
 } from '@deepkit/type';
 
-import { createServiceProxy } from './utils';
+import { assertArgs, createServiceProxy } from './utils';
 import {
   RestateServiceMethodCall,
   RestateService,
-  RestateServiceOptions,
+  RestateClientCallOptions,
+  RestateApiInvocation,
 } from './types';
 
 export interface RestateClientOptions {
@@ -20,17 +19,9 @@ export interface RestateClientOptions {
   // readonly authToken: string;
 }
 
-export interface RestateClientCallOptions {
-  readonly key?: string | number;
-}
-
 interface RestateApiResponseError {
   readonly code: string;
   readonly message: string;
-}
-
-export interface RestateApiInvocation {
-  readonly id: string;
 }
 
 export class RestateApiError extends Error {
@@ -46,18 +37,6 @@ function isRestateApiResponseError(
   value: any,
 ): value is RestateApiResponseError {
   return 'code' in value;
-}
-
-function assertArgs(
-  { keyed }: RestateServiceOptions,
-  { key }: RestateClientCallOptions,
-) {
-  if (keyed && key == null) {
-    throw new Error('Missing key for keyed service');
-  }
-  if (key != null && !keyed) {
-    throw new Error('Unnecessary key for unkeyed service');
-  }
 }
 
 export class RestateClient {
@@ -76,7 +55,7 @@ export class RestateClient {
       method,
       args,
       options: { keyed },
-      returnType,
+      deserializeReturn,
     }: RestateServiceMethodCall<R, A>,
     { key }: RestateClientCallOptions = {},
   ): Promise<R> {
@@ -97,18 +76,12 @@ export class RestateClient {
 
     const result = (await response.json()) as
       | RestateApiResponseError
-      | { readonly response: unknown };
+      | { readonly id: string; readonly response: unknown };
     if (isRestateApiResponseError(result)) {
       throw new RestateApiError(result.code, result.message);
     }
 
-    return deserialize<R>(
-      result.response,
-      { loosely: false },
-      serializer,
-      undefined,
-      returnType,
-    );
+    return deserializeReturn(result.response, { loosely: false });
   }
 
   async send<R, A extends any[]>(

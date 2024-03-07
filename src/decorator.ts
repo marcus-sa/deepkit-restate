@@ -26,9 +26,9 @@ import {
 import { RestateService, RestateServiceOptions } from './types';
 import {
   assertRestateServiceType,
-  createServiceMethodArgsType,
   getRestateServiceOptions,
-  unwrapType,
+  getReflectionFunctionArgsType,
+  getUnwrappedReflectionFunctionReturnType,
 } from './utils';
 
 export class RestateServiceMetadata implements RestateServiceOptions {
@@ -70,11 +70,9 @@ export class RestateClassDecorator {
 
 export class RestateServiceMethodMetadata {
   name: string;
-  returnType: Type;
-  serializeReturn: SerializeFunction;
-  argsType: TypeTuple;
-  deserializeArgs: SerializeFunction;
   classType: ClassType;
+  serializeReturn: SerializeFunction;
+  deserializeArgs: SerializeFunction;
 }
 
 export class RestatePropertyDecorator {
@@ -89,18 +87,19 @@ export class RestatePropertyDecorator {
     const reflectionClass = ReflectionClass.from(classType);
     const reflectionMethod = reflectionClass.getMethod(property);
 
-    this.t.returnType = unwrapType(reflectionMethod.getReturnType());
+    const returnType =
+      getUnwrappedReflectionFunctionReturnType(reflectionMethod);
     this.t.serializeReturn = serializeFunction(
       serializer,
       undefined,
-      this.t.returnType,
+      returnType,
     );
 
-    this.t.argsType = createServiceMethodArgsType(reflectionMethod);
+    const argsType = getReflectionFunctionArgsType(reflectionMethod);
     this.t.deserializeArgs = deserializeFunction(
       serializer,
       undefined,
-      this.t.argsType,
+      argsType,
     );
 
     restateClassDecorator.addMethod(this.t)(classType);
