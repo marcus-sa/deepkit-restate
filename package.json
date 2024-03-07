@@ -10,7 +10,7 @@
     "postinstall": "deepkit-type-install",
     "build": "vite build --ssr",
     "test": "vitest --watch=false",
-    "prepublish": "pnpm build"
+    "prepublish": "pnpm test && pnpm build"
   },
   "dependencies": {
     "tslib": "^2.3.0",
