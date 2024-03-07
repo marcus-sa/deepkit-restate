@@ -1,6 +1,6 @@
 {
   "name": "deepkit-restate",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "type": "module",
   "main": "./lib/index.cjs",
   "module": "./lib/index.js",
@@ -10,7 +10,7 @@
     "postinstall": "deepkit-type-install",
     "build": "vite build --ssr",
     "test": "vitest --watch=false",
-    "publish": "pnpm build && npm publish"
+    "prepublish": "pnpm build"
   },
   "dependencies": {
     "tslib": "^2.3.0",
