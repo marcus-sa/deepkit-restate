@@ -2,16 +2,22 @@ import assert from 'node:assert';
 import { ClassType } from '@deepkit/core';
 import {
   assertType,
+  deserialize,
+  getSerializeFunction,
   isExtendable,
   ReceiveType,
   reflect,
   ReflectionClass,
   ReflectionKind,
   resolveReceiveType,
+  serializeFunction,
   Type,
   TypeLiteral,
   TypeParameter,
   TypePropertySignature,
+  TypeTuple,
+  TypeTupleMember,
+  SerializeFunction,
 } from '@deepkit/type';
 
 import { restateClassDecorator, RestateServiceMetadata } from './decorator';
@@ -106,6 +112,11 @@ export function getRestateServiceOptions(type: Type): RestateServiceOptions {
     );
 }
 
+interface ServiceProxyMethod {
+  readonly returnType: Type;
+  readonly serializeArgs: SerializeFunction;
+}
+
 export function createServiceProxy<T extends RestateService<string, any>>(
   type?: ReceiveType<T>,
 ): T {
@@ -117,21 +128,49 @@ export function createServiceProxy<T extends RestateService<string, any>>(
   const serviceType = getTypeArgument(type, 1);
   const reflectionClass = ReflectionClass.from(serviceType);
 
+  const methods: Record<string, ServiceProxyMethod> = {};
+
   return new Proxy(
     {},
     {
       get(target: any, method: string) {
-        const reflectionMethod = reflectionClass.getMethod(method);
-        const returnType = unwrapType(reflectionMethod.getReturnType());
+        if (!methods[method]) {
+          const reflectionMethod = reflectionClass.getMethod(method);
+          const returnType = unwrapType(reflectionMethod.getReturnType());
 
-        return (...args: readonly unknown[]) =>
-          <RestateServiceMethodCall>{
+          const argsType: TypeTuple = {
+            kind: ReflectionKind.tuple,
+            types: [],
+          };
+
+          argsType.types = reflectionMethod.parameters.map(
+            (parameter): TypeTupleMember => ({
+              ...parameter.parameter,
+              parent: argsType,
+              kind: ReflectionKind.tupleMember,
+            }),
+          );
+
+          const serializeArgs = serializeFunction(
+            undefined,
+            undefined,
+            argsType,
+          );
+
+          methods[method] = { returnType, serializeArgs };
+        }
+        const { returnType, serializeArgs } = methods[method];
+
+        return (..._args: readonly unknown[]): RestateServiceMethodCall => {
+          const args = serializeArgs(_args);
+          return <RestateServiceMethodCall>{
             options,
             service,
             method,
             args,
             returnType,
           };
+        };
       },
     },
   );

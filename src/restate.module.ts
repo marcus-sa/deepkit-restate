@@ -65,8 +65,8 @@ export class RestateModule extends createModule({
     const restateServiceDeps = getRestateServiceDeps(metadata.classType);
 
     for (const dependency of restateServiceDeps) {
-      if (!module.isProvided(dependency)) {
-        module.addProvider({
+      if (!this.isProvided(dependency)) {
+        this.addProvider({
           provide: dependency,
           scope: SCOPE,
           useValue: createServiceProxy(dependency),

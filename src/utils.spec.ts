@@ -1,4 +1,10 @@
-import { assertType, reflect, ReflectionKind, typeOf } from '@deepkit/type';
+import {
+  assertType,
+  reflect,
+  ReflectionKind,
+  ReflectionMethod,
+  typeOf,
+} from '@deepkit/type';
 
 import { RestateKeyedContext, RestateService } from './types';
 import {
@@ -37,38 +43,15 @@ test('getClassConstructorParameters', () => {
     constructor(key: string) {}
   }
 
-  expect(getClassConstructorParameters(typeOf<Test>())).toMatchInlineSnapshot(`
-    [
-      {
-        "kind": 18,
-        "name": "key",
-        "parent": {
-          "kind": 16,
-          "name": "constructor",
-          "parameters": [Circular],
-          "parent": {
-            "classType": [Function],
-            "id": 42,
-            "kind": 20,
-            "typeArguments": undefined,
-            "typeName": "Test",
-            "types": [
-              [Circular],
-            ],
-          },
-          "return": {
-            "kind": 1,
-            "parent": [Circular],
-          },
-          "visibility": 0,
-        },
-        "type": {
-          "kind": 5,
-          "parent": [Circular],
-        },
+  expect(getClassConstructorParameters(typeOf<Test>())).toMatchObject([
+    {
+      kind: 18,
+      name: 'key',
+      type: {
+        kind: 5,
       },
-    ]
-  `);
+    },
+  ]);
 });
 
 describe('getTypeArgument', () => {
@@ -152,4 +135,29 @@ test('getRestateDependenciesForService', () => {
 
   const deps = getRestateServiceDeps(TestService);
   expect(deps).toHaveLength(1);
+});
+
+describe('createServiceProxy', () => {
+  test('args', () => {
+    class User {
+      readonly createdAt: Date = new Date('2024-03-07T11:08:04.590Z');
+    }
+
+    interface PaymentServiceInterface {
+      send(user: User): Promise<void>;
+    }
+
+    type PaymentServiceApi = RestateService<'payment', PaymentServiceInterface>;
+
+    const service = createServiceProxy<PaymentServiceApi>();
+
+    const { args } = service.send(new User());
+    expect(args).toMatchInlineSnapshot(`
+      [
+        {
+          "createdAt": "2024-03-07T11:08:04.590Z",
+        },
+      ]
+    `);
+  });
 });

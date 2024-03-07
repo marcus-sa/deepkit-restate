@@ -17,6 +17,7 @@ export interface RestateServiceMethodCall<R = never, A extends any[] = []> {
   readonly options: RestateServiceOptions;
   readonly service: string;
   readonly method: string;
+  // Will be serialized
   readonly args: A;
   readonly returnType: Type;
 }
