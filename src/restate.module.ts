@@ -4,11 +4,7 @@ import { Services } from './services';
 import { RestateServer } from './restate-server';
 import { restateClassDecorator } from './decorator';
 import { restateContextType, restateKeyedContextType, SCOPE } from './types';
-import {
-  createServiceProxy,
-  getRestateServiceDeps,
-  getRestateServiceMetadata,
-} from './utils';
+import { createServiceProxy, getRestateServiceDeps } from './utils';
 
 export class RestateConfig {
   readonly port: number = 9080;
@@ -26,6 +22,22 @@ export class RestateModule extends createModule({
       provide: Services,
       useValue: this.services,
     });
+
+    this.addProvider({
+      provide: restateContextType,
+      scope: SCOPE,
+      useFactory() {
+        throw new Error('You cannot use an unkeyed context in a keyed service');
+      },
+    });
+
+    this.addProvider({
+      provide: restateKeyedContextType,
+      scope: SCOPE,
+      useFactory() {
+        throw new Error('You cannot use a keyed context in an unkeyed service');
+      },
+    });
   }
 
   override processController(
@@ -34,34 +46,9 @@ export class RestateModule extends createModule({
   ) {
     if (!controller) return;
 
-    const resolver = restateClassDecorator._fetch(controller);
-    if (!resolver) return;
+    const metadata = restateClassDecorator._fetch(controller);
+    if (!metadata) return;
 
-    if (!module.isProvided(restateKeyedContextType)) {
-      module.addProvider({
-        provide: restateKeyedContextType,
-        scope: SCOPE,
-        useFactory() {
-          throw new Error(
-            'You cannot use a keyed context in an unkeyed service',
-          );
-        },
-      });
-    }
-
-    if (!module.isProvided(restateContextType)) {
-      module.addProvider({
-        provide: restateContextType,
-        scope: SCOPE,
-        useFactory() {
-          throw new Error(
-            'You cannot use an unkeyed context in a keyed service',
-          );
-        },
-      });
-    }
-
-    const metadata = getRestateServiceMetadata(controller);
     const restateServiceDeps = getRestateServiceDeps(metadata.classType);
 
     for (const dependency of restateServiceDeps) {

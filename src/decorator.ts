@@ -4,6 +4,7 @@ import {
   createClassDecoratorContext,
   createPropertyDecoratorContext,
   DecoratorAndFetchSignature,
+  deserializeFunction,
   DualDecorator,
   ExtractApiDataType,
   ExtractClass,
@@ -13,15 +14,19 @@ import {
   ReceiveType,
   ReflectionClass,
   resolveReceiveType,
+  serializeFunction,
+  SerializeFunction,
+  serializer,
   Type,
-  TypeClass,
   TypeObjectLiteral,
+  TypeTuple,
   UnionToIntersection,
 } from '@deepkit/type';
 
 import { RestateService, RestateServiceOptions } from './types';
 import {
   assertRestateServiceType,
+  createServiceMethodArgsType,
   getRestateServiceOptions,
   unwrapType,
 } from './utils';
@@ -29,7 +34,7 @@ import {
 export class RestateServiceMetadata implements RestateServiceOptions {
   classType: ClassType;
   keyed?: boolean = false;
-  type: TypeClass | TypeObjectLiteral;
+  type: TypeObjectLiteral;
   readonly methods = new Set<RestateServiceMethodMetadata>();
 }
 
@@ -66,6 +71,9 @@ export class RestateClassDecorator {
 export class RestateServiceMethodMetadata {
   name: string;
   returnType: Type;
+  serializeReturn: SerializeFunction;
+  argsType: TypeTuple;
+  deserializeArgs: SerializeFunction;
   classType: ClassType;
 }
 
@@ -74,13 +82,28 @@ export class RestatePropertyDecorator {
 
   onDecorator(classType: ClassType, property: string | undefined) {
     if (!property) return;
+
     this.t.name = property;
     this.t.classType = classType;
-    restateClassDecorator.addMethod(this.t)(classType);
 
     const reflectionClass = ReflectionClass.from(classType);
     const reflectionMethod = reflectionClass.getMethod(property);
+
     this.t.returnType = unwrapType(reflectionMethod.getReturnType());
+    this.t.serializeReturn = serializeFunction(
+      serializer,
+      undefined,
+      this.t.returnType,
+    );
+
+    this.t.argsType = createServiceMethodArgsType(reflectionMethod);
+    this.t.deserializeArgs = deserializeFunction(
+      serializer,
+      undefined,
+      this.t.argsType,
+    );
+
+    restateClassDecorator.addMethod(this.t)(classType);
   }
 
   // eslint-disable-next-line @typescript-eslint/no-empty-function

@@ -1,2 +1,2 @@
-export * from './decorator';
-export * from './restate.module';
+export { restate } from './decorator';
+export { RestateModule, RestateConfig } from './restate.module';

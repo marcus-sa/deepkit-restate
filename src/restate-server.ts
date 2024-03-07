@@ -134,16 +134,11 @@ export class RestateServer {
   async callServiceMethod<T>(
     instance: any,
     method: RestateServiceMethodMetadata,
-    args: readonly unknown[],
+    _args: readonly unknown[],
   ): Promise<T> {
+    const args = method.deserializeArgs(_args, { loosely: false });
     const result = await instance[method.name].bind(instance)(...args);
-    return serialize(
-      result,
-      undefined,
-      serializer,
-      undefined,
-      method.returnType,
-    );
+    return method.serializeReturn(result);
   }
 
   @eventDispatcher.listen(onServerMainBootstrap)

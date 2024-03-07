@@ -18,6 +18,7 @@ import {
   TypeTuple,
   TypeTupleMember,
   SerializeFunction,
+  ReflectionMethod,
 } from '@deepkit/type';
 
 import { restateClassDecorator, RestateServiceMetadata } from './decorator';
@@ -117,6 +118,25 @@ interface ServiceProxyMethod {
   readonly serializeArgs: SerializeFunction;
 }
 
+export function createServiceMethodArgsType(
+  reflectionMethod: ReflectionMethod,
+): TypeTuple {
+  const argsType: TypeTuple = {
+    kind: ReflectionKind.tuple,
+    types: [],
+  };
+
+  argsType.types = reflectionMethod.parameters.map(
+    (parameter): TypeTupleMember => ({
+      ...parameter.parameter,
+      parent: argsType,
+      kind: ReflectionKind.tupleMember,
+    }),
+  );
+
+  return argsType;
+}
+
 export function createServiceProxy<T extends RestateService<string, any>>(
   type?: ReceiveType<T>,
 ): T {
@@ -138,18 +158,7 @@ export function createServiceProxy<T extends RestateService<string, any>>(
           const reflectionMethod = reflectionClass.getMethod(method);
           const returnType = unwrapType(reflectionMethod.getReturnType());
 
-          const argsType: TypeTuple = {
-            kind: ReflectionKind.tuple,
-            types: [],
-          };
-
-          argsType.types = reflectionMethod.parameters.map(
-            (parameter): TypeTupleMember => ({
-              ...parameter.parameter,
-              parent: argsType,
-              kind: ReflectionKind.tupleMember,
-            }),
-          );
+          const argsType = createServiceMethodArgsType(reflectionMethod);
 
           const serializeArgs = serializeFunction(
             undefined,
