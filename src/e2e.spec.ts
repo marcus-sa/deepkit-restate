@@ -35,44 +35,51 @@ test('e2e', async () => {
   });
   void app.startServer();
 
-  const response = await fetch('http://0.0.0.0:9070/deployments', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ uri: 'http://0.0.0.0:9081' }),
-  });
-  expect(await response.json()).toMatchObject({
-    id: expect.any(String),
-    services: [
-      {
-        deployment_id: expect.any(String),
-        instance_type: 'Keyed',
-        methods: [
-          {
-            input_type: 'RpcRequest',
-            key_field_number: 1,
-            name: 'create',
-            output_type: 'RpcResponse',
-          },
-        ],
-        name: 'user',
-        public: true,
-        revision: expect.any(Number),
+  {
+    const response = await fetch('http://0.0.0.0:9070/deployments', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
       },
-    ],
-  });
+      body: JSON.stringify({ uri: 'http://host.docker.internal:9081' }),
+    });
+    expect(await response.json()).toMatchObject({
+      services: [
+        {
+          name: 'user',
+          instance_type: 'Keyed',
+          methods: [
+            {
+              input_type: 'RpcRequest',
+              key_field_number: 1,
+              name: 'create',
+              output_type: 'RpcResponse',
+            },
+          ],
+        },
+      ],
+    });
+  }
 
   const client = new RestateClient('http://0.0.0.0:8080');
 
   const user = client.service<UserServiceApi>();
 
-  const result = await client.rpc(user.create('Test'), {
-    key: uuid(),
-  });
-  expect(result).toBeInstanceOf(User);
-  expect(result).toMatchObject({
-    id: expect.any(String),
-    username: 'Test',
-  });
+  {
+    const result = await client.rpc(user.create('Test'), {
+      key: uuid(),
+    });
+    expect(result).toBeInstanceOf(User);
+    expect(result).toMatchObject({
+      id: expect.any(String),
+      username: 'Test',
+    });
+  }
+
+  {
+    const result = await client.send(user.create('Test'), {
+      key: uuid(),
+    });
+    expect(result.id).toMatch(/^inv_/);
+  }
 });

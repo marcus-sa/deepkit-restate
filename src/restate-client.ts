@@ -1,7 +1,19 @@
-import { deserialize, ReceiveType, serializer, uuid } from '@deepkit/type';
+import {
+  deserialize,
+  integer,
+  PositiveNoZero,
+  ReceiveType,
+  serializer,
+  uuid,
+  assert,
+} from '@deepkit/type';
 
 import { createServiceProxy } from './utils';
-import { RestateServiceMethodCall, RestateService } from './types';
+import {
+  RestateServiceMethodCall,
+  RestateService,
+  RestateServiceOptions,
+} from './types';
 
 export interface RestateClientOptions {
   // Not implemented (see https://discord.com/channels/1128210118216007792/1214635273141616761/1214932617435156510)
@@ -12,12 +24,16 @@ export interface RestateClientCallOptions {
   readonly key?: string | number;
 }
 
-interface RestateApiError {
+interface RestateApiResponseError {
   readonly code: string;
   readonly message: string;
 }
 
-class RestateApiError extends Error {
+export interface RestateApiInvocation {
+  readonly id: string;
+}
+
+export class RestateApiError extends Error {
   constructor(
     readonly code: string,
     message: string,
@@ -26,8 +42,22 @@ class RestateApiError extends Error {
   }
 }
 
-export function isRestateApiError(value: any): value is RestateApiError {
+function isRestateApiResponseError(
+  value: any,
+): value is RestateApiResponseError {
   return 'code' in value;
+}
+
+function assertArgs(
+  { keyed }: RestateServiceOptions,
+  { key }: RestateClientCallOptions,
+) {
+  if (keyed && key == null) {
+    throw new Error('Missing key for keyed service');
+  }
+  if (key != null && !keyed) {
+    throw new Error('Unnecessary key for unkeyed service');
+  }
 }
 
 export class RestateClient {
@@ -50,12 +80,7 @@ export class RestateClient {
     }: RestateServiceMethodCall<R, A>,
     { key }: RestateClientCallOptions = {},
   ): Promise<R> {
-    if (keyed && key == null) {
-      throw new Error('Missing key for keyed service');
-    }
-    if (key != null && !keyed) {
-      throw new Error('Unnecessary key for unkeyed service');
-    }
+    assertArgs({ keyed }, { key });
 
     const response = await fetch(`${this.url}/${service}/${method}`, {
       method: 'POST',
@@ -71,46 +96,62 @@ export class RestateClient {
     });
 
     const result = (await response.json()) as
-      | RestateApiError
-      | { readonly response: R };
-    if (isRestateApiError(result)) {
+      | RestateApiResponseError
+      | { readonly response: unknown };
+    if (isRestateApiResponseError(result)) {
       throw new RestateApiError(result.code, result.message);
     }
 
-    return deserialize(
+    return deserialize<R>(
       result.response,
-      undefined,
+      { loosely: false },
       serializer,
       undefined,
       returnType,
     );
   }
 
-  async send(
-    { service, method, args }: RestateServiceMethodCall,
+  async send<R, A extends any[]>(
+    {
+      service,
+      method,
+      args,
+      options: { keyed },
+    }: RestateServiceMethodCall<R, A>,
     { key }: RestateClientCallOptions = {},
-  ): Promise<string> {
+  ): Promise<RestateApiInvocation> {
+    assertArgs({ keyed }, { key });
+
     const result = await fetch(`${this.url}/dev.restate.Ingress/Invoke`, {
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'idempotency-key': key != null ? key.toString() : uuid(),
+        'idempotency-key': keyed ? key!.toString() : uuid(),
         // Authorization: `Bearer ${this.options.authToken}`,
       },
       body: JSON.stringify({
         service,
         method,
-        argument: args,
+        argument: keyed ? { key, request: args } : args,
       }),
     });
-    console.log(await result.json());
-    return ''; // TODO: return invocation id
+
+    return (await result.json()) as RestateApiInvocation;
   }
 
-  async sendDelayed(
-    call: RestateServiceMethodCall,
+  async sendDelayed<R, A extends any[]>(
+    {
+      service,
+      method,
+      args,
+      options: { keyed },
+    }: RestateServiceMethodCall<R, A>,
     ms: number,
     { key }: RestateClientCallOptions = {},
   ): Promise<void> {
+    assertArgs({ keyed }, { key });
+    assert<integer & PositiveNoZero>(ms);
+
     throw new Error('Unimplemented');
   }
 }

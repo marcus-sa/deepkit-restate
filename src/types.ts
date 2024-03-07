@@ -2,9 +2,14 @@ import { Type, typeOf } from '@deepkit/type';
 import { Context, KeyedContext } from '@restatedev/restate-sdk';
 import { getContainerToken } from '@deepkit/injector';
 
+import { RestateApiInvocation } from './restate-client';
+
 export interface CustomContext {
-  send(call: RestateServiceMethodCall): Promise<void>;
-  sendDelayed(call: RestateServiceMethodCall, ms: number): Promise<void>;
+  send(call: RestateServiceMethodCall): Promise<RestateApiInvocation>;
+  sendDelayed(
+    call: RestateServiceMethodCall,
+    ms: number,
+  ): Promise<RestateApiInvocation>;
   rpc<R, A extends any[]>(call: RestateServiceMethodCall<R, A>): Promise<R>;
 }
 

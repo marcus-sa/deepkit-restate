@@ -2,11 +2,19 @@ import { eventDispatcher } from '@deepkit/event';
 import { onServerMainBootstrap } from '@deepkit/framework';
 import { InjectorContext } from '@deepkit/injector';
 import * as restate from '@restatedev/restate-sdk';
-import { deserialize, serialize, serializer } from '@deepkit/type';
+import {
+  assert,
+  deserialize,
+  integer,
+  PositiveNoZero,
+  serialize,
+  serializer,
+} from '@deepkit/type';
 
 import { Service, Services } from './services';
 import { RestateServiceMethodMetadata } from './decorator';
 import { RestateConfig } from './restate.module';
+import { RestateApiInvocation } from './restate-client';
 import { getRestateServiceName } from './utils';
 import {
   CustomContext,
@@ -31,16 +39,21 @@ export class RestateServer {
     ctx: restate.Context | restate.KeyedContext,
   ): RestateContext | RestateKeyedContext {
     return Object.assign(ctx, <CustomContext>{
-      send: async ({ service, method, args }: RestateServiceMethodCall) => {
+      send: async ({
+        service,
+        method,
+        args,
+      }: RestateServiceMethodCall): Promise<RestateApiInvocation> => {
         const client = ctx.send({ path: service });
-        await (client as any)[method].bind(client)(...args);
+        return await (client as any)[method].bind(client)(...args);
       },
       sendDelayed: async (
         { service, method, args }: RestateServiceMethodCall,
         ms: number,
-      ) => {
+      ): Promise<RestateApiInvocation> => {
+        assert<integer & PositiveNoZero>(ms);
         const client = ctx.sendDelayed({ path: service }, ms);
-        await (client as any)[method].bind(client)(...args);
+        return await (client as any)[method].bind(client)(...args);
       },
       rpc: async <T>({
         service,
@@ -52,7 +65,7 @@ export class RestateServer {
         const result = await (client as any)[method].bind(client)(...args);
         return deserialize(
           result,
-          undefined,
+          { loosely: false },
           serializer,
           undefined,
           returnType,

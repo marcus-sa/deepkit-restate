@@ -14,13 +14,13 @@ import {
   TypePropertySignature,
 } from '@deepkit/type';
 
+import { restateClassDecorator, RestateServiceMetadata } from './decorator';
 import {
   RestateService,
   RestateServiceMethodCall,
   RestateServiceOptions,
   restateServiceType,
 } from './types';
-import { restateClassDecorator, RestateServiceMetadata } from './decorator';
 
 export function getRestateServiceDeps(classType: ClassType): readonly Type[] {
   const serviceType = reflect(classType);
@@ -124,7 +124,7 @@ export function createServiceProxy<T extends RestateService<string, any>>(
         const reflectionMethod = reflectionClass.getMethod(method);
         const returnType = unwrapType(reflectionMethod.getReturnType());
 
-        return (...args: any[]) =>
+        return (...args: readonly unknown[]) =>
           <RestateServiceMethodCall>{
             options,
             service,
