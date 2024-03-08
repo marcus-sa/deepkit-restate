@@ -60,9 +60,7 @@ export const restateContextType = typeOf<RestateContext>();
 
 export const restateContextToken = getContainerToken(restateContextType);
 
-export interface RestateKeyedContext
-  extends CustomContext,
-    Omit<KeyedContext, 'rpc' | 'send' | 'sendDelayed'> {
+export interface RestateKeyedContext extends RestateContext {
   readonly key: string;
 }
 
