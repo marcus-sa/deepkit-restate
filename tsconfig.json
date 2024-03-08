@@ -3,7 +3,6 @@
   "compilerOptions": {
     "rootDir": ".",
     "moduleResolution": "node",
-    "outDir": "lib/esm",
     "strictPropertyInitialization": false,
     "emitDecoratorMetadata": true,
     "useDefineForClassFields": false,
