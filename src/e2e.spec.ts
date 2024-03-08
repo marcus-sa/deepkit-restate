@@ -24,6 +24,10 @@ describe('e2e', () => {
   describe('context', () => {
     test('rpc', async () => {
       class Account {
+        static create(ctx: RestateContext, user: User): Account {
+          return new Account(ctx.rand.uuidv4(), user.id);
+        }
+
         constructor(
           readonly id: UUID,
           readonly userId: User['id'] & Unique,
@@ -33,12 +37,16 @@ describe('e2e', () => {
       class User {
         readonly accountId?: Account['id'] & Unique;
 
+        static create(ctx: RestateContext, username: string): User {
+          return new User(ctx.rand.uuidv4(), username);
+        }
+
         constructor(
           readonly id: UUID,
           readonly username: string,
         ) {}
 
-        setAccount(account: Account) {
+        setAccount(account: Account): void {
           (this as any).accountId = account.id;
         }
       }
@@ -56,7 +64,7 @@ describe('e2e', () => {
         @restate.method()
         async create(user: User): Promise<Account> {
           expect(user).toBeInstanceOf(User);
-          return new Account(this.ctx.rand.uuidv4(), user.id);
+          return Account.create(this.ctx, user);
         }
       }
 
@@ -75,7 +83,7 @@ describe('e2e', () => {
 
         @restate.method()
         async create(username: string): Promise<User> {
-          const user = new User(this.ctx.rand.uuidv4(), username);
+          const user = User.create(this.ctx, username);
           const account = await this.ctx.rpc(this.account.create(user));
           user.setAccount(account);
           return user;
