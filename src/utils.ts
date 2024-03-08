@@ -1,6 +1,13 @@
 import assert from 'node:assert';
 import { ClassType } from '@deepkit/core';
 import {
+  bsonBinarySerializer,
+  BSONSerializer,
+  BSONDeserializer,
+  getBSONDeserializer,
+  getBSONSerializer,
+} from '@deepkit/bson';
+import {
   assertType,
   isExtendable,
   ReceiveType,
@@ -8,7 +15,6 @@ import {
   ReflectionClass,
   ReflectionKind,
   resolveReceiveType,
-  serializeFunction,
   Type,
   TypeLiteral,
   TypeParameter,
@@ -16,13 +22,17 @@ import {
   TypeTuple,
   TypeTupleMember,
   ReflectionFunction,
-  SerializeFunction,
-  deserializeFunction,
-  serializer,
+  TypeObjectLiteral,
 } from '@deepkit/type';
+import {
+  RpcRequest,
+  RpcResponse,
+} from '@restatedev/restate-sdk/dist/generated/proto/dynrpc';
 
 import {
   RestateClientCallOptions,
+  RestateRpcRequest,
+  RestateRpcResponse,
   RestateService,
   RestateServiceMethodCall,
   RestateServiceOptions,
@@ -113,9 +123,9 @@ export function getRestateServiceOptions(type: Type): RestateServiceOptions {
     );
 }
 
-interface ServiceProxyMethod {
-  readonly serializeArgs: SerializeFunction;
-  readonly deserializeReturn: SerializeFunction;
+interface ServiceProxyMethod<T> {
+  readonly serializeArgs: BSONSerializer;
+  readonly deserializeReturn: BSONDeserializer<T>;
 }
 
 export function getReflectionFunctionArgsType(
@@ -152,9 +162,10 @@ export function createServiceProxy<T extends RestateService<string, any>>(
   const options = getRestateServiceOptions(type);
 
   const serviceType = getTypeArgument(type, 1);
+
   const reflectionClass = ReflectionClass.from(serviceType);
 
-  const methods: Record<string, ServiceProxyMethod> = {};
+  const methods: Record<string, ServiceProxyMethod<unknown>> = {};
 
   return new Proxy(
     {},
@@ -164,17 +175,15 @@ export function createServiceProxy<T extends RestateService<string, any>>(
           const reflectionMethod = reflectionClass.getMethod(method);
 
           const argsType = getReflectionFunctionArgsType(reflectionMethod);
-          const serializeArgs = serializeFunction(
-            serializer,
-            undefined,
+          const serializeArgs = getBSONSerializer(
+            bsonBinarySerializer,
             argsType,
           );
 
           const returnType =
             getUnwrappedReflectionFunctionReturnType(reflectionMethod);
-          const deserializeReturn = deserializeFunction(
-            serializer,
-            undefined,
+          const deserializeReturn = getBSONDeserializer(
+            bsonBinarySerializer,
             returnType,
           );
 
@@ -182,15 +191,15 @@ export function createServiceProxy<T extends RestateService<string, any>>(
         }
         const { serializeArgs, deserializeReturn } = methods[method];
 
-        return (..._args: readonly unknown[]): RestateServiceMethodCall => {
-          const args = serializeArgs(_args);
-          return <RestateServiceMethodCall>{
+        return (...args: readonly unknown[]): RestateServiceMethodCall => {
+          const data = encodeRpcResponse(serializeArgs(args));
+          return <RestateServiceMethodCall>(<unknown>{
             options,
             service,
             method,
-            args,
+            data,
             deserializeReturn,
-          };
+          });
         };
       },
     },
@@ -207,4 +216,24 @@ export function assertArgs(
   if (key != null && !keyed) {
     throw new Error('Unnecessary key for unkeyed service');
   }
+}
+
+export function encodeRpcRequest(
+  request: RestateRpcRequest,
+  key?: string,
+): Uint8Array {
+  return RpcRequest.encode(
+    RpcRequest.create({
+      key,
+      request,
+    }),
+  ).finish();
+}
+
+export function encodeRpcResponse(response: Uint8Array): RestateRpcResponse {
+  return Array.from(response);
+}
+
+export function decodeRpcResponse(response: Uint8Array): Uint8Array {
+  return new Uint8Array(RpcResponse.decode(response).response);
 }

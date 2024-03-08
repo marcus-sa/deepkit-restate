@@ -7,9 +7,14 @@ import { assert, integer, PositiveNoZero } from '@deepkit/type';
 import { Service, Services } from './services';
 import { RestateServiceMethodMetadata } from './decorator';
 import { RestateConfig } from './restate.module';
-import { assertArgs, getRestateServiceName } from './utils';
 import {
-  RestateApiInvocation,
+  assertArgs,
+  decodeRpcResponse,
+  encodeRpcRequest,
+  encodeRpcResponse,
+  getRestateServiceName,
+} from './utils';
+import {
   CustomContext,
   RestateServiceMethodCall,
   RestateContext,
@@ -18,6 +23,8 @@ import {
   restateKeyedContextToken,
   restateContextToken,
   RestateClientCallOptions,
+  RestateRpcRequest,
+  RestateRpcResponse,
 } from './types';
 
 export class RestateServer {
@@ -34,43 +41,49 @@ export class RestateServer {
   ): RestateContext | RestateKeyedContext {
     return Object.assign(ctx, <CustomContext>{
       send: async (
-        { service, method, args, options: { keyed } }: RestateServiceMethodCall,
+        { service, method, data, options: { keyed } }: RestateServiceMethodCall,
         { key }: RestateClientCallOptions = {},
-      ): Promise<RestateApiInvocation> => {
+      ): Promise<void> => {
         assertArgs({ keyed }, { key });
-        const client = ctx.send({ path: service });
-        return keyed
-          ? await (client as any)[method].bind(client)(key, ...args)
-          : await (client as any)[method].bind(client)(...args);
+
+        await (ctx as any).invokeOneWay(
+          service,
+          method,
+          encodeRpcRequest(data, key),
+          0,
+        );
       },
       sendDelayed: async (
-        { service, method, args, options: { keyed } }: RestateServiceMethodCall,
+        { service, method, data, options: { keyed } }: RestateServiceMethodCall,
         ms: number,
         { key }: RestateClientCallOptions = {},
-      ): Promise<RestateApiInvocation> => {
+      ): Promise<void> => {
         assert<integer & PositiveNoZero>(ms);
         assertArgs({ keyed }, { key });
-        const client = ctx.sendDelayed({ path: service }, ms);
-        return keyed
-          ? await (client as any)[method].bind(client)(key, ...args)
-          : await (client as any)[method].bind(client)(...args);
+
+        await (ctx as any).invokeOneWay(
+          service,
+          method,
+          encodeRpcRequest(data, key),
+          ms,
+        );
       },
       rpc: async <T>(
         {
           service,
           method,
-          args,
+          data,
           deserializeReturn,
           options: { keyed },
         }: RestateServiceMethodCall,
         { key }: RestateClientCallOptions = {},
       ): Promise<T> => {
         assertArgs({ keyed }, { key });
-        const client = ctx.rpc({ path: service });
-        const result = keyed
-          ? await (client as any)[method].bind(client)(key, ...args)
-          : await (client as any)[method].bind(client)(...args);
-        return deserializeReturn(result, { loosely: false });
+        return (ctx as any)
+          .invoke(service, method, encodeRpcRequest(data, key))
+          .transform((response: Uint8Array) =>
+            deserializeReturn(decodeRpcResponse(response)),
+          );
       },
     });
   }
@@ -89,15 +102,15 @@ export class RestateServer {
         ...routes,
         [method.name]: async (
           _ctx: restate.Context,
-          args: readonly unknown[],
-        ) => {
+          data: RestateRpcRequest,
+        ): Promise<RestateRpcResponse> => {
           const injector = this.createScopedInjector();
 
           const ctx = this.createContext(_ctx);
           injector.set(restateContextToken, ctx, module);
 
           const instance = injector.get(controller, module);
-          return await this.callServiceMethod(instance, method, args);
+          return await this.callServiceMethod(instance, method, data);
         },
       }),
       {} as restate.UnKeyedRouter<unknown>,
@@ -115,8 +128,8 @@ export class RestateServer {
         [method.name]: async (
           _ctx: restate.KeyedContext,
           key: string,
-          args: readonly unknown[],
-        ) => {
+          data: RestateRpcRequest,
+        ): Promise<RestateRpcResponse> => {
           const injector = this.createScopedInjector();
 
           const ctx = this.createContext(_ctx);
@@ -125,21 +138,21 @@ export class RestateServer {
           injector.set(restateKeyedContextToken, ctx, module);
 
           const instance = injector.get(controller, module);
-          return await this.callServiceMethod(instance, method, args);
+          return await this.callServiceMethod(instance, method, data);
         },
       }),
       {} as restate.KeyedRouter<unknown>,
     );
   }
 
-  async callServiceMethod<T>(
+  async callServiceMethod(
     instance: any,
     method: RestateServiceMethodMetadata,
-    _args: readonly unknown[],
-  ): Promise<T> {
-    const args = method.deserializeArgs(_args, { loosely: false });
+    data: RestateRpcRequest,
+  ): Promise<RestateRpcResponse> {
+    const args = method.deserializeArgs(new Uint8Array(data));
     const result = await instance[method.name].bind(instance)(...args);
-    return method.serializeReturn(result);
+    return encodeRpcResponse(method.serializeReturn(result));
   }
 
   @eventDispatcher.listen(onServerMainBootstrap)
