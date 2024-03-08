@@ -2,6 +2,7 @@ import {
   reflect,
   ReflectionFunction,
   ReflectionKind,
+  serialize,
   typeOf,
 } from '@deepkit/type';
 
@@ -18,6 +19,11 @@ import {
   isRestateServiceType,
 } from './utils';
 import { describe } from 'vitest';
+import {
+  bsonBinarySerializer,
+  getBSONDeserializer,
+  getBSONSerializer,
+} from '@deepkit/bson';
 
 describe('isRestateServiceType', () => {
   test('returns true', () => {
@@ -93,33 +99,6 @@ test('getRestateServiceOptions', () => {
   `);
 });
 
-test('createServiceProxy', () => {
-  interface PaymentServiceInterface {
-    send(id: number): Promise<string>;
-  }
-
-  type PaymentServiceApi = RestateService<
-    'payment',
-    PaymentServiceInterface,
-    { keyed: true }
-  >;
-
-  const proxy = createServiceProxy<PaymentServiceApi>();
-
-  const result = proxy.send(1);
-  expect(result.args).toMatchInlineSnapshot(`
-    [
-      1,
-    ]
-  `);
-  expect(result.method).toMatchInlineSnapshot(`"send"`);
-  expect(result.options).toMatchInlineSnapshot(`
-    {
-      "keyed": true,
-    }
-  `);
-});
-
 test('getRestateDependenciesForService', () => {
   interface PaymentServiceInterface {
     send(): Promise<void>;
@@ -163,6 +142,63 @@ test('getReflectionFunctionArgsType', () => {
   });
 });
 
+test('getReflectionFunctionArgsType 2', () => {
+  class User {}
+
+  function create(user: User): void {}
+
+  const reflectionFunction = ReflectionFunction.from(create);
+
+  const argsType = getReflectionFunctionArgsType(reflectionFunction);
+
+  expect(argsType).toMatchObject({
+    kind: ReflectionKind.tuple,
+    types: [
+      {
+        kind: ReflectionKind.tupleMember,
+        name: 'user',
+        type: {
+          kind: ReflectionKind.class,
+          classType: User,
+        },
+      },
+    ],
+  });
+
+  const serialize = getBSONSerializer(bsonBinarySerializer, argsType);
+  const deserialize = getBSONDeserializer(bsonBinarySerializer, argsType);
+
+  const serialized = serialize([new User()]);
+  const deserialized = deserialize(serialized) as readonly unknown[];
+  expect(deserialized[0]).toBeInstanceOf(User);
+});
+
+test('getReflectionFunctionArgsType', () => {
+  function createUser(username: string, password: string): void {}
+
+  const reflectionFunction = ReflectionFunction.from(createUser);
+
+  expect(getReflectionFunctionArgsType(reflectionFunction)).toMatchObject({
+    kind: ReflectionKind.tuple,
+    types: [
+      {
+        kind: ReflectionKind.tupleMember,
+        name: 'username',
+        type: {
+          kind: ReflectionKind.string,
+        },
+      },
+      {
+        kind: ReflectionKind.tupleMember,
+        name: 'password',
+        type: {
+          kind: ReflectionKind.string,
+        },
+      },
+    ],
+  });
+});
+
 test('getUnwrappedReflectionFunctionReturnType', () => {
   async function test(): Promise<void> {}
 
@@ -176,25 +212,72 @@ test('getUnwrappedReflectionFunctionReturnType', () => {
 });
 
 describe('createServiceProxy', () => {
-  test('args', () => {
-    class User {
-      readonly createdAt: Date = new Date('2024-03-07T11:08:04.590Z');
-    }
+  class User {
+    readonly createdAt: Date = new Date('2024-03-07T11:08:04.590Z');
+  }
 
-    interface PaymentServiceInterface {
-      send(user: User): Promise<void>;
-    }
+  interface PaymentServiceInterface {
+    send(user: User): Promise<void>;
+  }
 
-    type PaymentServiceApi = RestateService<'payment', PaymentServiceInterface>;
+  type PaymentServiceApi = RestateService<
+    'payment',
+    PaymentServiceInterface,
+    { keyed: true }
+  >;
 
-    const service = createServiceProxy<PaymentServiceApi>();
+  const service = createServiceProxy<PaymentServiceApi>();
 
-    const { args } = service.send(new User());
-    expect(args).toMatchInlineSnapshot(`
+  test('method', () => {
+    const { method } = service.send(new User());
+    expect(method).toMatchInlineSnapshot(`"send"`);
+  });
+
+  test('options', () => {
+    const { options } = service.send(new User());
+    expect(options).toMatchInlineSnapshot(`
+      {
+        "keyed": true,
+      }
+    `);
+  });
+
+  test('data', () => {
+    const { data } = service.send(new User());
+    expect(data).toMatchInlineSnapshot(`
       [
-        {
-          "createdAt": "2024-03-07T11:08:04.590Z",
-        },
+        32,
+        0,
+        0,
+        0,
+        3,
+        48,
+        0,
+        24,
+        0,
+        0,
+        0,
+        9,
+        99,
+        114,
+        101,
+        97,
+        116,
+        101,
+        100,
+        65,
+        116,
+        0,
+        110,
+        80,
+        153,
+        24,
+        142,
+        1,
+        0,
+        0,
+        0,
+        0,
       ]
     `);
   });

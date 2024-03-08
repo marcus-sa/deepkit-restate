@@ -12,6 +12,7 @@ import {
   RestateService,
   RestateClientCallOptions,
   RestateApiInvocation,
+  RestateRpcResponse,
 } from './types';
 
 export interface RestateClientOptions {
@@ -53,7 +54,7 @@ export class RestateClient {
     {
       service,
       method,
-      args,
+      data,
       options: { keyed },
       deserializeReturn,
     }: RestateServiceMethodCall<R, A>,
@@ -70,32 +71,32 @@ export class RestateClient {
       },
       body: JSON.stringify({
         key: key != null ? key.toString() : undefined,
-        request: args,
+        request: data,
       }),
     });
 
     const result = (await response.json()) as
       | RestateApiResponseError
-      | { readonly id: string; readonly response: unknown };
+      | { readonly id: string; readonly response: RestateRpcResponse };
     if (isRestateApiResponseError(result)) {
       throw new RestateApiError(result.code, result.message);
     }
 
-    return deserializeReturn(result.response, { loosely: false });
+    return deserializeReturn(new Uint8Array(result.response));
   }
 
   async send<R, A extends any[]>(
     {
       service,
       method,
-      args,
+      data,
       options: { keyed },
     }: RestateServiceMethodCall<R, A>,
     { key }: RestateClientCallOptions = {},
   ): Promise<RestateApiInvocation> {
     assertArgs({ keyed }, { key });
 
-    const result = await fetch(`${this.url}/dev.restate.Ingress/Invoke`, {
+    const response = await fetch(`${this.url}/dev.restate.Ingress/Invoke`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -105,18 +106,25 @@ export class RestateClient {
       body: JSON.stringify({
         service,
         method,
-        argument: keyed ? { key, request: args } : args,
+        argument: { key, request: data },
       }),
     });
 
-    return (await result.json()) as RestateApiInvocation;
+    const result = (await response.json()) as
+      | RestateApiResponseError
+      | RestateApiInvocation;
+    if (isRestateApiResponseError(result)) {
+      throw new RestateApiError(result.code, result.message);
+    }
+
+    return result;
   }
 
   async sendDelayed<R, A extends any[]>(
     {
       service,
       method,
-      args,
+      data,
       options: { keyed },
     }: RestateServiceMethodCall<R, A>,
     ms: number,

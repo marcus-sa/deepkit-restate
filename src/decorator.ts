@@ -1,10 +1,16 @@
 import { ClassType } from '@deepkit/core';
 import {
+  bsonBinarySerializer,
+  BSONDeserializer,
+  BSONSerializer,
+  getBSONDeserializer,
+  getBSONSerializer,
+} from '@deepkit/bson';
+import {
   ClassDecoratorFn,
   createClassDecoratorContext,
   createPropertyDecoratorContext,
   DecoratorAndFetchSignature,
-  deserializeFunction,
   DualDecorator,
   ExtractApiDataType,
   ExtractClass,
@@ -14,12 +20,7 @@ import {
   ReceiveType,
   ReflectionClass,
   resolveReceiveType,
-  serializeFunction,
-  SerializeFunction,
-  serializer,
-  Type,
   TypeObjectLiteral,
-  TypeTuple,
   UnionToIntersection,
 } from '@deepkit/type';
 
@@ -68,11 +69,11 @@ export class RestateClassDecorator {
   }
 }
 
-export class RestateServiceMethodMetadata {
+export class RestateServiceMethodMetadata<T = readonly unknown[]> {
   name: string;
   classType: ClassType;
-  serializeReturn: SerializeFunction;
-  deserializeArgs: SerializeFunction;
+  serializeReturn: BSONSerializer;
+  deserializeArgs: BSONDeserializer<T>;
 }
 
 export class RestatePropertyDecorator {
@@ -89,16 +90,14 @@ export class RestatePropertyDecorator {
 
     const returnType =
       getUnwrappedReflectionFunctionReturnType(reflectionMethod);
-    this.t.serializeReturn = serializeFunction(
-      serializer,
-      undefined,
+    this.t.serializeReturn = getBSONSerializer(
+      bsonBinarySerializer,
       returnType,
     );
 
     const argsType = getReflectionFunctionArgsType(reflectionMethod);
-    this.t.deserializeArgs = deserializeFunction(
-      serializer,
-      undefined,
+    this.t.deserializeArgs = getBSONDeserializer(
+      bsonBinarySerializer,
       argsType,
     );
 
