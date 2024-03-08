@@ -1,25 +1,8 @@
 import { deepkitType } from '@deepkit/vite';
 import { defineConfig } from 'vite';
-import dts from 'vite-plugin-dts';
 
 export default defineConfig(({ mode }) => {
   return {
-    build: {
-      outDir: 'lib',
-      rollupOptions: {
-        preserveEntrySignatures: 'strict',
-        output: {
-          esModule: true,
-        },
-      },
-      lib: {
-        entry: 'src/index.ts',
-        formats: ['es', 'cjs'],
-      },
-    },
-    ssr: {
-      external: true,
-    },
     resolve: {
       mainFields: ['module'],
     },
@@ -29,7 +12,6 @@ export default defineConfig(({ mode }) => {
           sourceMap: true,
         },
       }),
-      dts({ rollupTypes: true }),
     ],
     test: {
       globals: true,
@@ -37,7 +19,7 @@ export default defineConfig(({ mode }) => {
       environment: 'node',
       include: ['**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
       reporters: ['default'],
-      testTimeout: 10_000,
+      testTimeout: 5_000,
       coverage: {
         provider: 'v8',
       },
