@@ -1,7 +1,9 @@
 {
   "name": "deepkit-restate",
-  "version": "0.0.10",
-  "type": "module",
+  "version": "0.0.11",
+  "license": "MIT",
+  "repository": "https://github.com/marcus-sa/deepkit-restate",
+  "author": "Marcus S. Abildskov <root@marcus-sa.dev>",
   "main": "./lib/cjs/src/index.js",
   "module": "./lib/esm/src/index.js",
   "typings": "./lib/types/src/index.d.ts",
