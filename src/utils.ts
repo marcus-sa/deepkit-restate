@@ -22,7 +22,7 @@ import {
   TypeTuple,
   TypeTupleMember,
   ReflectionFunction,
-  TypeObjectLiteral,
+  TypeObjectLiteral, typeToObject,
 } from '@deepkit/type';
 import {
   RpcRequest,
@@ -106,21 +106,7 @@ export function getRestateServiceOptions(type: Type): RestateServiceOptions {
   assertRestateServiceType(type);
 
   const thirdTypeArgument = getTypeArgument(type, 2);
-  if (!thirdTypeArgument) return {};
-  assertType(thirdTypeArgument, ReflectionKind.objectLiteral);
-
-  return thirdTypeArgument.types
-    .filter(
-      (type): type is TypePropertySignature =>
-        type.kind === ReflectionKind.propertySignature,
-    )
-    .reduce(
-      (options, type) => ({
-        ...options,
-        [type.name]: (type.type as TypeLiteral).literal,
-      }),
-      {} as RestateServiceOptions,
-    );
+  return typeToObject(thirdTypeArgument);
 }
 
 interface ServiceProxyMethod<T> {
