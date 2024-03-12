@@ -3,10 +3,12 @@ import { ClassType } from '@deepkit/core';
 
 import { RestateSagaMetadata } from './decorator';
 
-export interface Saga<T> {
-  readonly classType: ClassType<T>;
+import { Saga as _Saga } from './saga/saga';
+
+export interface Saga {
+  readonly classType: ClassType<_Saga>;
   readonly module?: InjectorModule;
   readonly metadata: RestateSagaMetadata;
 }
 
-export class Sagas extends Set<Saga<unknown>> {}
+export class Sagas extends Set<Saga> {}

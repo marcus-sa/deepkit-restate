@@ -115,8 +115,6 @@ describe('e2e', () => {
   });
 
   describe('service', () => {
-    test('keyed', () => {});
-
     test('unkeyed', async () => {
       class User {
         readonly id: UUID = uuid();

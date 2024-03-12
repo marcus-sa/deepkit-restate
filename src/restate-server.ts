@@ -2,10 +2,16 @@ import { eventDispatcher } from '@deepkit/event';
 import { onServerMainBootstrap } from '@deepkit/framework';
 import { InjectorContext } from '@deepkit/injector';
 import * as restate from '@restatedev/restate-sdk';
-import { assert, integer, PositiveNoZero, typeSettings } from '@deepkit/type';
+import {
+  assert,
+  hasTypeInformation,
+  integer,
+  PositiveNoZero,
+  reflect,
+} from '@deepkit/type';
 
 import { Service, Services } from './services';
-import { Sagas, Saga } from './sagas';
+import { Sagas } from './sagas';
 import {
   RestateServiceMetadata,
   RestateServiceMethodMetadata,
@@ -13,7 +19,7 @@ import {
 import { RestateConfig } from './restate.module';
 import {
   assertArgs,
-  decodeRpcResponse,
+  decodeInternalResponse,
   encodeRpcRequest,
   encodeRpcResponse,
 } from './utils';
@@ -28,8 +34,14 @@ import {
   RestateClientCallOptions,
   RestateRpcRequest,
   RestateRpcResponse,
+  RestateSagaContext,
+  restateSagaContextToken,
 } from './types';
-import { isClass } from '@deepkit/core';
+import { TerminalError } from '@restatedev/restate-sdk';
+import { RpcResponse } from '@restatedev/restate-sdk/dist/generated/proto/dynrpc';
+import { Saga } from './saga/saga';
+import { ClassType } from '@deepkit/core';
+import { SagaManager } from './saga/saga-manager';
 
 export class RestateServer {
   readonly endpoint = restate.endpoint();
@@ -43,7 +55,7 @@ export class RestateServer {
 
   createContext(
     ctx: restate.Context | restate.KeyedContext,
-  ): RestateContext | RestateKeyedContext {
+  ): RestateContext | RestateKeyedContext | RestateSagaContext {
     return Object.assign(ctx, <CustomContext>{
       send: async (
         { service, method, data, keyed }: RestateServiceMethodCall,
@@ -80,6 +92,7 @@ export class RestateServer {
           data,
           deserializeReturn,
           keyed,
+          entities,
         }: RestateServiceMethodCall,
         { key }: RestateClientCallOptions = {},
       ): Promise<T> => {
@@ -87,7 +100,11 @@ export class RestateServer {
         return (ctx as any)
           .invoke(service, method, encodeRpcRequest(data, key))
           .transform((response: Uint8Array) =>
-            deserializeReturn(decodeRpcResponse(response)),
+            decodeInternalResponse(
+              new Uint8Array(RpcResponse.decode(response).response),
+              deserializeReturn,
+              entities,
+            ),
           );
       },
     });
@@ -159,9 +176,25 @@ export class RestateServer {
     try {
       const args = method.deserializeArgs(new Uint8Array(data));
       const result = await instance[method.name].bind(instance)(...args);
-      return encodeRpcResponse(method.serializeReturn(result));
+      return encodeRpcResponse({
+        success: true,
+        data: method.serializeReturn(result),
+        typeName: method.returnType.typeName!,
+      });
     } catch (err: any) {
-      if (service.entities.has(err)) {
+      if (err instanceof Error && hasTypeInformation(err.constructor)) {
+        const entityName = reflect(err.constructor).typeName!;
+        const entity = service.entities.get(entityName);
+        if (entity) {
+          return encodeRpcResponse({
+            success: false,
+            data: entity.serialize(err),
+            typeName: entityName,
+          });
+        }
+      }
+      if (err instanceof TypeError) {
+        throw new TerminalError(err.message, { cause: 'TypeError' });
       }
       throw err;
     }
@@ -180,6 +213,22 @@ export class RestateServer {
     }
 
     for (const saga of this.sagas) {
+      this.endpoint.bindKeyedRouter(saga.metadata.name, {
+        create: async (
+          _ctx: restate.KeyedContext,
+          key: string,
+          request: RestateRpcRequest,
+        ): Promise<void> => {
+          const ctx = this.createContext(_ctx) as RestateSagaContext;
+          Object.assign(ctx, { key });
+          const injector = this.createScopedInjector();
+          injector.set(restateSagaContextToken, ctx);
+          const restateSaga = injector.get(saga.classType, saga.module);
+          const sagaManager = new SagaManager(ctx, restateSaga, saga.metadata);
+          const data = saga.metadata.deserializeData(new Uint8Array(request));
+          await sagaManager.start(data);
+        },
+      });
     }
 
     await this.endpoint.listen(this.config.port);

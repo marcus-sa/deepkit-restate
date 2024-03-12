@@ -20,12 +20,18 @@ import {
   ReceiveType,
   ReflectionClass,
   resolveReceiveType,
+  Type,
   TypeClass,
   TypeObjectLiteral,
   UnionToIntersection,
 } from '@deepkit/type';
 
-import { RestateKeyedService, RestateSaga, RestateService } from './types';
+import {
+  Entities,
+  RestateKeyedService,
+  RestateSaga,
+  RestateService,
+} from './types';
 import {
   getReflectionFunctionArgsType,
   getUnwrappedReflectionFunctionReturnType,
@@ -34,38 +40,38 @@ import {
   getRestateSagaName,
   getRestateServiceEntities,
   isRestateServiceKeyed,
+  getSagaDataType,
+  getSagaDataDeserializer,
+  getSagaDataSerializer,
 } from './utils';
 
 export class RestateServiceMetadata {
   readonly name: string;
   classType: ClassType;
   readonly keyed: boolean;
-  readonly entities = new Set<ClassType>();
+  readonly entities: Entities = new Map();
   readonly type: TypeObjectLiteral;
   readonly methods = new Set<RestateServiceMethodMetadata>();
 }
 
-export class RestateSagaMetadata {
+export class RestateSagaMetadata<T = unknown> {
   readonly name: string;
   classType: ClassType;
   readonly type: TypeClass | TypeObjectLiteral;
+  readonly deserializeData: BSONDeserializer<T>;
+  readonly serializeData: BSONDeserializer<T>;
 }
 
 export class RestateClassMetadata {
-  service?: RestateServiceMetadata;
-  saga?: RestateSagaMetadata;
+  service?: RestateServiceMetadata = new RestateServiceMetadata();
+  saga?: RestateSagaMetadata = new RestateSagaMetadata();
 }
 
 export class RestateClassDecorator {
   t = new RestateClassMetadata();
 
   onDecorator(classType: ClassType) {
-    if (this.t.service) {
-      this.t.service.classType = classType;
-    }
-    if (this.t.saga) {
-      this.t.saga.classType = classType;
-    }
+    (this.t.service || this.t.saga)!.classType = classType;
   }
 
   service<
@@ -77,7 +83,8 @@ export class RestateClassDecorator {
     const name = getRestateServiceName(type);
     const entities = getRestateServiceEntities(type);
     const keyed = isRestateServiceKeyed(type);
-    this.t.service = Object.assign(new RestateServiceMetadata(), {
+    delete this.t.saga;
+    Object.assign(this.t.service!, {
       entities,
       name,
       type,
@@ -86,15 +93,20 @@ export class RestateClassDecorator {
   }
 
   addServiceMethod(action: RestateServiceMethodMetadata) {
-    this.t.service?.methods.add(action);
+    this.t.service!.methods.add(action);
   }
 
   saga<T extends RestateSaga<string, any>>(type?: ReceiveType<T>) {
     type = resolveReceiveType(type);
     const name = getRestateSagaName(type);
-    this.t.saga = Object.assign(new RestateSagaMetadata(), {
+    const deserializeData = getSagaDataDeserializer(type);
+    const serializeData = getSagaDataSerializer(type);
+    delete this.t.service;
+    Object.assign(this.t.saga!, {
       name,
       type,
+      deserializeData,
+      serializeData,
     });
   }
 }
@@ -102,6 +114,7 @@ export class RestateClassDecorator {
 export class RestateServiceMethodMetadata<T = readonly unknown[]> {
   name: string;
   classType: ClassType;
+  returnType: Type;
   serializeReturn: BSONSerializer;
   deserializeArgs: BSONDeserializer<T>;
 }
@@ -118,11 +131,11 @@ export class RestatePropertyDecorator {
     const reflectionClass = ReflectionClass.from(classType);
     const reflectionMethod = reflectionClass.getMethod(property);
 
-    const returnType =
+    this.t.returnType =
       getUnwrappedReflectionFunctionReturnType(reflectionMethod);
     this.t.serializeReturn = getBSONSerializer(
       bsonBinarySerializer,
-      returnType,
+      this.t.returnType,
     );
 
     const argsType = getReflectionFunctionArgsType(reflectionMethod);
@@ -152,7 +165,11 @@ export class RestatePropertyDecorator {
 
 type RestateClassFluidDecorator<T, D extends Function> = {
   [K in keyof T]: K extends 'service'
-    ? <For extends RestateService<string, any>>(
+    ? <
+        For extends
+          | RestateService<string, any, any[]>
+          | RestateKeyedService<string, any, any[]>,
+      >(
         type?: ReceiveType<For>,
       ) => D & RestateClassFluidDecorator<T, D>
     : K extends 'saga'
@@ -189,7 +206,11 @@ export const restateClassDecorator: RestateClassDecoratorResult =
 
 type RestateMerge<U> = {
   [K in keyof U]: K extends 'service'
-    ? <For extends RestateService<string, any>>(
+    ? <
+        For extends
+          | RestateService<string, any, any[]>
+          | RestateKeyedService<any, any, any[]>,
+      >(
         type?: ReceiveType<For>,
       ) => (PropertyDecoratorFn | ClassDecoratorFn) & U
     : K extends 'saga'

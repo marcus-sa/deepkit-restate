@@ -29,11 +29,7 @@ test('e2e', () => {
     rejectionReason?: OrderRejectionReason;
   }
 
-  type CreateOrderSagaApi = RestateSaga<
-    'create-order',
-    CreateOrderSagaData,
-    [CustomerNotFound, CustomerCreditLimitExceeded]
-  >;
+  type CreateOrderSagaApi = RestateSaga<'create-order', CreateOrderSagaData>;
 
   class OrderRepository {
     save(data: any) {}

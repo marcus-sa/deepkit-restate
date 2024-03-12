@@ -70,7 +70,6 @@ class InvokedStepBuilder<Data>
     ) {
       throw new Error('Only classes and interfaces are supported');
     }
-    console.log(ReflectionFunction.from(handler).getReturnType());
 
     if (this.compensator) {
       this.compensationReplyHandlers.set(type.typeName!, { type, handler });
@@ -102,7 +101,6 @@ export class StepBuilder<Data> {
   invoke(
     handler: Handler<Data>,
   ): ParticipantStepBuilder<Data> | LocalStepBuilder<Data> {
-    console.log(ReflectionFunction.from(handler).getReturnType());
     return new InvokedStepBuilder<Data>(this.builder, handler);
   }
 }

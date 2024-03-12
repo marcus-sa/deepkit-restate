@@ -4,6 +4,7 @@ import {
   bsonBinarySerializer,
   BSONDeserializer,
   BSONSerializer,
+  deserializeBSON,
   getBSONDeserializer,
   getBSONSerializer,
 } from '@deepkit/bson';
@@ -23,9 +24,6 @@ import {
   TypeParameter,
   TypeTuple,
   TypeTupleMember,
-  SerializedType,
-  deserializeType,
-  SerializedTypes,
 } from '@deepkit/type';
 import {
   RpcRequest,
@@ -33,6 +31,10 @@ import {
 } from '@restatedev/restate-sdk/dist/generated/proto/dynrpc';
 
 import {
+  deserializeInternalResponse,
+  Entities,
+  Entity,
+  InternalResponse,
   RestateClientCallOptions,
   RestateKeyedService,
   restateKeyedServiceType,
@@ -44,12 +46,14 @@ import {
   restateServiceMethodCallType,
   RestateServiceOptions,
   restateServiceType,
+  serializeInternalResponse,
 } from './types';
 import {
   restateClassDecorator,
   RestateSagaMetadata,
   RestateServiceMetadata,
 } from './decorator';
+import { TerminalError } from '@restatedev/restate-sdk';
 
 export function getRestateServiceDeps(classType: ClassType): readonly Type[] {
   const serviceType = reflect(classType);
@@ -133,52 +137,56 @@ export function getTypeArgument(type: Type, index: number): Type | undefined {
   );
 }
 
-export function getRestateServiceName(type: Type): string {
-  const typeArgument = getTypeArgument(type, 0);
+export function getRestateServiceName(serviceType: Type): string {
+  const typeArgument = getTypeArgument(serviceType, 0);
   assertType(typeArgument, ReflectionKind.literal);
   return typeArgument.literal as string;
 }
 
-export function getRestateSagaName(type: Type): string {
-  assertRestateSagaType(type);
-  const typeArgument = getTypeArgument(type, 0);
+export function getRestateSagaName(sagaType: Type): string {
+  assertRestateSagaType(sagaType);
+  const typeArgument = getTypeArgument(sagaType, 0);
   assertType(typeArgument, ReflectionKind.literal);
   return typeArgument.literal as string;
 }
 
-export function getRestateSagaDataType(type: Type): TypeObjectLiteral {
-  assertRestateSagaType(type);
+export function getSagaDataDeserializer<T>(
+  sagaType: Type,
+): BSONDeserializer<T> {
+  const dataType = getSagaDataType(sagaType);
+  return getBSONDeserializer(bsonBinarySerializer, dataType);
+}
 
-  const typeArgument = getTypeArgument(type, 1);
+export function getSagaDataSerializer(sagaType: Type): BSONSerializer {
+  const dataType = getSagaDataType(sagaType);
+  return getBSONSerializer(bsonBinarySerializer, dataType);
+}
+
+export function getSagaDataType(sagaType: Type): TypeObjectLiteral {
+  assertRestateSagaType(sagaType);
+
+  const typeArgument = getTypeArgument(sagaType, 1);
   assertType(typeArgument, ReflectionKind.objectLiteral);
   return typeArgument;
 }
 
-export function getRestateSagaEntities(type: Type): readonly TypeClass[] {
-  assertRestateSagaType(type);
-
-  const typeArgument = getTypeArgument(type, 2);
+export function getRestateServiceEntities(serviceType: Type): Entities {
+  const typeArgument = getTypeArgument(serviceType, 2);
+  if (!typeArgument) return new Map();
   assertType(typeArgument, ReflectionKind.tuple);
 
-  return typeArgument.types
-    .map(type => type.type)
-    .filter((type): type is TypeClass => type.kind === ReflectionKind.class);
-}
-
-export function getOriginTypeName(type: Type): string {
-  return type.originTypes?.[0].typeName!;
-}
-
-export function getRestateServiceEntities(type: Type): Set<ClassType> {
-  const typeArgument = getTypeArgument(type, 2);
-  if (!typeArgument) return new Set();
-  assertType(typeArgument, ReflectionKind.tuple);
-
-  return new Set(
+  return new Map(
     typeArgument.types
       .map(type => type.type)
       .filter((type): type is TypeClass => type.kind === ReflectionKind.class)
-      .map(type => type.classType),
+      .map(type => {
+        const deserialize = getBSONDeserializer(bsonBinarySerializer, type);
+        const serialize = getBSONSerializer(bsonBinarySerializer, type);
+        return [
+          type.typeName!,
+          { deserialize, serialize, classType: type.classType },
+        ];
+      }),
   );
 }
 
@@ -262,15 +270,15 @@ export function createServiceProxy<
         const { serializeArgs, deserializeReturn } = methods[method];
 
         return (...args: readonly unknown[]): RestateServiceMethodCall => {
-          const data = encodeRpcResponse(serializeArgs(args));
-          return {
+          const data = Array.from(serializeArgs(args));
+          return Object.assign(new RestateServiceMethodCall(), {
             entities,
             service,
             keyed,
             method,
             data,
             deserializeReturn,
-          };
+          });
         };
       },
     },
@@ -301,16 +309,26 @@ export function encodeRpcRequest(
   ).finish();
 }
 
-export function encodeSuccessResponse(response: Uint8Array) {}
-
-export function encodeErrorResponse() {}
-
-export function encodeRpcResponse(response: Uint8Array): RestateRpcResponse {
-  return Array.from(response);
+export function encodeRpcResponse(
+  response: InternalResponse,
+): RestateRpcResponse {
+  return Array.from(serializeInternalResponse(response));
 }
 
-export function decodeRpcResponse(response: Uint8Array): Uint8Array {
-  return new Uint8Array(RpcResponse.decode(response).response);
+export function decodeInternalResponse<T>(
+  response: Uint8Array,
+  deserialize: BSONDeserializer<T>,
+  entities: Entities,
+): T {
+  const internalResponse = deserializeInternalResponse(response);
+  if (internalResponse.success) {
+    return deserialize(internalResponse.data);
+  }
+  const entity = entities.get(internalResponse.typeName);
+  if (!entity) {
+    throw new TerminalError('Unknown entity');
+  }
+  throw entity.deserialize(internalResponse.data);
 }
 
 export function getRestateServiceMetadata(
@@ -323,19 +341,4 @@ export function getRestateSagaMetadata(
   classType: ClassType,
 ): RestateSagaMetadata | undefined {
   return restateClassDecorator._fetch(classType)?.saga;
-}
-
-type InternalResponse =
-  | { success: true; data: Uint8Array }
-  | { success: false; error: Uint8Array; serializedType: SerializedTypes };
-
-export function handleResponse<T>(
-  response: InternalResponse,
-  entities: TypeClass[] = [],
-): T {
-  if (!response.success) {
-    deserializeType(response.serializedType);
-    throw new Error();
-  }
-  return response.data;
 }

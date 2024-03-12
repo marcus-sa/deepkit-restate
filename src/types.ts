@@ -1,7 +1,13 @@
 import { TypeClass, typeOf, uint8 } from '@deepkit/type';
 import { Context, KeyedContext } from '@restatedev/restate-sdk';
 import { getContainerToken } from '@deepkit/injector';
-import { BSONDeserializer } from '@deepkit/bson';
+import {
+  bsonBinarySerializer,
+  BSONDeserializer,
+  BSONSerializer,
+  getBSONDeserializer,
+  getBSONSerializer,
+} from '@deepkit/bson';
 import { ClassType } from '@deepkit/core';
 
 export interface RestateApiInvocation {
@@ -26,9 +32,17 @@ export interface CustomContext {
   rpc<R, A extends any[]>(call: RestateServiceMethodCall<R, A>): Promise<R>;
 }
 
-export interface RestateServiceMethodCall<R = any, A extends any[] = []> {
+export interface Entity<T> {
+  readonly classType: ClassType;
+  readonly serialize: BSONSerializer;
+  readonly deserialize: BSONDeserializer<T>;
+}
+
+export type Entities = Map<string, Entity<unknown>>;
+
+export class RestateServiceMethodCall<R = any, A extends any[] = []> {
   readonly keyed: boolean;
-  readonly entities: Set<ClassType>;
+  readonly entities: Entities;
   readonly service: string;
   readonly method: string;
   readonly data: RestateRpcRequest;
@@ -63,11 +77,7 @@ export type RestateKeyedService<
   [M in keyof S as S[M] extends never ? never : M]: RestateServiceMethod<S[M]>;
 };
 
-export type RestateSaga<
-  Name extends string,
-  Data,
-  Entities extends any[] = [],
-> = never;
+export type RestateSaga<Name extends string, Data> = never;
 
 export type RestateContext = CustomContext &
   Omit<Context, 'rpc' | 'send' | 'sendDelayed'>;
@@ -77,6 +87,24 @@ export interface RestateKeyedContext
     Omit<KeyedContext, 'rpc' | 'send' | 'sendDelayed'> {
   readonly key: string;
 }
+
+export interface InternalResponse {
+  readonly success: boolean;
+  readonly data: Uint8Array;
+  readonly typeName: string;
+}
+
+export const internalResponseType = typeOf<InternalResponse>();
+
+export const deserializeInternalResponse = getBSONDeserializer(
+  bsonBinarySerializer,
+  internalResponseType,
+);
+
+export const serializeInternalResponse = getBSONSerializer(
+  bsonBinarySerializer,
+  internalResponseType,
+);
 
 export type RestateSagaContext = RestateKeyedContext;
 
