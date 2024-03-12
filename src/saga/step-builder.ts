@@ -52,7 +52,7 @@ class InvokedStepBuilder<Data>
     );
   }
 
-  compensate(handler: Handler<Data>): this {
+  compensate(handler: Handler<Data>, predicate?: PredicateFn<Data>): this {
     this.compensator = handler.bind(this.builder.saga);
     return this;
   }
