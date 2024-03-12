@@ -16,6 +16,8 @@ export type SagaReplyHandlerFn<Data, Reply> = AsyncLikeFn<
   void
 >;
 
+export type PredicateFn<Data> = AsyncLikeFn<[data: Data], boolean>;
+
 export interface SagaReplyHandler<Data, Reply> {
   readonly type: TypeClass | TypeObjectLiteral;
   readonly handler: SagaReplyHandlerFn<Data, Reply>;
