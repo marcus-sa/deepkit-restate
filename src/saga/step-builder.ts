@@ -8,25 +8,24 @@ import {
 import { RestateServiceMethodCall } from '../types';
 import { SagaDefinitionBuilder } from './saga-definition-builder';
 import { SagaStep } from './saga-step';
-import { Handler, SagaReplyHandlerFn, SagaReplyHandlers } from './types';
+import { Handler, SagaReplyHandlerFn, SagaReplyHandlers, PredicateFn } from './types';
 import { SagaDefinition } from './saga-definition';
 
 export interface BaseStepBuilder<Data> {
-  /**
-   * Compensates for action failures in a reversed order
-   */
-  compensate(handler: Handler<Data>): this;
   step(): StepBuilder<Data>;
   build(): SagaDefinition<Data>;
 }
 
-export interface LocalStepBuilder<Data> extends BaseStepBuilder<Data> {}
+export interface LocalStepBuilder<Data> extends BaseStepBuilder<Data> {
+  compensate(handler: Handler<Data>): this;
+}
 
 export interface ParticipantStepBuilder<Data> extends BaseStepBuilder<Data> {
   onReply<T>(
     handler: (data: Data, reply: T) => Promise<void> | void,
     type?: ReceiveType<T>,
   ): this;
+  compensate(handler: Handler<Data>, predicate?: PredicateFn<Data>): this;
 }
 
 class InvokedStepBuilder<Data>
