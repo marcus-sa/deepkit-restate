@@ -50,12 +50,17 @@ export class RestateClient {
     return createServiceProxy<T>(type);
   }
 
+  // TODO: start saga
+  // saga<T>(type?: ReceiveType<T>): { start: () => Promise<void> } {
+  //   return {};
+  // }
+
   async rpc<R, A extends any[]>(
     {
       service,
       method,
       data,
-      options: { keyed },
+      keyed,
       deserializeReturn,
     }: RestateServiceMethodCall<R, A>,
     { key }: RestateClientCallOptions = {},
@@ -86,12 +91,7 @@ export class RestateClient {
   }
 
   async send<R, A extends any[]>(
-    {
-      service,
-      method,
-      data,
-      options: { keyed },
-    }: RestateServiceMethodCall<R, A>,
+    { service, method, data, keyed }: RestateServiceMethodCall<R, A>,
     { key }: RestateClientCallOptions = {},
   ): Promise<RestateApiInvocation> {
     assertArgs({ keyed }, { key });
@@ -121,12 +121,7 @@ export class RestateClient {
   }
 
   async sendDelayed<R, A extends any[]>(
-    {
-      service,
-      method,
-      data,
-      options: { keyed },
-    }: RestateServiceMethodCall<R, A>,
+    { service, method, data, keyed }: RestateServiceMethodCall<R, A>,
     ms: number,
     { key }: RestateClientCallOptions = {},
   ): Promise<void> {

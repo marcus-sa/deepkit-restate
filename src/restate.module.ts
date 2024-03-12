@@ -2,9 +2,21 @@ import { AppModule, ControllerConfig, createModule } from '@deepkit/app';
 
 import { Services } from './services';
 import { RestateServer } from './restate-server';
-import { restateClassDecorator } from './decorator';
-import { restateContextType, restateKeyedContextType, SCOPE } from './types';
-import { createServiceProxy, getRestateServiceDeps } from './utils';
+import {
+  restateContextType,
+  restateKeyedContextType,
+  restateSagaContextType,
+  SCOPE,
+} from './types';
+import { Sagas } from './sagas';
+import {
+  createServiceProxy,
+  getRestateSagaMetadata,
+  getRestateServiceDeps,
+  getRestateServiceMetadata,
+} from './utils';
+import { ClassType } from '@deepkit/core';
+import { RestateSagaMetadata, RestateServiceMetadata } from './decorator';
 
 export class RestateConfig {
   readonly port: number = 9080;
@@ -16,11 +28,17 @@ export class RestateModule extends createModule({
   forRoot: true,
 }) {
   readonly services = new Services();
+  readonly sagas = new Sagas();
 
   override process() {
     this.addProvider({
       provide: Services,
       useValue: this.services,
+    });
+
+    this.addProvider({
+      provide: Sagas,
+      useValue: this.sagas,
     });
 
     this.addProvider({
@@ -38,18 +56,34 @@ export class RestateModule extends createModule({
         throw new Error('You cannot use a keyed context in an unkeyed service');
       },
     });
+
+    this.addProvider({
+      provide: restateSagaContextType,
+      scope: SCOPE,
+      useFactory() {
+        throw new Error('You cannot use a saga context outside a saga');
+      },
+    });
   }
 
-  override processController(
+  private addService(
     module: AppModule<any>,
-    { controller }: ControllerConfig,
-  ) {
-    if (!controller) return;
+    classType: ClassType,
+    metadata: RestateServiceMetadata,
+  ): void {
+    this.services.add({ classType, module, metadata });
+  }
 
-    const metadata = restateClassDecorator._fetch(controller);
-    if (!metadata) return;
+  private addSaga(
+    module: AppModule<any>,
+    classType: ClassType,
+    metadata: RestateSagaMetadata,
+  ): void {
+    this.sagas.add({ classType, module, metadata });
+  }
 
-    const restateServiceDeps = getRestateServiceDeps(metadata.classType);
+  private addDeps(classType: ClassType): void {
+    const restateServiceDeps = getRestateServiceDeps(classType);
 
     for (const dependency of restateServiceDeps) {
       if (!this.isProvided(dependency)) {
@@ -60,11 +94,28 @@ export class RestateModule extends createModule({
         });
       }
     }
+  }
+
+  override processController(
+    module: AppModule<any>,
+    { controller }: ControllerConfig,
+  ) {
+    if (!controller) return;
+
+    const serviceMetadata = getRestateServiceMetadata(controller);
+    const sagaMetadata = getRestateSagaMetadata(controller);
+    if (serviceMetadata) {
+      this.addService(module, controller, serviceMetadata);
+    } else if (sagaMetadata) {
+      this.addSaga(module, controller, sagaMetadata);
+    } else {
+      return;
+    }
+
+    this.addDeps(controller);
 
     if (!module.isProvided(controller)) {
       module.addProvider({ provide: controller, scope: SCOPE });
     }
-
-    this.services.add({ controller, module, metadata });
   }
 }

@@ -20,52 +20,82 @@ import {
   ReceiveType,
   ReflectionClass,
   resolveReceiveType,
+  TypeClass,
   TypeObjectLiteral,
   UnionToIntersection,
 } from '@deepkit/type';
 
-import { RestateService, RestateServiceOptions } from './types';
+import { RestateKeyedService, RestateSaga, RestateService } from './types';
 import {
-  assertRestateServiceType,
-  getRestateServiceOptions,
   getReflectionFunctionArgsType,
   getUnwrappedReflectionFunctionReturnType,
+  assertRestateSagaType,
+  getRestateServiceName,
+  getRestateSagaName,
+  getRestateServiceEntities,
+  isRestateServiceKeyed,
 } from './utils';
 
-export class RestateServiceMetadata implements RestateServiceOptions {
+export class RestateServiceMetadata {
+  readonly name: string;
   classType: ClassType;
-  keyed?: boolean = false;
-  type: TypeObjectLiteral;
+  readonly keyed: boolean;
+  readonly entities = new Set<ClassType>();
+  readonly type: TypeObjectLiteral;
   readonly methods = new Set<RestateServiceMethodMetadata>();
 }
 
+export class RestateSagaMetadata {
+  readonly name: string;
+  classType: ClassType;
+  readonly type: TypeClass | TypeObjectLiteral;
+}
+
+export class RestateClassMetadata {
+  service?: RestateServiceMetadata;
+  saga?: RestateSagaMetadata;
+}
+
 export class RestateClassDecorator {
-  t = new RestateServiceMetadata();
+  t = new RestateClassMetadata();
 
   onDecorator(classType: ClassType) {
-    this.t.classType = classType;
-  }
-
-  service<T extends RestateService<string, any>>(type?: ReceiveType<T>) {
-    try {
-      type = resolveReceiveType(type);
-      assertRestateServiceType(type);
-      const { keyed } = getRestateServiceOptions(type);
-      this.t.type = type as TypeObjectLiteral;
-      this.t.keyed = keyed;
-    } catch (err) {
-      if (
-        err instanceof Error &&
-        err.message !==
-          'No type information received. Is deepkit/type correctly installed?'
-      ) {
-        throw err;
-      }
+    if (this.t.service) {
+      this.t.service.classType = classType;
+    }
+    if (this.t.saga) {
+      this.t.saga.classType = classType;
     }
   }
 
-  addMethod(action: RestateServiceMethodMetadata) {
-    this.t.methods.add(action);
+  service<
+    T extends
+      | RestateService<string, any, any[]>
+      | RestateKeyedService<string, any, any[]>,
+  >(type?: ReceiveType<T>) {
+    type = resolveReceiveType(type);
+    const name = getRestateServiceName(type);
+    const entities = getRestateServiceEntities(type);
+    const keyed = isRestateServiceKeyed(type);
+    this.t.service = Object.assign(new RestateServiceMetadata(), {
+      entities,
+      name,
+      type,
+      keyed,
+    });
+  }
+
+  addServiceMethod(action: RestateServiceMethodMetadata) {
+    this.t.service?.methods.add(action);
+  }
+
+  saga<T extends RestateSaga<string, any>>(type?: ReceiveType<T>) {
+    type = resolveReceiveType(type);
+    const name = getRestateSagaName(type);
+    this.t.saga = Object.assign(new RestateSagaMetadata(), {
+      name,
+      type,
+    });
   }
 }
 
@@ -101,7 +131,7 @@ export class RestatePropertyDecorator {
       argsType,
     );
 
-    restateClassDecorator.addMethod(this.t)(classType);
+    restateClassDecorator.addServiceMethod(this.t)(classType);
   }
 
   // eslint-disable-next-line @typescript-eslint/no-empty-function
@@ -110,14 +140,29 @@ export class RestatePropertyDecorator {
 
 // this workaround is necessary since generic functions (necessary for response<T>) are lost during a mapped type and changed ReturnType
 // eslint-disable-next-line @typescript-eslint/ban-types
+// type RestateClassFluidDecorator<T, D extends Function> = {
+//   [name in keyof T]: name extends 'service'
+//     ? <For extends RestateService<string, any>>(
+//         type?: ReceiveType<For>,
+//       ) => D & RestateClassFluidDecorator<T, D>
+//     : T[name] extends (...args: infer K) => any
+//       ? (...args: K) => D & RestateClassFluidDecorator<T, D>
+//       : D & RestateClassFluidDecorator<T, D> & { _data: ExtractApiDataType<T> };
+// };
+
 type RestateClassFluidDecorator<T, D extends Function> = {
-  [name in keyof T]: name extends 'service'
+  [K in keyof T]: K extends 'service'
     ? <For extends RestateService<string, any>>(
         type?: ReceiveType<For>,
       ) => D & RestateClassFluidDecorator<T, D>
-    : T[name] extends (...args: infer K) => any
-      ? (...args: K) => D & RestateClassFluidDecorator<T, D>
-      : D & RestateClassFluidDecorator<T, D> & { _data: ExtractApiDataType<T> };
+    : K extends 'saga'
+      ? <For extends RestateSaga<string, any>>(
+          type?: ReceiveType<For>,
+        ) => D & RestateClassFluidDecorator<T, D>
+      : T[K] extends (...args: infer K) => any
+        ? (...args: K) => D & RestateClassFluidDecorator<T, D>
+        : D &
+            RestateClassFluidDecorator<T, D> & { _data: ExtractApiDataType<T> };
 };
 
 type RestateClassDecoratorResult = RestateClassFluidDecorator<
@@ -130,16 +175,32 @@ export const restateClassDecorator: RestateClassDecoratorResult =
   createClassDecoratorContext(RestateClassDecorator);
 
 //this workaround is necessary since generic functions are lost during a mapped type and changed ReturnType
+// type RestateMerge<U> = {
+//   [K in keyof U]: K extends 'service'
+//     ? <For extends RestateService<string, any>>(
+//         type?: ReceiveType<For>,
+//       ) => (PropertyDecoratorFn | ClassDecoratorFn) & U
+//     : U[K] extends (...a: infer A) => infer R
+//       ? R extends DualDecorator
+//         ? (...a: A) => (PropertyDecoratorFn | ClassDecoratorFn) & R & U
+//         : (...a: A) => R
+//       : never;
+// };
+
 type RestateMerge<U> = {
   [K in keyof U]: K extends 'service'
     ? <For extends RestateService<string, any>>(
         type?: ReceiveType<For>,
       ) => (PropertyDecoratorFn | ClassDecoratorFn) & U
-    : U[K] extends (...a: infer A) => infer R
-      ? R extends DualDecorator
-        ? (...a: A) => (PropertyDecoratorFn | ClassDecoratorFn) & R & U
-        : (...a: A) => R
-      : never;
+    : K extends 'saga'
+      ? <For extends RestateSaga<string, any>>(
+          type?: ReceiveType<For>,
+        ) => (PropertyDecoratorFn | ClassDecoratorFn) & U
+      : U[K] extends (...a: infer A) => infer R
+        ? R extends DualDecorator
+          ? (...a: A) => (PropertyDecoratorFn | ClassDecoratorFn) & R & U
+          : (...a: A) => R
+        : never;
 };
 
 type MergedRestate<T extends any[]> = RestateMerge<
@@ -154,7 +215,7 @@ export type MergedRestateDecorator = Omit<
   MergedRestate<
     [typeof restateClassDecorator, typeof restatePropertyDecorator]
   >,
-  'addMethod'
+  'addServiceMethod'
 >;
 
 export const restate: MergedRestateDecorator = mergeDecorator(

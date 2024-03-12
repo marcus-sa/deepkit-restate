@@ -35,11 +35,11 @@ describe('e2e', () => {
       }
 
       class User {
-        readonly accountId?: Account['id'] & Unique;
-
         static create(ctx: RestateContext, username: string): User {
           return new User(ctx.rand.uuidv4(), username);
         }
+
+        readonly accountId?: Account['id'] & Unique;
 
         constructor(
           readonly id: UUID,
