@@ -7,7 +7,7 @@ export class InvocationClient {
 export class DeploymentClient {
   constructor(private readonly base: RestateAdminClient) {}
 
-  async create(uri: string): Promise<Response> {
+  async create(uri: string): Promise<any> {
     const response = await fetch(`${this.base.url}/deployments`, {
       method: 'POST',
       headers: {
@@ -18,7 +18,7 @@ export class DeploymentClient {
     if (!response.ok) {
       throw new Error(await response.text());
     }
-    return response;
+    return await response.json();
   }
 }
 

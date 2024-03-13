@@ -6,5 +6,9 @@ services:
     ports:
       - '8080:8080'
       - '9070:9070'
+    environment:
+      - 'RESTATE_CONFIG=/etc/config/restate.yml'
+    volumes:
+      - ./restate.yml:/etc/config/restate.yml
     extra_hosts:
       - 'host.docker.internal:host-gateway'

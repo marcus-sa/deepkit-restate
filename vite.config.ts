@@ -19,7 +19,7 @@ export default defineConfig(({ mode }) => {
       environment: 'node',
       include: ['**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
       reporters: ['default'],
-      testTimeout: 5_000,
+      testTimeout: 60_000,
       coverage: {
         provider: 'v8',
       },

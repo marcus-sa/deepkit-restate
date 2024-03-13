@@ -1,4 +1,5 @@
 import * as restate from '@restatedev/restate-sdk';
+import { BSONDeserializer, BSONSerializer } from '@deepkit/bson';
 import {
   integer,
   PositiveNoZero,
@@ -28,7 +29,6 @@ import {
   RestateKeyedService,
   RestateSaga,
 } from './types';
-import { BSONDeserializer, BSONSerializer } from '@deepkit/bson';
 
 export interface RestateClientOptions {
   // Not implemented (see https://discord.com/channels/1128210118216007792/1214635273141616761/1214932617435156510)

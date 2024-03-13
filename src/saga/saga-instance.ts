@@ -1,5 +1,5 @@
 import { typeOf, uint8 } from '@deepkit/type';
-import { SharedWfContext } from '@restatedev/restate-sdk/dist/workflows/workflow';
+import { workflow } from '@restatedev/restate-sdk';
 import { SagaExecutionState } from './saga-execution-state';
 import {
   bsonBinarySerializer,
@@ -21,7 +21,7 @@ export class SagaInstance<Data> implements SagaState<Data> {
   ) {}
 
   async restore(
-    ctx: RestateSagaContext | SharedWfContext,
+    ctx: RestateSagaContext | workflow.SharedWfContext,
     metadata: RestateSagaMetadata<Data>,
   ): Promise<SagaInstance<Data>> {
     const ctxData = await ctx.get<readonly uint8[]>(SAGA_STATE_KEY);

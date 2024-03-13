@@ -1,4 +1,4 @@
-import { TerminalError } from '@restatedev/restate-sdk';
+import { ErrorCodes, TerminalError } from '@restatedev/restate-sdk';
 
 import { SagaStep } from './saga-step';
 import { SagaExecutionState } from './saga-execution-state';
@@ -10,6 +10,8 @@ import {
   RestateServiceMethodRequest,
   Entity,
   RestateSagaContext,
+  restateTerminalErrorType,
+  deserializeRestateTerminalErrorType,
 } from '../types';
 
 export class SagaDefinition<Data> {
@@ -64,13 +66,18 @@ export class SagaDefinition<Data> {
   private deserializeReply<T>(
     request: RestateServiceMethodRequest,
     response: RestateServiceMethodResponse,
-  ): T {
+  ): T | TerminalError {
     if (response.success) {
       return request.deserializeReturn(response.data);
     }
     const entity = request.entities.get(response.typeName) as Entity<T> | null;
     if (!entity) {
-      throw new TerminalError(`Missing entity for type ${response.typeName}`);
+      if (response.typeName === restateTerminalErrorType.typeName) {
+        return deserializeRestateTerminalErrorType(response.data);
+      }
+      throw new TerminalError(`Missing entity for type ${response.typeName}`, {
+        errorCode: ErrorCodes.INTERNAL,
+      });
     }
     return entity.deserialize(response.data);
   }

@@ -180,7 +180,7 @@ export class RestateServer {
         typeName: method.returnType.typeName!,
       });
     } catch (err: any) {
-      if (err instanceof Error && hasTypeInformation(err.constructor)) {
+      if (hasTypeInformation(err.constructor)) {
         const entityName = reflect(err.constructor).typeName!;
         const entity = service.entities.get(entityName);
         if (entity) {
@@ -192,7 +192,10 @@ export class RestateServer {
         }
       }
       if (err instanceof TypeError) {
-        throw new restate.TerminalError(err.message, { cause: 'TypeError' });
+        throw new restate.TerminalError(err.message, {
+          cause: TypeError.name,
+          errorCode: restate.ErrorCodes.INTERNAL,
+        });
       }
       throw err;
     }
@@ -228,7 +231,6 @@ export class RestateServer {
               restateSaga,
               saga.metadata,
             );
-            console.log(request);
             const data = saga.metadata.deserializeData(new Uint8Array(request));
             await sagaManager.start(data);
           },

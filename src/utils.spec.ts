@@ -2,7 +2,6 @@ import {
   reflect,
   ReflectionFunction,
   ReflectionKind,
-  serialize,
   typeOf,
 } from '@deepkit/type';
 import {

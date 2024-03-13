@@ -1,6 +1,7 @@
-import { TypeClass, typeOf, uint8 } from '@deepkit/type';
-import { Context, KeyedContext } from '@restatedev/restate-sdk';
+import { typeOf, uint8 } from '@deepkit/type';
+import { Context, KeyedContext, TerminalError, workflow } from '@restatedev/restate-sdk';
 import { getContainerToken } from '@deepkit/injector';
+import { ClassType } from '@deepkit/core';
 import {
   bsonBinarySerializer,
   BSONDeserializer,
@@ -8,8 +9,6 @@ import {
   getBSONDeserializer,
   getBSONSerializer,
 } from '@deepkit/bson';
-import { ClassType } from '@deepkit/core';
-import { WfContext } from '@restatedev/restate-sdk/dist/workflows/workflow';
 
 export interface RestateApiInvocation {
   readonly id: string;
@@ -102,6 +101,11 @@ export interface RestateServiceMethodResponse {
   readonly typeName: string;
 }
 
+export interface RestateSagaContext
+  extends Omit<workflow.WfContext, 'rpc' | 'send' | 'sendDelayed'> {}
+
+export const restateServiceType = typeOf<RestateService<string, any, any[]>>();
+
 export const restateServiceMethodResponseType =
   typeOf<RestateServiceMethodResponse>();
 
@@ -116,11 +120,6 @@ export const serializeRestateServiceMethodResponse = getBSONSerializer(
   restateServiceMethodResponseType,
 );
 
-export interface RestateSagaContext
-  extends Omit<WfContext, 'rpc' | 'send' | 'sendDelayed'> {}
-
-export const restateServiceType = typeOf<RestateService<string, any, any[]>>();
-
 export const restateKeyedServiceType =
   typeOf<RestateKeyedService<string, any, any[]>>();
 
@@ -129,6 +128,19 @@ export const restateSagaType = typeOf<RestateSaga<string, any>>();
 export const restateContextType = typeOf<RestateContext>();
 
 export const restateKeyedContextType = typeOf<RestateKeyedContext>();
+
+export const restateTerminalErrorType = typeOf<TerminalError>();
+
+export const serializeRestateTerminalErrorType = getBSONSerializer(
+  bsonBinarySerializer,
+  restateTerminalErrorType,
+);
+
+export const deserializeRestateTerminalErrorType =
+  getBSONDeserializer<TerminalError>(
+    bsonBinarySerializer,
+    restateTerminalErrorType,
+  );
 
 export const restateSagaContextType = typeOf<RestateSagaContext>();
 

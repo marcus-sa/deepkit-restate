@@ -1,0 +1,5 @@
+worker:
+  invoker:
+    retry_policy:
+      initial_interval: 50ms
+      max_attempts: 3

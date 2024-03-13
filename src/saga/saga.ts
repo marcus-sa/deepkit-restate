@@ -10,9 +10,9 @@ export abstract class Saga<Data> {
     return new StepBuilder<Data>(new SagaDefinitionBuilder<Data>(this));
   }
 
-  onSagaCompletedSuccessfully(data: Data): AsyncLike<void> {}
+  onSagaCompletedSuccessfully(id: string, data: Data): AsyncLike<void> {}
 
   onStarting(id: string, data: Data): AsyncLike<void> {}
 
-  onSagaRolledBack(data: Data): AsyncLike<void> {}
+  onSagaRolledBack(id: string, data: Data): AsyncLike<void> {}
 }

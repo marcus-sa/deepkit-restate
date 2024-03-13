@@ -1,4 +1,5 @@
 import { RpcResponse } from '@restatedev/restate-sdk/dist/generated/proto/dynrpc';
+import { TerminalError } from '@restatedev/restate-sdk';
 
 import { Saga } from './saga';
 import { SagaInstance } from './saga-instance';
@@ -11,6 +12,8 @@ import {
   RestateSagaContext,
   RestateServiceMethodRequest,
   RestateServiceMethodResponse,
+  restateTerminalErrorType,
+  serializeRestateTerminalErrorType,
 } from '../types';
 
 export class SagaManager<Data> {
@@ -24,13 +27,25 @@ export class SagaManager<Data> {
     { service, method, data }: RestateServiceMethodRequest,
     { key }: RestateClientCallOptions = {},
   ): Promise<RestateServiceMethodResponse> {
-    return await (this.ctx as any)
-      .invoke(service, method, encodeRpcRequest(data, key))
-      .transform((response: Uint8Array) =>
-        deserializeRestateServiceMethodResponse(
-          new Uint8Array(RpcResponse.decode(response).response),
-        ),
-      );
+    try {
+      return await (this.ctx as any).ctx
+        .invoke(service, method, encodeRpcRequest(data, key))
+        .transform((response: Uint8Array) =>
+          deserializeRestateServiceMethodResponse(
+            new Uint8Array(RpcResponse.decode(response).response),
+          ),
+        );
+    } catch (err: unknown) {
+      if (err instanceof TerminalError) {
+        return {
+          success: false,
+          data: serializeRestateTerminalErrorType(err),
+          typeName: restateTerminalErrorType.typeName!,
+        };
+      }
+      // TODO: what to do with unhandled errors?
+      throw err;
+    }
   }
 
   private async performEndStateActions(
@@ -39,11 +54,14 @@ export class SagaManager<Data> {
   ): Promise<void> {
     if (compensating) {
       await this.ctx.sideEffect(async () => {
-        await this.saga.onSagaRolledBack?.(sagaData);
+        await this.saga.onSagaRolledBack?.(this.ctx.workflowId(), sagaData);
       });
     } else {
       await this.ctx.sideEffect(async () => {
-        await this.saga.onSagaCompletedSuccessfully?.(sagaData);
+        await this.saga.onSagaCompletedSuccessfully?.(
+          this.ctx.workflowId(),
+          sagaData,
+        );
       });
     }
   }
@@ -114,9 +132,10 @@ export class SagaManager<Data> {
 
     const actions = await this.saga.definition.start(this.ctx, instance);
 
-    // if (actions.stepOutcome?.error) {
-    //   throw actions.stepOutcome.error;
-    // }
+    // TODO: is this necessary?
+    if (actions.stepOutcome?.error) {
+      throw actions.stepOutcome.error;
+    }
 
     await this.processActions(instance, actions);
 

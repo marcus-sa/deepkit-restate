@@ -1,18 +1,13 @@
 import { float, UUID, uuid } from '@deepkit/type';
+import { sleep } from '@deepkit/core';
+import { createTestingApp } from '@deepkit/framework';
 
 import { Saga } from './saga';
 import { restate } from '../decorator';
-import {
-  RestateSaga,
-  RestateSagaContext,
-  RestateService,
-  RestateServiceMethodRequest,
-} from '../types';
-import { createTestingApp } from '@deepkit/framework';
+import { RestateSaga, RestateService } from '../types';
 import { RestateModule } from '../restate.module';
 import { RestateAdminClient } from '../restate-admin-client';
 import { RestateClient } from '../restate-client';
-import { sleep } from '@deepkit/core';
 
 test('e2e', async () => {
   class CustomerNotFound {}
@@ -28,19 +23,26 @@ test('e2e', async () => {
     ): Promise<CustomerCreditReserved>;
   }
 
-  type CustomerServiceApi = RestateService<'customer', CustomerService>;
+  type CustomerServiceApi = RestateService<
+    'customer',
+    CustomerService,
+    [CustomerCreditLimitExceeded, CustomerNotFound]
+  >;
 
   @restate.service<CustomerServiceApi>()
   class CustomerController implements CustomerService {
+    @restate.method()
     async reserveCredit(
       customerId: string,
       amount: float,
     ): Promise<CustomerCreditReserved> {
+      // throw new CustomerNotFound();
       return new CustomerCreditReserved();
     }
   }
 
   enum OrderRejectionReason {
+    // TERMINAL_ERROR = 'TERMINAL_ERROR',
     UNKNOWN_CUSTOMER = 'UNKNOWN_CUSTOMER',
     INSUFFICIENT_CREDIT = 'INSUFFICIENT_CREDIT',
   }
@@ -65,6 +67,7 @@ test('e2e', async () => {
       .compensate(this.reject)
       .step()
       .invoke(this.reserveCustomerCredit)
+      // .onReply<TerminalError>(this.handleTerminalError)
       .onReply<CustomerNotFound>(this.handleCustomerNotFound)
       .onReply<CustomerCreditLimitExceeded>(
         this.handleCustomerCreditLimitExceeded,
@@ -78,22 +81,36 @@ test('e2e', async () => {
     }
 
     reserveCustomerCredit({ customerId, orderTotal }: CreateOrderSagaData) {
+      console.log('reserveCustomerCredit');
       return this.customer.reserveCredit(customerId, orderTotal);
     }
 
+    // handleTerminalError(data: CreateOrderSagaData) {
+    //   console.log('handleTerminalError');
+    //   data.rejectionReason = OrderRejectionReason.TERMINAL_ERROR;
+    // }
+
     handleCustomerNotFound(data: CreateOrderSagaData): void {
+      console.log('handleCustomerNotFound');
       data.rejectionReason = OrderRejectionReason.UNKNOWN_CUSTOMER;
     }
 
     handleCustomerCreditLimitExceeded(data: CreateOrderSagaData): void {
+      console.log('handleCustomerCreditLimitExceeded');
       data.rejectionReason = OrderRejectionReason.INSUFFICIENT_CREDIT;
     }
 
-    async create(data: CreateOrderSagaData): Promise<void> {}
+    async create(data: CreateOrderSagaData): Promise<void> {
+      console.log('create');
+    }
 
-    async reject(data: CreateOrderSagaData): Promise<void> {}
+    async reject(data: CreateOrderSagaData): Promise<void> {
+      console.log('reject');
+    }
 
-    async approve(data: CreateOrderSagaData): Promise<void> {}
+    async approve(data: CreateOrderSagaData): Promise<void> {
+      console.log('approve');
+    }
   }
 
   const app = createTestingApp({
@@ -112,14 +129,18 @@ test('e2e', async () => {
 
   const createOrderSaga = client.saga<CreateOrderSagaApi>();
 
-  const status = await createOrderSaga.start(orderId, {
+  const startStatus = await createOrderSaga.start(orderId, {
     id: orderId,
     orderTotal: 10.5,
     customerId,
   });
-  console.log(status);
+  console.log({ startStatus });
 
   await sleep(5);
 
-  console.log(await createOrderSaga.state(orderId));
+  const state = await createOrderSaga.state(orderId);
+  console.log({ state });
+
+  const endStatus = await createOrderSaga.status(orderId);
+  console.log({ endStatus });
 });

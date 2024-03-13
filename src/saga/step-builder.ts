@@ -69,6 +69,7 @@ class InvokedStepBuilder<Data>
     return this;
   }
 
+  // TODO: should we differentiate between replies and errors? e.g onError and onReply
   onReply<T>(
     handler: SagaReplyHandlerFn<Data, T>,
     type?: ReceiveType<T>,
