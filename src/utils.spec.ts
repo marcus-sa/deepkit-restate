@@ -2,23 +2,24 @@ import {
   reflect,
   ReflectionFunction,
   ReflectionKind,
-  serialize,
   typeOf,
 } from '@deepkit/type';
-
-import { RestateKeyedContext, RestateService } from './types';
+import {
+  RestateKeyedContext,
+  RestateKeyedService,
+  RestateService,
+} from './types';
 import {
   createServiceProxy,
   getClassConstructorParameters,
   getReflectionFunctionArgsType,
   getRestateServiceDeps,
+  getRestateServiceEntities,
   getRestateServiceName,
-  getRestateServiceOptions,
   getTypeArgument,
   getUnwrappedReflectionFunctionReturnType,
   isRestateServiceType,
 } from './utils';
-import { describe } from 'vitest';
 import {
   bsonBinarySerializer,
   getBSONDeserializer,
@@ -89,14 +90,12 @@ test('getRestateServiceName', () => {
   expect(getRestateServiceName(type)).toMatchInlineSnapshot(`"test"`);
 });
 
-test('getRestateServiceOptions', () => {
-  const type = typeOf<RestateService<'test', any, { keyed: true }>>();
+test('getRestateServiceEntities', () => {
+  class Entity {}
 
-  expect(getRestateServiceOptions(type)).toMatchInlineSnapshot(`
-    {
-      "keyed": true,
-    }
-  `);
+  const type = typeOf<RestateService<'test', any, [Entity]>>();
+
+  expect(getRestateServiceEntities(type)).toHaveLength(1);
 });
 
 test('getRestateDependenciesForService', () => {
@@ -220,10 +219,9 @@ describe('createServiceProxy', () => {
     send(user: User): Promise<void>;
   }
 
-  type PaymentServiceApi = RestateService<
+  type PaymentServiceApi = RestateKeyedService<
     'payment',
-    PaymentServiceInterface,
-    { keyed: true }
+    PaymentServiceInterface
   >;
 
   const service = createServiceProxy<PaymentServiceApi>();
@@ -231,15 +229,6 @@ describe('createServiceProxy', () => {
   test('method', () => {
     const { method } = service.send(new User());
     expect(method).toMatchInlineSnapshot(`"send"`);
-  });
-
-  test('options', () => {
-    const { options } = service.send(new User());
-    expect(options).toMatchInlineSnapshot(`
-      {
-        "keyed": true,
-      }
-    `);
   });
 
   test('data', () => {

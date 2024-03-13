@@ -1,18 +1,33 @@
+import * as restate from '@restatedev/restate-sdk';
+import { BSONDeserializer, BSONSerializer } from '@deepkit/bson';
 import {
   integer,
   PositiveNoZero,
   ReceiveType,
   uuid,
   assert,
+  resolveReceiveType,
+  Type,
+  uint8,
 } from '@deepkit/type';
 
-import { assertArgs, createServiceProxy } from './utils';
+import { deserializeSagaState, SagaState } from './saga';
 import {
-  RestateServiceMethodCall,
+  assertArgs,
+  createServiceProxy,
+  decodeRestateServiceMethodResponse,
+  getSagaDataSerializer,
+  getRestateSagaName,
+  getSagaDataDeserializer,
+} from './utils';
+import {
+  RestateServiceMethodRequest,
   RestateService,
   RestateClientCallOptions,
   RestateApiInvocation,
   RestateRpcResponse,
+  RestateKeyedService,
+  RestateSaga,
 } from './types';
 
 export interface RestateClientOptions {
@@ -40,14 +55,82 @@ function isRestateApiResponseError(
   return 'code' in value;
 }
 
+export class RestateSagaClient<Data> {
+  private readonly serializeData: BSONSerializer;
+  private readonly deserializeData: BSONDeserializer<Data>;
+  private readonly serviceName: string;
+  private readonly server: restate.clients.RestateClient;
+
+  constructor(
+    private readonly client: RestateClient,
+    private readonly type: Type,
+  ) {
+    this.serializeData = getSagaDataSerializer(this.type);
+    this.deserializeData = getSagaDataDeserializer<Data>(this.type);
+    this.serviceName = getRestateSagaName(this.type);
+    this.server = restate.clients.connect(this.client.url);
+  }
+
+  async state(id: string): Promise<SagaState<Data>> {
+    const { client } = await this.server.connectToWorkflow(
+      this.serviceName,
+      id,
+    );
+
+    const result = (await (client.workflowInterface() as any)['state']()) as
+      | readonly uint8[]
+      | null;
+    if (!result) {
+      throw new Error('Missing saga state');
+    }
+
+    const state = deserializeSagaState(new Uint8Array(result));
+
+    return {
+      sagaData: this.deserializeData(state.sagaData),
+      currentState: state.currentState,
+    };
+  }
+
+  async status(id: string): Promise<restate.workflow.LifecycleStatus> {
+    const { status } = await this.server.connectToWorkflow(
+      this.serviceName,
+      id,
+    );
+    return status;
+  }
+
+  async start(
+    id: string,
+    data: Data,
+  ): Promise<restate.workflow.WorkflowStartResult> {
+    const request = Array.from(this.serializeData(data));
+    const { status } = await this.server.submitWorkflow(this.serviceName, id, {
+      request,
+    });
+    return status;
+  }
+}
+
 export class RestateClient {
   constructor(
-    private readonly url: string, // ingress
+    readonly url: string, // ingress
     private readonly options?: RestateClientOptions,
   ) {}
 
-  service<T extends RestateService<string, any>>(type?: ReceiveType<T>): T {
+  service<
+    T extends
+      | RestateService<string, any, any[]>
+      | RestateKeyedService<string, any, any[]>,
+  >(type?: ReceiveType<T>): T {
     return createServiceProxy<T>(type);
+  }
+
+  saga<T extends RestateSaga<string, any>>(
+    type?: ReceiveType<T>,
+  ): RestateSagaClient<T['data']> {
+    type = resolveReceiveType(type);
+    return new RestateSagaClient(this, type);
   }
 
   async rpc<R, A extends any[]>(
@@ -55,9 +138,10 @@ export class RestateClient {
       service,
       method,
       data,
-      options: { keyed },
+      keyed,
       deserializeReturn,
-    }: RestateServiceMethodCall<R, A>,
+      entities,
+    }: RestateServiceMethodRequest<R, A>,
     { key }: RestateClientCallOptions = {},
   ): Promise<R> {
     assertArgs({ keyed }, { key });
@@ -82,16 +166,15 @@ export class RestateClient {
       throw new RestateApiError(result.code, result.message);
     }
 
-    return deserializeReturn(new Uint8Array(result.response));
+    return decodeRestateServiceMethodResponse(
+      new Uint8Array(result.response),
+      deserializeReturn,
+      entities,
+    );
   }
 
   async send<R, A extends any[]>(
-    {
-      service,
-      method,
-      data,
-      options: { keyed },
-    }: RestateServiceMethodCall<R, A>,
+    { service, method, data, keyed }: RestateServiceMethodRequest<R, A>,
     { key }: RestateClientCallOptions = {},
   ): Promise<RestateApiInvocation> {
     assertArgs({ keyed }, { key });
@@ -121,12 +204,7 @@ export class RestateClient {
   }
 
   async sendDelayed<R, A extends any[]>(
-    {
-      service,
-      method,
-      data,
-      options: { keyed },
-    }: RestateServiceMethodCall<R, A>,
+    { service, method, data, keyed }: RestateServiceMethodRequest<R, A>,
     ms: number,
     { key }: RestateClientCallOptions = {},
   ): Promise<void> {

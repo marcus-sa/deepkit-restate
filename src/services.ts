@@ -4,7 +4,7 @@ import { ClassType } from '@deepkit/core';
 import { RestateServiceMetadata } from './decorator';
 
 export interface Service<T> {
-  readonly controller: ClassType<T>;
+  readonly classType: ClassType<T>;
   readonly module?: InjectorModule;
   readonly metadata: RestateServiceMetadata;
 }

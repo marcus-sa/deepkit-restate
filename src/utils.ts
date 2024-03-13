@@ -2,27 +2,28 @@ import assert from 'node:assert';
 import { ClassType } from '@deepkit/core';
 import {
   bsonBinarySerializer,
-  BSONSerializer,
   BSONDeserializer,
+  BSONSerializer,
+  deserializeBSON,
   getBSONDeserializer,
   getBSONSerializer,
 } from '@deepkit/bson';
 import {
   assertType,
   isExtendable,
+  isSameType,
   ReceiveType,
   reflect,
   ReflectionClass,
+  ReflectionFunction,
   ReflectionKind,
   resolveReceiveType,
   Type,
-  TypeLiteral,
+  TypeClass,
+  TypeObjectLiteral,
   TypeParameter,
-  TypePropertySignature,
   TypeTuple,
   TypeTupleMember,
-  ReflectionFunction,
-  TypeObjectLiteral, typeToObject,
 } from '@deepkit/type';
 import {
   RpcRequest,
@@ -30,14 +31,28 @@ import {
 } from '@restatedev/restate-sdk/dist/generated/proto/dynrpc';
 
 import {
+  deserializeRestateServiceMethodResponse,
+  Entities,
+  Entity,
+  RestateServiceMethodResponse,
   RestateClientCallOptions,
+  RestateKeyedService,
+  restateKeyedServiceType,
   RestateRpcRequest,
   RestateRpcResponse,
+  restateSagaType,
   RestateService,
-  RestateServiceMethodCall,
+  RestateServiceMethodRequest,
   RestateServiceOptions,
   restateServiceType,
+  serializeRestateServiceMethodResponse,
 } from './types';
+import {
+  restateClassDecorator,
+  RestateSagaMetadata,
+  RestateServiceMetadata,
+} from './decorator';
+import { TerminalError } from '@restatedev/restate-sdk';
 
 export function getRestateServiceDeps(classType: ClassType): readonly Type[] {
   const serviceType = reflect(classType);
@@ -73,6 +88,34 @@ export function isRestateServiceType(type: Type): boolean {
   return isExtendable(type, restateServiceType);
 }
 
+export function isRestateServiceKeyed(type: Type): boolean {
+  return isRestateKeyedServiceType(type);
+}
+
+export function isRestateKeyedServiceType(type: Type): boolean {
+  if (type.kind === ReflectionKind.class) return false;
+  if (
+    type.typeName !== restateKeyedServiceType.typeName &&
+    type.originTypes?.[0].typeName !== restateKeyedServiceType.typeName
+  ) {
+    return false;
+  }
+  return isExtendable(type, restateKeyedServiceType);
+}
+
+export function isRestateSagaType(
+  type: Type,
+): type is TypeObjectLiteral | TypeClass {
+  if (type.kind === ReflectionKind.class) return false;
+  if (
+    type.typeName !== restateSagaType.typeName &&
+    type.originTypes?.[0].typeName !== restateSagaType.typeName
+  ) {
+    return false;
+  }
+  return isExtendable(type, restateSagaType);
+}
+
 export function unwrapType(type: Type): Type {
   switch (type.kind) {
     case ReflectionKind.promise:
@@ -89,24 +132,62 @@ export function getTypeArgument(type: Type, index: number): Type | undefined {
   );
 }
 
-export function getRestateServiceName(type: Type): string {
-  assertRestateServiceType(type);
+export function getRestateServiceName(serviceType: Type): string {
+  const typeArgument = getTypeArgument(serviceType, 0);
+  assertType(typeArgument, ReflectionKind.literal);
+  return typeArgument.literal as string;
+}
 
-  const firstTypeArgument = getTypeArgument(type, 0);
-  assertType(firstTypeArgument, ReflectionKind.literal);
+export function getRestateSagaName(sagaType: Type): string {
+  const typeArgument = getTypeArgument(sagaType, 0);
+  assertType(typeArgument, ReflectionKind.literal);
+  return typeArgument.literal as string;
+}
 
-  return firstTypeArgument.literal as string;
+export function getSagaDataDeserializer<T>(
+  sagaType: Type,
+): BSONDeserializer<T> {
+  const dataType = getSagaDataType(sagaType);
+  return getBSONDeserializer(bsonBinarySerializer, dataType);
+}
+
+export function getSagaDataSerializer(sagaType: Type): BSONSerializer {
+  const dataType = getSagaDataType(sagaType);
+  return getBSONSerializer(bsonBinarySerializer, dataType);
+}
+
+export function getSagaDataType(sagaType: Type): TypeObjectLiteral {
+  const typeArgument = getTypeArgument(sagaType, 1);
+  assertType(typeArgument, ReflectionKind.objectLiteral);
+  return typeArgument;
+}
+
+export function getRestateServiceEntities(serviceType: Type): Entities {
+  const typeArgument = getTypeArgument(serviceType, 2);
+  if (!typeArgument) return new Map();
+  assertType(typeArgument, ReflectionKind.tuple);
+
+  return new Map(
+    typeArgument.types
+      .map(type => type.type)
+      .filter((type): type is TypeClass => type.kind === ReflectionKind.class)
+      .map(type => {
+        const deserialize = getBSONDeserializer(bsonBinarySerializer, type);
+        const serialize = getBSONSerializer(bsonBinarySerializer, type);
+        return [
+          type.typeName!,
+          { deserialize, serialize, classType: type.classType },
+        ];
+      }),
+  );
 }
 
 export function assertRestateServiceType(type: Type): void {
   assert(isRestateServiceType(type), 'Not a RestateService type');
 }
 
-export function getRestateServiceOptions(type: Type): RestateServiceOptions {
-  assertRestateServiceType(type);
-
-  const thirdTypeArgument = getTypeArgument(type, 2);
-  return typeToObject(thirdTypeArgument);
+export function assertRestateSagaType(type: Type) {
+  assert(isRestateSagaType(type), 'Not a class or an interface');
 }
 
 interface ServiceProxyMethod<T> {
@@ -139,13 +220,16 @@ export function getUnwrappedReflectionFunctionReturnType(
   return unwrapType(reflectionFunction.getReturnType());
 }
 
-export function createServiceProxy<T extends RestateService<string, any>>(
-  type?: ReceiveType<T>,
-): T {
+export function createServiceProxy<
+  T extends
+    | RestateService<string, any, any[]>
+    | RestateKeyedService<string, any, any[]>,
+>(type?: ReceiveType<T>): T {
   type = resolveReceiveType(type);
 
   const service = getRestateServiceName(type);
-  const options = getRestateServiceOptions(type);
+  const entities = getRestateServiceEntities(type);
+  const keyed = isRestateServiceKeyed(type);
 
   const serviceType = getTypeArgument(type, 1);
 
@@ -177,11 +261,12 @@ export function createServiceProxy<T extends RestateService<string, any>>(
         }
         const { serializeArgs, deserializeReturn } = methods[method];
 
-        return (...args: readonly unknown[]): RestateServiceMethodCall => {
-          const data = encodeRpcResponse(serializeArgs(args));
-          return <RestateServiceMethodCall>(<unknown>{
-            options,
+        return (...args: readonly unknown[]): RestateServiceMethodRequest => {
+          const data = Array.from(serializeArgs(args));
+          return Object.assign(new RestateServiceMethodRequest(), {
+            entities,
             service,
+            keyed,
             method,
             data,
             deserializeReturn,
@@ -216,10 +301,36 @@ export function encodeRpcRequest(
   ).finish();
 }
 
-export function encodeRpcResponse(response: Uint8Array): RestateRpcResponse {
-  return Array.from(response);
+export function encodeRpcResponse(
+  response: RestateServiceMethodResponse,
+): RestateRpcResponse {
+  return Array.from(serializeRestateServiceMethodResponse(response));
 }
 
-export function decodeRpcResponse(response: Uint8Array): Uint8Array {
-  return new Uint8Array(RpcResponse.decode(response).response);
+export function decodeRestateServiceMethodResponse<T>(
+  response: Uint8Array,
+  deserialize: BSONDeserializer<T>,
+  entities: Entities,
+): T {
+  const internalResponse = deserializeRestateServiceMethodResponse(response);
+  if (internalResponse.success) {
+    return deserialize(internalResponse.data);
+  }
+  const entity = entities.get(internalResponse.typeName);
+  if (!entity) {
+    throw new TerminalError('Unknown entity');
+  }
+  throw entity.deserialize(internalResponse.data);
+}
+
+export function getRestateServiceMetadata(
+  classType: ClassType,
+): RestateServiceMetadata | undefined {
+  return restateClassDecorator._fetch(classType)?.service;
+}
+
+export function getRestateSagaMetadata(
+  classType: ClassType,
+): RestateSagaMetadata | undefined {
+  return restateClassDecorator._fetch(classType)?.saga;
 }
