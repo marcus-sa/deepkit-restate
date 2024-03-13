@@ -12,6 +12,7 @@ import { createTestingApp } from '@deepkit/framework';
 import { RestateModule } from '../restate.module';
 import { RestateAdminClient } from '../restate-admin-client';
 import { RestateClient } from '../restate-client';
+import { sleep } from '@deepkit/core';
 
 test('e2e', async () => {
   class CustomerNotFound {}
@@ -72,17 +73,11 @@ test('e2e', async () => {
       .invoke(this.approve)
       .build();
 
-    constructor(
-      private readonly customer: CustomerServiceApi,
-      private readonly order: OrderRepository,
-    ) {
+    constructor(private readonly customer: CustomerServiceApi) {
       super();
     }
 
-    async reserveCustomerCredit({
-      customerId,
-      orderTotal,
-    }: CreateOrderSagaData) {
+    reserveCustomerCredit({ customerId, orderTotal }: CreateOrderSagaData) {
       return this.customer.reserveCredit(customerId, orderTotal);
     }
 
@@ -115,9 +110,16 @@ test('e2e', async () => {
   const orderId = uuid();
   const customerId = uuid();
 
-  await client.saga<CreateOrderSagaApi>().start(orderId, {
+  const createOrderSaga = client.saga<CreateOrderSagaApi>();
+
+  const status = await createOrderSaga.start(orderId, {
     id: orderId,
     orderTotal: 10.5,
     customerId,
   });
+  console.log(status);
+
+  await sleep(5);
+
+  console.log(await createOrderSaga.state(orderId));
 });

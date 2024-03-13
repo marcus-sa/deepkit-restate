@@ -59,7 +59,7 @@ export class RestateSagaMetadata<T = unknown> {
   classType: ClassType;
   readonly type: TypeClass | TypeObjectLiteral;
   readonly deserializeData: BSONDeserializer<T>;
-  readonly serializeData: BSONDeserializer<T>;
+  readonly serializeData: BSONSerializer;
 }
 
 export class RestateClassMetadata {

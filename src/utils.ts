@@ -139,7 +139,6 @@ export function getRestateServiceName(serviceType: Type): string {
 }
 
 export function getRestateSagaName(sagaType: Type): string {
-  assertRestateSagaType(sagaType);
   const typeArgument = getTypeArgument(sagaType, 0);
   assertType(typeArgument, ReflectionKind.literal);
   return typeArgument.literal as string;
@@ -158,8 +157,6 @@ export function getSagaDataSerializer(sagaType: Type): BSONSerializer {
 }
 
 export function getSagaDataType(sagaType: Type): TypeObjectLiteral {
-  assertRestateSagaType(sagaType);
-
   const typeArgument = getTypeArgument(sagaType, 1);
   assertType(typeArgument, ReflectionKind.objectLiteral);
   return typeArgument;

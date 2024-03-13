@@ -1,5 +1,3 @@
-import { cast } from '@deepkit/type';
-
 import { SagaStep } from './saga-step';
 import { SagaExecutionState } from './saga-execution-state';
 import { SagaActions } from './saga-actions';

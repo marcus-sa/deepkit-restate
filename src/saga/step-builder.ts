@@ -1,4 +1,9 @@
-import { ReceiveType, ReflectionKind, resolveReceiveType } from '@deepkit/type';
+import {
+  ReceiveType,
+  ReflectionFunction,
+  ReflectionKind,
+  resolveReceiveType,
+} from '@deepkit/type';
 
 import { RestateServiceMethodRequest } from '../types';
 import { SagaDefinitionBuilder } from './saga-definition-builder';
@@ -104,8 +109,8 @@ export class StepBuilder<Data> {
     handler: Handler<Data, RestateServiceMethodRequest<R, A>>,
   ): ParticipantStepBuilder<Data>;
   invoke(handler: Handler<Data, void>): LocalStepBuilder<Data>;
-  invoke(
-    handler: Handler<Data>,
+  invoke<T>(
+    handler: Handler<Data, T>,
   ): ParticipantStepBuilder<Data> | LocalStepBuilder<Data> {
     /**
      * Deepkit doesn't support inferring types or method overloading, so we have to use an alternative approach to detect if it's a participant invocation

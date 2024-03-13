@@ -1,3 +1,4 @@
+import * as restate from '@restatedev/restate-sdk';
 import {
   integer,
   PositiveNoZero,
@@ -6,15 +7,17 @@ import {
   assert,
   resolveReceiveType,
   Type,
+  uint8,
 } from '@deepkit/type';
 
+import { deserializeSagaState, SagaState } from './saga';
 import {
   assertArgs,
   createServiceProxy,
   decodeRestateServiceMethodResponse,
   getSagaDataSerializer,
-  getSagaDataType,
   getRestateSagaName,
+  getSagaDataDeserializer,
 } from './utils';
 import {
   RestateServiceMethodRequest,
@@ -25,12 +28,7 @@ import {
   RestateKeyedService,
   RestateSaga,
 } from './types';
-import {
-  bsonBinarySerializer,
-  getBSONSerializer,
-  serializeBSON,
-} from '@deepkit/bson';
-import { TerminalError } from '@restatedev/restate-sdk';
+import { BSONDeserializer, BSONSerializer } from '@deepkit/bson';
 
 export interface RestateClientOptions {
   // Not implemented (see https://discord.com/channels/1128210118216007792/1214635273141616761/1214932617435156510)
@@ -57,39 +55,60 @@ function isRestateApiResponseError(
   return 'code' in value;
 }
 
-export class RestateSagaClient<D> {
-  private readonly serializeData = getSagaDataSerializer(this.type);
-  private readonly serviceName = getRestateSagaName(this.type);
+export class RestateSagaClient<Data> {
+  private readonly serializeData: BSONSerializer;
+  private readonly deserializeData: BSONDeserializer<Data>;
+  private readonly serviceName: string;
+  private readonly server: restate.clients.RestateClient;
 
   constructor(
     private readonly client: RestateClient,
     private readonly type: Type,
-  ) {}
+  ) {
+    this.serializeData = getSagaDataSerializer(this.type);
+    this.deserializeData = getSagaDataDeserializer<Data>(this.type);
+    this.serviceName = getRestateSagaName(this.type);
+    this.server = restate.clients.connect(this.client.url);
+  }
 
-  // status(key: string) {}
-
-  async start(key: string, data: D): Promise<void> {
-    const request = Array.from(this.serializeData(data));
-
-    const response = await fetch(
-      `${this.client.url}/dev.restate.Ingress/Invoke`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'idempotency-key': key,
-        },
-        body: JSON.stringify({
-          service: this.serviceName,
-          method: 'start',
-          argument: { key, request },
-        }),
-      },
+  async state(id: string): Promise<SagaState<Data>> {
+    const { client } = await this.server.connectToWorkflow(
+      this.serviceName,
+      id,
     );
 
-    if (!response.ok) {
-      throw new TerminalError(await response.text());
+    const result = (await (client.workflowInterface() as any)['state']()) as
+      | readonly uint8[]
+      | null;
+    if (!result) {
+      throw new Error('Missing saga state');
     }
+
+    const state = deserializeSagaState(new Uint8Array(result));
+
+    return {
+      sagaData: this.deserializeData(state.sagaData),
+      currentState: state.currentState,
+    };
+  }
+
+  async status(id: string): Promise<restate.workflow.LifecycleStatus> {
+    const { status } = await this.server.connectToWorkflow(
+      this.serviceName,
+      id,
+    );
+    return status;
+  }
+
+  async start(
+    id: string,
+    data: Data,
+  ): Promise<restate.workflow.WorkflowStartResult> {
+    const request = Array.from(this.serializeData(data));
+    const { status } = await this.server.submitWorkflow(this.serviceName, id, {
+      request,
+    });
+    return status;
   }
 }
 

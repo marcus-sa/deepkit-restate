@@ -12,16 +12,7 @@ import {
 
 import { SagaStepOutcome } from './step-outcome';
 
-export interface SagaStep<Data> {
-  readonly invoke: Handler<Data, RestateServiceMethodRequest | void>;
-  readonly compensate?: Handler<Data>;
-  readonly compensatePredicate?: PredicateFn<Data>;
-  hasAction(data: Data): Promise<boolean>;
-  hasCompensation(data: Data): Promise<boolean>;
-  createOutcome(data: Data, compensating: boolean): Promise<SagaStepOutcome>;
-}
-
-export class SagaStep<Data> implements SagaStep<Data> {
+export class SagaStep<Data> {
   constructor(
     readonly invoke: Handler<Data, RestateServiceMethodRequest | void>,
     readonly isParticipantInvocation: boolean,

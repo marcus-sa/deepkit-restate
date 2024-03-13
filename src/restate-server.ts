@@ -39,7 +39,7 @@ import {
   RestateSagaContext,
   restateSagaContextToken,
 } from './types';
-import { SagaManager, SAGA_INSTANCE_STATE_KEY } from './saga';
+import { SagaManager, SAGA_STATE_KEY } from './saga';
 
 export class RestateServer {
   readonly endpoint = restate.endpoint();
@@ -213,7 +213,13 @@ export class RestateServer {
     for (const saga of this.sagas) {
       this.endpoint.bind(
         restate.workflow.workflow(saga.metadata.name, {
-          run: async (ctx: RestateSagaContext, request: RestateRpcRequest) => {
+          run: async (
+            ctx: RestateSagaContext,
+            {
+              workflowId,
+              request,
+            }: { workflowId: string; request: RestateRpcRequest },
+          ) => {
             const injector = this.createScopedInjector();
             injector.set(restateSagaContextToken, ctx);
             const restateSaga = injector.get(saga.classType, saga.module);
@@ -222,11 +228,12 @@ export class RestateServer {
               restateSaga,
               saga.metadata,
             );
+            console.log(request);
             const data = saga.metadata.deserializeData(new Uint8Array(request));
             await sagaManager.start(data);
           },
           state: async (ctx: restate.workflow.SharedWfContext) => {
-            return await ctx.get<readonly uint8[]>(SAGA_INSTANCE_STATE_KEY);
+            return await ctx.get<readonly uint8[]>(SAGA_STATE_KEY);
           },
         }),
       );

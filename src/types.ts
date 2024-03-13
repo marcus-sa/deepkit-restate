@@ -64,18 +64,22 @@ export interface RestateServiceOptions {
 
 export type RestateService<
   Name extends string,
-  S,
-  Entities extends any = [],
+  Interface,
+  Entities extends any[] = [],
 > = {
-  [M in keyof S as S[M] extends never ? never : M]: RestateServiceMethod<S[M]>;
+  [Method in keyof Interface as Interface[Method] extends never
+    ? never
+    : Method]: RestateServiceMethod<Interface[Method]>;
 };
 
 export type RestateKeyedService<
   Name extends string,
-  S,
-  Entities extends any = [],
+  Interface,
+  Entities extends any[] = [],
 > = {
-  [M in keyof S as S[M] extends never ? never : M]: RestateServiceMethod<S[M]>;
+  [Method in keyof Interface as Interface[Method] extends never
+    ? never
+    : Method]: RestateServiceMethod<Interface[Method]>;
 };
 
 export interface RestateSaga<Name extends string, Data> {

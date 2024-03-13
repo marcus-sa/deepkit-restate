@@ -1,5 +1,10 @@
 import { RpcResponse } from '@restatedev/restate-sdk/dist/generated/proto/dynrpc';
 
+import { Saga } from './saga';
+import { SagaInstance } from './saga-instance';
+import { SagaActions } from './saga-actions';
+import { RestateSagaMetadata } from '../decorator';
+import { encodeRpcRequest } from '../utils';
 import {
   deserializeRestateServiceMethodResponse,
   RestateClientCallOptions,
@@ -7,11 +12,6 @@ import {
   RestateServiceMethodRequest,
   RestateServiceMethodResponse,
 } from '../types';
-import { Saga } from './saga';
-import { SagaInstance } from './saga-instance';
-import { SagaActions } from './saga-actions';
-import { RestateSagaMetadata } from '../decorator';
-import { encodeRpcRequest } from '../utils';
 
 export class SagaManager<Data> {
   constructor(
@@ -75,7 +75,7 @@ export class SagaManager<Data> {
           );
         }
 
-        instance.save(this.ctx, this.metadata);
+        await instance.save(this.ctx, this.metadata);
 
         if (actions.stepOutcome?.request) {
           const response = await this.invokeParticipant(
@@ -107,7 +107,6 @@ export class SagaManager<Data> {
       this.ctx,
       this.metadata,
     );
-    // const instance = await new SagaInstance(sagaData).restore(this.ctx, this.metadata);
 
     await this.ctx.sideEffect(async () => {
       await this.saga.onStarting?.(this.ctx.workflowId(), instance.sagaData);

@@ -1,4 +1,4 @@
-import { Type, typeOf, uint8 } from '@deepkit/type';
+import { typeOf, uint8 } from '@deepkit/type';
 import { SharedWfContext } from '@restatedev/restate-sdk/dist/workflows/workflow';
 import { SagaExecutionState } from './saga-execution-state';
 import {
@@ -9,7 +9,12 @@ import {
 import { RestateSagaMetadata } from '../decorator';
 import { RestateSagaContext } from '../types';
 
-export class SagaInstance<Data> {
+export interface SagaState<Data = Uint8Array> {
+  readonly sagaData: Data;
+  readonly currentState: SagaExecutionState;
+}
+
+export class SagaInstance<Data> implements SagaState<Data> {
   constructor(
     public sagaData: Data,
     public currentState: SagaExecutionState = new SagaExecutionState(),
@@ -19,40 +24,40 @@ export class SagaInstance<Data> {
     ctx: RestateSagaContext | SharedWfContext,
     metadata: RestateSagaMetadata<Data>,
   ): Promise<SagaInstance<Data>> {
-    const ctxData = await ctx.get<readonly uint8[]>(SAGA_INSTANCE_STATE_KEY);
+    const ctxData = await ctx.get<readonly uint8[]>(SAGA_STATE_KEY);
     if (!ctxData) return this;
-    const sagaData = new Uint8Array(ctxData);
-    const instance = deserializeSagaInstance(sagaData) as SagaInstance<Data>;
-    instance.sagaData = metadata.deserializeData(
-      new Uint8Array(instance.sagaData as readonly uint8[]),
-    );
-    return instance;
+    const instance = deserializeSagaState(new Uint8Array(ctxData));
+    this.sagaData = metadata.deserializeData(instance.sagaData);
+    this.currentState = instance.currentState;
+    return this;
   }
 
-  save(ctx: RestateSagaContext, metadata: RestateSagaMetadata): void {
+  async save(
+    ctx: RestateSagaContext,
+    metadata: RestateSagaMetadata,
+  ): Promise<void> {
     ctx.set(
-      SAGA_INSTANCE_STATE_KEY,
+      SAGA_STATE_KEY,
       Array.from(
-        serializeSagaInstance(
-          new SagaInstance(
-            metadata.serializeData(this.sagaData as Uint8Array),
-            this.currentState,
-          ),
-        ),
+        serializeSagaState({
+          currentState: this.currentState,
+          sagaData: metadata.serializeData(this.sagaData),
+        } satisfies SagaState<Uint8Array>),
       ),
     );
   }
 }
 
-export const sagaInstanceType = typeOf<SagaInstance<readonly uint8[]>>();
+export const sagaStateType = typeOf<SagaState>();
 
-export const SAGA_INSTANCE_STATE_KEY = '__instance';
+export const SAGA_STATE_KEY = '__instance';
 
-export const serializeSagaInstance = getBSONSerializer(
+export const serializeSagaState = getBSONSerializer<SagaState>(
   bsonBinarySerializer,
-  sagaInstanceType,
+  sagaStateType,
 );
 
-export const deserializeSagaInstance = getBSONDeserializer<
-  SagaInstance<readonly uint8[]>
->(bsonBinarySerializer, sagaInstanceType);
+export const deserializeSagaState = getBSONDeserializer<SagaState>(
+  bsonBinarySerializer,
+  sagaStateType,
+);
