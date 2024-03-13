@@ -31,10 +31,10 @@ import {
 } from '@restatedev/restate-sdk/dist/generated/proto/dynrpc';
 
 import {
-  deserializeInternalResponse,
+  deserializeRestateServiceMethodResponse,
   Entities,
   Entity,
-  InternalResponse,
+  RestateServiceMethodResponse,
   RestateClientCallOptions,
   RestateKeyedService,
   restateKeyedServiceType,
@@ -42,11 +42,10 @@ import {
   RestateRpcResponse,
   restateSagaType,
   RestateService,
-  RestateServiceMethodCall,
-  restateServiceMethodCallType,
+  RestateServiceMethodRequest,
   RestateServiceOptions,
   restateServiceType,
-  serializeInternalResponse,
+  serializeRestateServiceMethodResponse,
 } from './types';
 import {
   restateClassDecorator,
@@ -102,10 +101,6 @@ export function isRestateKeyedServiceType(type: Type): boolean {
     return false;
   }
   return isExtendable(type, restateKeyedServiceType);
-}
-
-export function isRestateServiceMethodCallType(type: Type): boolean {
-  return isSameType(type, restateServiceMethodCallType);
 }
 
 export function isRestateSagaType(
@@ -269,9 +264,9 @@ export function createServiceProxy<
         }
         const { serializeArgs, deserializeReturn } = methods[method];
 
-        return (...args: readonly unknown[]): RestateServiceMethodCall => {
+        return (...args: readonly unknown[]): RestateServiceMethodRequest => {
           const data = Array.from(serializeArgs(args));
-          return Object.assign(new RestateServiceMethodCall(), {
+          return Object.assign(new RestateServiceMethodRequest(), {
             entities,
             service,
             keyed,
@@ -310,17 +305,17 @@ export function encodeRpcRequest(
 }
 
 export function encodeRpcResponse(
-  response: InternalResponse,
+  response: RestateServiceMethodResponse,
 ): RestateRpcResponse {
-  return Array.from(serializeInternalResponse(response));
+  return Array.from(serializeRestateServiceMethodResponse(response));
 }
 
-export function decodeInternalResponse<T>(
+export function decodeRestateServiceMethodResponse<T>(
   response: Uint8Array,
   deserialize: BSONDeserializer<T>,
   entities: Entities,
 ): T {
-  const internalResponse = deserializeInternalResponse(response);
+  const internalResponse = deserializeRestateServiceMethodResponse(response);
   if (internalResponse.success) {
     return deserialize(internalResponse.data);
   }

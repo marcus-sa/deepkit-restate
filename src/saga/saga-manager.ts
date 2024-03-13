@@ -1,82 +1,123 @@
-import { RestateSagaContext } from '../types';
-import { Saga, SagaLifecycleHooks } from './saga';
+import { RpcResponse } from '@restatedev/restate-sdk/dist/generated/proto/dynrpc';
+
 import {
-  SagaInstance,
-  sagaInstanceStateKey,
-  sagaInstanceType,
-  serializeSagaInstance,
-} from './saga-instance';
+  deserializeRestateServiceMethodResponse,
+  RestateClientCallOptions,
+  RestateSagaContext,
+  RestateServiceMethodRequest,
+  RestateServiceMethodResponse,
+} from '../types';
+import { Saga } from './saga';
+import { SagaInstance } from './saga-instance';
 import { SagaActions } from './saga-actions';
-import { Type } from '@deepkit/type';
 import { RestateSagaMetadata } from '../decorator';
+import { encodeRpcRequest } from '../utils';
 
 export class SagaManager<Data> {
   constructor(
     private readonly ctx: RestateSagaContext,
-    private readonly saga: Saga<Data> & SagaLifecycleHooks<Data>,
-    private readonly metadata: RestateSagaMetadata,
+    private readonly saga: Saga<Data>,
+    private readonly metadata: RestateSagaMetadata<Data>,
   ) {}
+
+  private async invokeParticipant(
+    { service, method, data }: RestateServiceMethodRequest,
+    { key }: RestateClientCallOptions = {},
+  ): Promise<RestateServiceMethodResponse> {
+    return await (this.ctx as any)
+      .invoke(service, method, encodeRpcRequest(data, key))
+      .transform((response: Uint8Array) =>
+        deserializeRestateServiceMethodResponse(
+          new Uint8Array(RpcResponse.decode(response).response),
+        ),
+      );
+  }
+
+  private async performEndStateActions(
+    compensating: boolean,
+    sagaData: Data,
+  ): Promise<void> {
+    if (compensating) {
+      await this.ctx.sideEffect(async () => {
+        await this.saga.onSagaRolledBack?.(sagaData);
+      });
+    } else {
+      await this.ctx.sideEffect(async () => {
+        await this.saga.onSagaCompletedSuccessfully?.(sagaData);
+      });
+    }
+  }
 
   private async processActions(
     instance: SagaInstance<Data>,
     actions: SagaActions<Data>,
   ): Promise<void> {
     while (true) {
-      if (actions.localException) {
-        actions = await this.saga.definition.handleReply(actions, true);
+      if (actions.stepOutcome?.error) {
+        actions = await this.saga.definition.handleActions(
+          this.ctx,
+          actions.updatedState!,
+          actions.updatedData!,
+          false,
+        );
       } else {
-        // only do this if successful
-        sagaInstance.lastRequestId =
-          await this.sagaCommandProducer.sendCommands(
-            this.sagaType,
-            sagaInstance.sagaId,
-            actions.commands,
-            this.sagaReplyChannel,
-          );
-
         if (actions.updatedState) {
           instance.currentState = actions.updatedState;
         }
         if (actions.updatedData) {
-          instance.data = actions.updatedData;
+          instance.sagaData = actions.updatedData;
         }
 
         if (actions.endState) {
           await this.performEndStateActions(
-            sagaInstance.sagaId,
-            sagaInstance,
             actions.compensating,
-            sagaData,
+            instance.sagaData,
           );
         }
 
         instance.save(this.ctx, this.metadata);
 
-        if (!actions.local) break;
+        if (actions.stepOutcome?.request) {
+          const response = await this.invokeParticipant(
+            actions.stepOutcome.request,
+          );
+          actions = await this.saga.definition.handleReply(
+            this.ctx,
+            instance.currentState,
+            instance.sagaData,
+            actions.stepOutcome.request,
+            response,
+          );
+        } else {
+          if (!actions.stepOutcome?.local) break;
 
-        actions = await this.saga.definition.handleReply(actions, false);
+          actions = await this.saga.definition.handleActions(
+            this.ctx,
+            actions.updatedState!,
+            actions.updatedData!,
+            true,
+          );
+        }
       }
     }
   }
 
-  async restoreInstance(data: Data): Promise<SagaInstance<Data>> {
-    return ((await SagaInstance.restore<Data>(this.ctx, this.metadata)) ||
-      new SagaInstance<Data>(data)) as SagaInstance<Data>;
-  }
-
   async start(data: Data): Promise<SagaInstance<Data>> {
-    const instance = await this.restoreInstance(data);
-    // const instance = await new SagaInstance(data).restore(this.ctx, this.metadata);
-
-    await this.ctx.sideEffect(async () =>
-      this.saga.onStarting?.(instance.data),
+    const instance = await new SagaInstance<Data>(data).restore(
+      this.ctx,
+      this.metadata,
     );
+    // const instance = await new SagaInstance(sagaData).restore(this.ctx, this.metadata);
 
-    const actions = await this.saga.definition.start(instance.data);
+    await this.ctx.sideEffect(async () => {
+      await this.saga.onStarting?.(this.ctx.workflowId(), instance.sagaData);
+    });
 
-    if (actions.localException) {
-      throw actions.localException;
-    }
+    const actions = await this.saga.definition.start(this.ctx, instance);
+
+    // if (actions.stepOutcome?.error) {
+    //   throw actions.stepOutcome.error;
+    // }
 
     await this.processActions(instance, actions);
 

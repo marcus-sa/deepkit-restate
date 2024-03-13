@@ -1,24 +1,48 @@
-import { Handler, SagaReplyHandler, SagaReplyHandlers } from './types';
-import { InternalResponse, RestateServiceMethodCall } from '../types';
+import {
+  Handler,
+  PredicateFn,
+  SagaReplyHandler,
+  SagaReplyHandlers,
+} from './types';
+import {
+  RestateServiceMethodResponse,
+  RestateServiceMethodRequest,
+  RestateSagaContext,
+} from '../types';
 
-export class SagaStep<Data> {
+import { SagaStepOutcome } from './step-outcome';
+
+export interface SagaStep<Data> {
+  readonly invoke: Handler<Data, RestateServiceMethodRequest | void>;
+  readonly compensate?: Handler<Data>;
+  readonly compensatePredicate?: PredicateFn<Data>;
+  hasAction(data: Data): Promise<boolean>;
+  hasCompensation(data: Data): Promise<boolean>;
+  createOutcome(data: Data, compensating: boolean): Promise<SagaStepOutcome>;
+}
+
+export class SagaStep<Data> implements SagaStep<Data> {
   constructor(
-    readonly handler: Handler<Data, RestateServiceMethodCall | void>,
-    readonly compensator?: Handler<Data>,
+    readonly invoke: Handler<Data, RestateServiceMethodRequest | void>,
+    readonly isParticipantInvocation: boolean,
+    readonly compensate?: Handler<Data>,
+    readonly compensatePredicate?: PredicateFn<Data>,
     readonly actionReplyHandlers?: SagaReplyHandlers<Data>,
     readonly compensationReplyHandlers?: SagaReplyHandlers<Data>,
   ) {}
 
   async hasAction(data: Data): Promise<boolean> {
-    return true;
+    return typeof this.invoke === 'function';
   }
 
-  async compensates(data: Data): Promise<boolean> {
-    return this.compensator?.(data);
+  async hasCompensation(data: Data): Promise<boolean> {
+    return typeof this.compensatePredicate === 'function'
+      ? await this.compensatePredicate(data)
+      : typeof this.compensate === 'function';
   }
 
   getReply<T>(
-    response: InternalResponse,
+    response: RestateServiceMethodResponse,
     compensating: boolean,
   ): SagaReplyHandler<Data, T> | undefined {
     const replyHandlers = compensating
@@ -28,17 +52,30 @@ export class SagaStep<Data> {
     return replyHandlers?.get(response.typeName);
   }
 
-  isSuccessfulReply(compensating: boolean, response: InternalResponse): boolean {
-    return response.success;
-  }
-
   async createStepOutcome(
+    ctx: RestateSagaContext,
     data: Data,
     compensating: boolean,
-  ): Promise<RestateServiceMethodCall | void> {
-    if (!compensating) {
-      return await this.handler(data);
+  ): Promise<SagaStepOutcome> {
+    if (this.isParticipantInvocation) {
+      return SagaStepOutcome.forParticipant(
+        !compensating
+          ? await this.invoke?.(data)
+          : await this.compensate?.(data),
+      );
+    } else {
+      try {
+        await ctx.sideEffect(async () => {
+          if (!compensating) {
+            await this.invoke?.(data);
+          } else {
+            await this.compensate?.(data);
+          }
+        });
+        return SagaStepOutcome.forLocal();
+      } catch (err) {
+        return SagaStepOutcome.forLocalWithError(err);
+      }
     }
-    await this.compensator?.(data);
   }
 }

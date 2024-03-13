@@ -1,5 +1,5 @@
 import { SagaExecutionState } from './saga-execution-state';
-import { RestateServiceMethodCall } from '../types';
+import { SagaStepOutcome } from './step-outcome';
 
 export class SagaActions<Data> {
   static makeEndState<Data>(state: SagaExecutionState): SagaActions<Data> {
@@ -10,13 +10,26 @@ export class SagaActions<Data> {
     );
   }
 
+  static makeStepExecution<Data>(
+    data: Data,
+    newState: SagaExecutionState,
+    oldState: SagaExecutionState,
+    stepOutcome?: SagaStepOutcome,
+  ) {
+    return new SagaActions<Data>(
+      oldState.compensating,
+      newState.endState,
+      newState,
+      data,
+      stepOutcome,
+    );
+  }
+
   constructor(
     public compensating: boolean = false,
     public endState: boolean = false,
     public updatedState?: SagaExecutionState,
     public updatedData?: Data,
-    public local?: boolean,
-    public rpc?: RestateServiceMethodCall,
-    public localException?: Error,
+    public stepOutcome?: SagaStepOutcome,
   ) {}
 }

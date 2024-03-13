@@ -1,10 +1,19 @@
-import { float } from '@deepkit/type';
+import { float, UUID, uuid } from '@deepkit/type';
 
 import { Saga } from './saga';
 import { restate } from '../decorator';
-import { RestateSaga, RestateSagaContext, RestateService } from '../types';
+import {
+  RestateSaga,
+  RestateSagaContext,
+  RestateService,
+  RestateServiceMethodRequest,
+} from '../types';
+import { createTestingApp } from '@deepkit/framework';
+import { RestateModule } from '../restate.module';
+import { RestateAdminClient } from '../restate-admin-client';
+import { RestateClient } from '../restate-client';
 
-test('e2e', () => {
+test('e2e', async () => {
   class CustomerNotFound {}
 
   class CustomerCreditLimitExceeded {}
@@ -12,10 +21,23 @@ test('e2e', () => {
   class CustomerCreditReserved {}
 
   interface CustomerService {
-    reserveCredit(id: string, amount: float): Promise<CustomerCreditReserved>;
+    reserveCredit(
+      customerId: string,
+      amount: float,
+    ): Promise<CustomerCreditReserved>;
   }
 
   type CustomerServiceApi = RestateService<'customer', CustomerService>;
+
+  @restate.service<CustomerServiceApi>()
+  class CustomerController implements CustomerService {
+    async reserveCredit(
+      customerId: string,
+      amount: float,
+    ): Promise<CustomerCreditReserved> {
+      return new CustomerCreditReserved();
+    }
+  }
 
   enum OrderRejectionReason {
     UNKNOWN_CUSTOMER = 'UNKNOWN_CUSTOMER',
@@ -23,7 +45,7 @@ test('e2e', () => {
   }
 
   interface CreateOrderSagaData {
-    id: string;
+    id: UUID;
     customerId: string;
     orderTotal: float;
     rejectionReason?: OrderRejectionReason;
@@ -53,9 +75,8 @@ test('e2e', () => {
     constructor(
       private readonly customer: CustomerServiceApi,
       private readonly order: OrderRepository,
-      ctx: RestateSagaContext,
     ) {
-      super(ctx);
+      super();
     }
 
     async reserveCustomerCredit({
@@ -73,10 +94,30 @@ test('e2e', () => {
       data.rejectionReason = OrderRejectionReason.INSUFFICIENT_CREDIT;
     }
 
-    async create(data: CreateOrderSagaData) {}
+    async create(data: CreateOrderSagaData): Promise<void> {}
 
-    async reject(data: CreateOrderSagaData) {}
+    async reject(data: CreateOrderSagaData): Promise<void> {}
 
-    async approve(data: CreateOrderSagaData) {}
+    async approve(data: CreateOrderSagaData): Promise<void> {}
   }
+
+  const app = createTestingApp({
+    imports: [new RestateModule({ port: 9083 })],
+    controllers: [CreateOrderSaga, CustomerController],
+  });
+  void app.startServer();
+
+  const admin = new RestateAdminClient('http://0.0.0.0:9070');
+  await admin.deployments.create(`http://host.docker.internal:9083`);
+
+  const client = new RestateClient('http://0.0.0.0:8080');
+
+  const orderId = uuid();
+  const customerId = uuid();
+
+  await client.saga<CreateOrderSagaApi>().start(orderId, {
+    id: orderId,
+    orderTotal: 10.5,
+    customerId,
+  });
 });

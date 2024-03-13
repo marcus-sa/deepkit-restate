@@ -1,14 +1,14 @@
-import {
-  ReceiveType,
-  ReflectionFunction,
-  ReflectionKind,
-  resolveReceiveType,
-} from '@deepkit/type';
+import { ReceiveType, ReflectionKind, resolveReceiveType } from '@deepkit/type';
 
-import { RestateServiceMethodCall } from '../types';
+import { RestateServiceMethodRequest } from '../types';
 import { SagaDefinitionBuilder } from './saga-definition-builder';
 import { SagaStep } from './saga-step';
-import { Handler, SagaReplyHandlerFn, SagaReplyHandlers, PredicateFn } from './types';
+import {
+  Handler,
+  SagaReplyHandlerFn,
+  SagaReplyHandlers,
+  PredicateFn,
+} from './types';
 import { SagaDefinition } from './saga-definition';
 
 export interface BaseStepBuilder<Data> {
@@ -35,17 +35,21 @@ class InvokedStepBuilder<Data>
   private readonly compensationReplyHandlers: SagaReplyHandlers<Data> =
     new Map();
   private compensator?: Handler<Data>;
+  private compensationPredictor?: Handler<Data>;
 
   constructor(
     private readonly builder: SagaDefinitionBuilder<Data>,
     private readonly handler: Handler<Data>,
+    private readonly isParticipantInvocation: boolean,
   ) {}
 
   private addStep(): void {
     this.builder.addStep(
       new SagaStep<Data>(
         this.handler.bind(this.builder.saga),
+        this.isParticipantInvocation,
         this.compensator,
+        this.compensationPredictor,
         this.actionReplyHandlers,
         this.compensationReplyHandlers,
       ),
@@ -54,6 +58,9 @@ class InvokedStepBuilder<Data>
 
   compensate(handler: Handler<Data>, predicate?: PredicateFn<Data>): this {
     this.compensator = handler.bind(this.builder.saga);
+    if (predicate) {
+      this.compensationPredictor = predicate.bind(this.builder.saga);
+    }
     return this;
   }
 
@@ -94,12 +101,24 @@ export class StepBuilder<Data> {
   constructor(private readonly builder: SagaDefinitionBuilder<Data>) {}
 
   invoke<R, A extends any[]>(
-    handler: Handler<Data, RestateServiceMethodCall<R, A>>,
+    handler: Handler<Data, RestateServiceMethodRequest<R, A>>,
   ): ParticipantStepBuilder<Data>;
-  invoke<T>(handler: Handler<Data, T>): LocalStepBuilder<Data>;
+  invoke(handler: Handler<Data, void>): LocalStepBuilder<Data>;
   invoke(
     handler: Handler<Data>,
   ): ParticipantStepBuilder<Data> | LocalStepBuilder<Data> {
-    return new InvokedStepBuilder<Data>(this.builder, handler);
+    /**
+     * Deepkit doesn't support inferring types or method overloading, so we have to use an alternative approach to detect if it's a participant invocation
+     * I think we can "safely" rely on this regex because local invocations aren't allowed to return anything
+     */
+    const isParticipantInvocation = returnRegex.test(handler.toString());
+    return new InvokedStepBuilder<Data>(
+      this.builder,
+      handler,
+      isParticipantInvocation,
+    );
   }
 }
+
+const returnRegex =
+  /(?:function[^{]+|[\w$]+\s*\(.*?\))\s*{[^}]*\breturn\b[^}]*}/;

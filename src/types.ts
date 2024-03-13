@@ -9,6 +9,7 @@ import {
   getBSONSerializer,
 } from '@deepkit/bson';
 import { ClassType } from '@deepkit/core';
+import { WfContext } from '@restatedev/restate-sdk/dist/workflows/workflow';
 
 export interface RestateApiInvocation {
   readonly id: string;
@@ -21,15 +22,15 @@ export interface RestateClientCallOptions {
 
 export interface CustomContext {
   send(
-    call: RestateServiceMethodCall,
+    call: RestateServiceMethodRequest,
     options?: RestateClientCallOptions,
   ): Promise<void>;
   sendDelayed(
-    call: RestateServiceMethodCall,
+    call: RestateServiceMethodRequest,
     ms: number,
     options?: RestateClientCallOptions,
   ): Promise<void>;
-  rpc<R, A extends any[]>(call: RestateServiceMethodCall<R, A>): Promise<R>;
+  rpc<R, A extends any[]>(call: RestateServiceMethodRequest<R, A>): Promise<R>;
 }
 
 export interface Entity<T> {
@@ -40,7 +41,7 @@ export interface Entity<T> {
 
 export type Entities = Map<string, Entity<unknown>>;
 
-export class RestateServiceMethodCall<R = any, A extends any[] = []> {
+export class RestateServiceMethodRequest<R = any, A extends any[] = []> {
   readonly keyed: boolean;
   readonly entities: Entities;
   readonly service: string;
@@ -54,7 +55,7 @@ export type RestateRpcRequest = readonly uint8[];
 export type RestateRpcResponse = readonly uint8[];
 
 type RestateServiceMethod<F> = F extends (...args: infer P) => infer R
-  ? (...args: P) => RestateServiceMethodCall<Awaited<R>, P>
+  ? (...args: P) => RestateServiceMethodRequest<Awaited<R>, P>
   : never;
 
 export interface RestateServiceOptions {
@@ -77,7 +78,10 @@ export type RestateKeyedService<
   [M in keyof S as S[M] extends never ? never : M]: RestateServiceMethod<S[M]>;
 };
 
-export type RestateSaga<Name extends string, Data> = never;
+export interface RestateSaga<Name extends string, Data> {
+  readonly name: Name;
+  readonly data: Data;
+}
 
 export type RestateContext = CustomContext &
   Omit<Context, 'rpc' | 'send' | 'sendDelayed'>;
@@ -88,33 +92,33 @@ export interface RestateKeyedContext
   readonly key: string;
 }
 
-export interface InternalResponse {
+export interface RestateServiceMethodResponse {
   readonly success: boolean;
   readonly data: Uint8Array;
   readonly typeName: string;
 }
 
-export const internalResponseType = typeOf<InternalResponse>();
+export const restateServiceMethodResponseType =
+  typeOf<RestateServiceMethodResponse>();
 
-export const deserializeInternalResponse = getBSONDeserializer(
+export const deserializeRestateServiceMethodResponse =
+  getBSONDeserializer<RestateServiceMethodResponse>(
+    bsonBinarySerializer,
+    restateServiceMethodResponseType,
+  );
+
+export const serializeRestateServiceMethodResponse = getBSONSerializer(
   bsonBinarySerializer,
-  internalResponseType,
+  restateServiceMethodResponseType,
 );
 
-export const serializeInternalResponse = getBSONSerializer(
-  bsonBinarySerializer,
-  internalResponseType,
-);
-
-export type RestateSagaContext = RestateKeyedContext;
+export interface RestateSagaContext
+  extends Omit<WfContext, 'rpc' | 'send' | 'sendDelayed'> {}
 
 export const restateServiceType = typeOf<RestateService<string, any, any[]>>();
 
 export const restateKeyedServiceType =
   typeOf<RestateKeyedService<string, any, any[]>>();
-
-export const restateServiceMethodCallType =
-  typeOf<RestateServiceMethodCall<any, any[]>>();
 
 export const restateSagaType = typeOf<RestateSaga<string, any>>();
 

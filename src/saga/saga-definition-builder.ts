@@ -3,12 +3,12 @@ import { Saga } from './saga';
 import { SagaDefinition } from './saga-definition';
 
 export class SagaDefinitionBuilder<Data> {
-  private readonly steps = new Set<SagaStep<Data>>();
+  private readonly steps: SagaStep<Data>[] = [];
 
   constructor(readonly saga: Saga<Data>) {}
 
   addStep(step: SagaStep<Data>): void {
-    this.steps.add(step);
+    this.steps.push(step);
   }
 
   build(): SagaDefinition<Data> {
