@@ -1,4 +1,4 @@
-import { RestateServiceMethodRequest } from '../types';
+import { RestateServiceMethodRequest } from '../types.js';
 
 export class SagaStepOutcome {
   static forParticipant(request: RestateServiceMethodRequest): SagaStepOutcome {

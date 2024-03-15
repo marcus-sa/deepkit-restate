@@ -1,5 +1,5 @@
 import { eventDispatcher } from '@deepkit/event';
-import { RpcResponse } from '@restatedev/restate-sdk/dist/generated/proto/dynrpc';
+import { RpcResponse } from '@restatedev/restate-sdk/dist/generated/proto/dynrpc.js';
 import { onServerMainBootstrap } from '@deepkit/framework';
 import { InjectorContext } from '@deepkit/injector';
 import * as restate from '@restatedev/restate-sdk';
@@ -12,19 +12,19 @@ import {
   uint8,
 } from '@deepkit/type';
 
-import { Service, Services } from './services';
-import { Sagas } from './sagas';
+import { Service, Services } from './services.js';
+import { Sagas } from './sagas.js';
 import {
   RestateServiceMetadata,
   RestateServiceMethodMetadata,
-} from './decorator';
-import { RestateConfig } from './restate.module';
+} from './decorator.js';
+import { RestateConfig } from './restate.module.js';
 import {
   assertArgs,
   decodeRestateServiceMethodResponse,
   encodeRpcRequest,
   encodeRpcResponse,
-} from './utils';
+} from './utils.js';
 import {
   CustomContext,
   RestateServiceMethodRequest,
@@ -38,8 +38,8 @@ import {
   RestateRpcResponse,
   RestateSagaContext,
   restateSagaContextToken,
-} from './types';
-import { SagaManager, SAGA_STATE_KEY } from './saga';
+} from './types.js';
+import { SagaManager, SAGA_STATE_KEY } from './saga/index.js';
 
 export class RestateServer {
   readonly endpoint = restate.endpoint();

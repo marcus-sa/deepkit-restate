@@ -1,17 +1,17 @@
 import assert from 'node:assert';
 import { ClassType } from '@deepkit/core';
+import { RpcRequest } from '@restatedev/restate-sdk/dist/generated/proto/dynrpc.js';
+import { TerminalError } from '@restatedev/restate-sdk';
 import {
   bsonBinarySerializer,
   BSONDeserializer,
   BSONSerializer,
-  deserializeBSON,
   getBSONDeserializer,
   getBSONSerializer,
 } from '@deepkit/bson';
 import {
   assertType,
   isExtendable,
-  isSameType,
   ReceiveType,
   reflect,
   ReflectionClass,
@@ -25,10 +25,6 @@ import {
   TypeTuple,
   TypeTupleMember,
 } from '@deepkit/type';
-import {
-  RpcRequest,
-  RpcResponse,
-} from '@restatedev/restate-sdk/dist/generated/proto/dynrpc';
 
 import {
   deserializeRestateServiceMethodResponse,
@@ -46,13 +42,12 @@ import {
   RestateServiceOptions,
   restateServiceType,
   serializeRestateServiceMethodResponse,
-} from './types';
+} from './types.js';
 import {
   restateClassDecorator,
   RestateSagaMetadata,
   RestateServiceMetadata,
-} from './decorator';
-import { TerminalError } from '@restatedev/restate-sdk';
+} from './decorator.js';
 
 export function getRestateServiceDeps(classType: ClassType): readonly Type[] {
   const serviceType = reflect(classType);

@@ -3,14 +3,14 @@ import {
   PredicateFn,
   SagaReplyHandler,
   SagaReplyHandlers,
-} from './types';
+} from './types.js';
 import {
   RestateServiceMethodResponse,
   RestateServiceMethodRequest,
   RestateSagaContext,
-} from '../types';
+} from '../types.js';
 
-import { SagaStepOutcome } from './step-outcome';
+import { SagaStepOutcome } from './step-outcome.js';
 
 export class SagaStep<Data> {
   constructor(

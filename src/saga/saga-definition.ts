@@ -1,10 +1,10 @@
 import { ErrorCodes, TerminalError } from '@restatedev/restate-sdk';
 
-import { SagaStep } from './saga-step';
-import { SagaExecutionState } from './saga-execution-state';
-import { StepToExecute } from './step-to-execute';
-import { SagaInstance } from './saga-instance';
-import { SagaActions } from './saga-actions';
+import { SagaStep } from './saga-step.js';
+import { SagaExecutionState } from './saga-execution-state.js';
+import { StepToExecute } from './step-to-execute.js';
+import { SagaInstance } from './saga-instance.js';
+import { SagaActions } from './saga-actions.js';
 import {
   RestateServiceMethodResponse,
   RestateServiceMethodRequest,
@@ -12,7 +12,7 @@ import {
   RestateSagaContext,
   restateTerminalErrorType,
   deserializeRestateTerminalErrorType,
-} from '../types';
+} from '../types.js';
 
 export class SagaDefinition<Data> {
   constructor(private readonly steps: readonly SagaStep<Data>[]) {}

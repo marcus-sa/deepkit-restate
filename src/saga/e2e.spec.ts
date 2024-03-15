@@ -2,12 +2,12 @@ import { float, UUID, uuid } from '@deepkit/type';
 import { sleep } from '@deepkit/core';
 import { createTestingApp } from '@deepkit/framework';
 
-import { Saga } from './saga';
-import { restate } from '../decorator';
-import { RestateSaga, RestateService } from '../types';
-import { RestateModule } from '../restate.module';
-import { RestateAdminClient } from '../restate-admin-client';
-import { RestateClient } from '../restate-client';
+import { Saga } from './saga.js';
+import { restate } from '../decorator.js';
+import { RestateSaga, RestateService } from '../types.js';
+import { RestateModule } from '../restate.module.js';
+import { RestateAdminClient } from '../restate-admin-client.js';
+import { RestateClient } from '../restate-client.js';
 
 test('e2e', async () => {
   class CustomerNotFound {}

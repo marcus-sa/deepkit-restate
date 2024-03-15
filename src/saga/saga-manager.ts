@@ -1,11 +1,11 @@
-import { RpcResponse } from '@restatedev/restate-sdk/dist/generated/proto/dynrpc';
 import { TerminalError } from '@restatedev/restate-sdk';
+import { RpcResponse } from '@restatedev/restate-sdk/dist/generated/proto/dynrpc.js';
 
-import { Saga } from './saga';
-import { SagaInstance } from './saga-instance';
-import { SagaActions } from './saga-actions';
-import { RestateSagaMetadata } from '../decorator';
-import { encodeRpcRequest } from '../utils';
+import { Saga } from './saga.js';
+import { SagaInstance } from './saga-instance.js';
+import { SagaActions } from './saga-actions.js';
+import { RestateSagaMetadata } from '../decorator.js';
+import { encodeRpcRequest } from '../utils.js';
 import {
   deserializeRestateServiceMethodResponse,
   RestateClientCallOptions,
@@ -14,7 +14,7 @@ import {
   RestateServiceMethodResponse,
   restateTerminalErrorType,
   serializeRestateTerminalErrorType,
-} from '../types';
+} from '../types.js';
 
 export class SagaManager<Data> {
   constructor(

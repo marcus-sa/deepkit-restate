@@ -11,7 +11,7 @@ import {
   uint8,
 } from '@deepkit/type';
 
-import { deserializeSagaState, SagaState } from './saga';
+import { deserializeSagaState, SagaState } from './saga/index.js';
 import {
   assertArgs,
   createServiceProxy,
@@ -19,7 +19,7 @@ import {
   getSagaDataSerializer,
   getRestateSagaName,
   getSagaDataDeserializer,
-} from './utils';
+} from './utils.js';
 import {
   RestateServiceMethodRequest,
   RestateService,
@@ -28,7 +28,7 @@ import {
   RestateRpcResponse,
   RestateKeyedService,
   RestateSaga,
-} from './types';
+} from './types.js';
 
 export interface RestateClientOptions {
   // Not implemented (see https://discord.com/channels/1128210118216007792/1214635273141616761/1214932617435156510)

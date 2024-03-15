@@ -1,5 +1,5 @@
-import { SagaExecutionState } from './saga-execution-state';
-import { SagaStepOutcome } from './step-outcome';
+import { SagaExecutionState } from './saga-execution-state.js';
+import { SagaStepOutcome } from './step-outcome.js';
 
 export class SagaActions<Data> {
   static makeEndState<Data>(state: SagaExecutionState): SagaActions<Data> {

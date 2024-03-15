@@ -1,20 +1,15 @@
-import {
-  ReceiveType,
-  ReflectionFunction,
-  ReflectionKind,
-  resolveReceiveType,
-} from '@deepkit/type';
+import { ReceiveType, ReflectionKind, resolveReceiveType } from '@deepkit/type';
 
-import { RestateServiceMethodRequest } from '../types';
-import { SagaDefinitionBuilder } from './saga-definition-builder';
-import { SagaStep } from './saga-step';
+import { RestateServiceMethodRequest } from '../types.js';
+import { SagaDefinitionBuilder } from './saga-definition-builder.js';
+import { SagaStep } from './saga-step.js';
 import {
   Handler,
   SagaReplyHandlerFn,
   SagaReplyHandlers,
   PredicateFn,
-} from './types';
-import { SagaDefinition } from './saga-definition';
+} from './types.js';
+import { SagaDefinition } from './saga-definition.js';
 
 export interface BaseStepBuilder<Data> {
   step(): StepBuilder<Data>;

@@ -31,19 +31,17 @@ import {
   RestateKeyedService,
   RestateSaga,
   RestateService,
-} from './types';
+} from './types.js';
 import {
   getReflectionFunctionArgsType,
   getUnwrappedReflectionFunctionReturnType,
-  assertRestateSagaType,
   getRestateServiceName,
   getRestateSagaName,
   getRestateServiceEntities,
   isRestateServiceKeyed,
-  getSagaDataType,
   getSagaDataDeserializer,
   getSagaDataSerializer,
-} from './utils';
+} from './utils.js';
 
 export class RestateServiceMetadata {
   readonly name: string;

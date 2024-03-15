@@ -1,22 +1,22 @@
 import { AppModule, ControllerConfig, createModule } from '@deepkit/app';
+import { ClassType } from '@deepkit/core';
 
-import { Services } from './services';
-import { RestateServer } from './restate-server';
+import { Services } from './services.js';
+import { RestateServer } from './restate-server.js';
 import {
   restateContextType,
   restateKeyedContextType,
   restateSagaContextType,
   SCOPE,
-} from './types';
-import { Sagas } from './sagas';
+} from './types.js';
+import { Sagas } from './sagas.js';
 import {
   createServiceProxy,
   getRestateSagaMetadata,
   getRestateServiceDeps,
   getRestateServiceMetadata,
-} from './utils';
-import { ClassType } from '@deepkit/core';
-import { RestateSagaMetadata, RestateServiceMetadata } from './decorator';
+} from './utils.js';
+import { RestateSagaMetadata, RestateServiceMetadata } from './decorator.js';
 
 export class RestateConfig {
   readonly port: number = 9080;

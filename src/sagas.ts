@@ -1,9 +1,9 @@
 import { InjectorModule } from '@deepkit/injector';
 import { ClassType } from '@deepkit/core';
 
-import { RestateSagaMetadata } from './decorator';
+import { RestateSagaMetadata } from './decorator.js';
 
-import { Saga as _Saga } from './saga/saga';
+import { Saga as _Saga } from './saga/saga.js';
 
 export interface Saga {
   readonly classType: ClassType<_Saga<unknown>>;

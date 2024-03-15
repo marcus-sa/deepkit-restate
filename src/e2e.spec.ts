@@ -1,10 +1,10 @@
 import { createTestingApp } from '@deepkit/framework';
 import { integer, Unique, uuid, UUID } from '@deepkit/type';
 
-import { RestateModule } from './restate.module';
-import { restate } from './decorator';
-import { RestateContext, RestateService } from './types';
-import { RestateClient } from './restate-client';
+import { RestateModule } from './restate.module.js';
+import { restate } from './decorator.js';
+import { RestateContext, RestateService } from './types.js';
+import { RestateClient } from './restate-client.js';
 
 async function createDeployment(port: number): Promise<Response> {
   const response = await fetch('http://0.0.0.0:9070/deployments', {

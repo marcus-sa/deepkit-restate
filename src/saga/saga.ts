@@ -1,7 +1,7 @@
-import { StepBuilder } from './step-builder';
-import { SagaDefinitionBuilder } from './saga-definition-builder';
-import { SagaDefinition } from './saga-definition';
-import { AsyncLike } from './types';
+import { StepBuilder } from './step-builder.js';
+import { SagaDefinitionBuilder } from './saga-definition-builder.js';
+import { SagaDefinition } from './saga-definition.js';
+import { AsyncLike } from './types.js';
 
 export abstract class Saga<Data> {
   abstract readonly definition: SagaDefinition<Data>;
