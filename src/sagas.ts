@@ -6,7 +6,7 @@ import { RestateSagaMetadata } from './decorator';
 import { Saga as _Saga } from './saga/saga';
 
 export interface Saga {
-  readonly classType: ClassType<_Saga>;
+  readonly classType: ClassType<_Saga<unknown>>;
   readonly module?: InjectorModule;
   readonly metadata: RestateSagaMetadata;
 }
