@@ -19,18 +19,18 @@
     "@restatedev/restate-sdk": "0.8.1"
   },
   "peerDependencies": {
-    "@deepkit/app": "1.0.1-alpha.141",
+    "@deepkit/app": "1.0.1-alpha.142",
     "@deepkit/bson": "1.0.1-alpha.142",
     "@deepkit/core": "1.0.1-alpha.124",
-    "@deepkit/event": "1.0.1-alpha.141",
-    "@deepkit/framework": "1.0.1-alpha.141",
-    "@deepkit/injector": "1.0.1-alpha.141",
+    "@deepkit/event": "1.0.1-alpha.142",
+    "@deepkit/framework": "1.0.1-alpha.142",
+    "@deepkit/injector": "1.0.1-alpha.142",
     "@deepkit/filesystem": "1.0.1-alpha.124",
-    "@deepkit/type": "1.0.1-alpha.141"
+    "@deepkit/type": "1.0.1-alpha.142"
   },
   "devDependencies": {
-    "@deepkit/type-compiler": "1.0.1-alpha.141",
-    "@deepkit/vite": "1.0.1-alpha.141",
+    "@deepkit/type-compiler": "1.0.1-alpha.142",
+    "@deepkit/vite": "1.0.1-alpha.142",
     "prettier": "^3.2.5",
     "typescript": "5.3.3",
     "vite": "^5.1.5",
@@ -39,7 +39,11 @@
   "pnpm": {
     "patchedDependencies": {
       "typescript@5.3.3": "patches/typescript@5.3.3.patch",
-      "@deepkit/type-compiler@1.0.1-alpha.141": "patches/@deepkit__type-compiler@1.0.1-alpha.141.patch"
+      "@deepkit/type-compiler@1.0.1-alpha.142": "patches/@deepkit__type-compiler@1.0.1-alpha.142.patch"
     }
+  },
+  "engines": {
+    "node": "21.6.2",
+    "pnpm": "8.15.3"
   }
 }
