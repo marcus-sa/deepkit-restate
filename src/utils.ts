@@ -258,14 +258,14 @@ export function createServiceProxy<
 
         return (...args: readonly unknown[]): RestateServiceMethodRequest => {
           const data = Array.from(serializeArgs(args));
-          return Object.assign(new RestateServiceMethodRequest(), {
+          return {
             entities,
             service,
             keyed,
             method,
             data,
             deserializeReturn,
-          });
+          };
         };
       },
     },
@@ -277,10 +277,10 @@ export function assertArgs(
   { key }: RestateClientCallOptions,
 ) {
   if (keyed && key == null) {
-    throw new Error('Missing key for keyed service');
+    throw new TerminalError('Missing key for keyed service');
   }
   if (key != null && !keyed) {
-    throw new Error('Unnecessary key for unkeyed service');
+    throw new TerminalError('Unnecessary key for unkeyed service');
   }
 }
 

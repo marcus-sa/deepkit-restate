@@ -13,12 +13,6 @@ export class SagaStepOutcome {
     return new SagaStepOutcome(true, undefined, error);
   }
 
-  static create(result: any): SagaStepOutcome {
-    return result instanceof RestateServiceMethodRequest
-      ? SagaStepOutcome.forParticipant(result)
-      : SagaStepOutcome.forLocal();
-  }
-
   constructor(
     readonly local: boolean,
     readonly request?: RestateServiceMethodRequest,

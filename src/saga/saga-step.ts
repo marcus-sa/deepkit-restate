@@ -56,6 +56,7 @@ export class SagaStep<Data> {
       );
     } else {
       try {
+        // TODO: How do we ensure that the side effect is executed when compensating?
         await ctx.sideEffect(async () => {
           if (!compensating) {
             await this.invoke?.(data);

@@ -11,7 +11,7 @@ import {
   uint8,
 } from '@deepkit/type';
 
-import { deserializeSagaState, SagaState } from './saga/index.js';
+import { deserializeSagaState, SagaState } from './saga/saga-instance.js';
 import {
   assertArgs,
   createServiceProxy,

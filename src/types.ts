@@ -1,5 +1,10 @@
 import { typeOf, uint8 } from '@deepkit/type';
-import { Context, KeyedContext, TerminalError, workflow } from '@restatedev/restate-sdk';
+import {
+  Context,
+  KeyedContext,
+  TerminalError,
+  workflow,
+} from '@restatedev/restate-sdk';
 import { getContainerToken } from '@deepkit/injector';
 import { ClassType } from '@deepkit/core';
 import {
@@ -40,7 +45,7 @@ export interface Entity<T> {
 
 export type Entities = Map<string, Entity<unknown>>;
 
-export class RestateServiceMethodRequest<R = any, A extends any[] = []> {
+export interface RestateServiceMethodRequest<R = any, A extends any[] = []> {
   readonly keyed: boolean;
   readonly entities: Entities;
   readonly service: string;

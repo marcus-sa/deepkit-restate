@@ -12,6 +12,8 @@ import {
   uint8,
 } from '@deepkit/type';
 
+import { SagaManager } from './saga/saga-manager.js';
+import { SAGA_STATE_KEY } from './saga/saga-instance.js';
 import { Service, Services } from './services.js';
 import { Sagas } from './sagas.js';
 import {
@@ -39,7 +41,6 @@ import {
   RestateSagaContext,
   restateSagaContextToken,
 } from './types.js';
-import { SagaManager, SAGA_STATE_KEY } from './saga/index.js';
 
 export class RestateServer {
   readonly endpoint = restate.endpoint();
@@ -218,10 +219,7 @@ export class RestateServer {
         restate.workflow.workflow(saga.metadata.name, {
           run: async (
             ctx: RestateSagaContext,
-            {
-              workflowId,
-              request,
-            }: { workflowId: string; request: RestateRpcRequest },
+            { request }: { readonly request: RestateRpcRequest },
           ) => {
             const injector = this.createScopedInjector();
             injector.set(restateSagaContextToken, ctx);
@@ -239,22 +237,6 @@ export class RestateServer {
           },
         }),
       );
-
-      /*this.endpoint.bindKeyedRouter(saga.metadata.name, {
-        create: async (
-          ctx: RestateSagaContext,
-          key: string,
-          request: RestateRpcRequest,
-        ): Promise<void> => {
-          Object.assign(ctx, { key });
-          const injector = this.createScopedInjector();
-          injector.set(restateSagaContextToken, ctx);
-          const restateSaga = injector.get(saga.classType, saga.module);
-          const sagaManager = new SagaManager(ctx, restateSaga, saga.metadata);
-          const data = saga.metadata.deserializeData(new Uint8Array(request));
-          await sagaManager.start(data);
-        },
-      } as restate.KeyedRouter<unknown>);*/
     }
 
     await this.endpoint.listen(this.config.port);

@@ -5,7 +5,7 @@ import { Saga } from './saga.js';
 import { SagaInstance } from './saga-instance.js';
 import { SagaActions } from './saga-actions.js';
 import { RestateSagaMetadata } from '../decorator.js';
-import { encodeRpcRequest } from '../utils.js';
+import { assertArgs, encodeRpcRequest } from '../utils.js';
 import {
   deserializeRestateServiceMethodResponse,
   RestateClientCallOptions,
@@ -24,10 +24,11 @@ export class SagaManager<Data> {
   ) {}
 
   private async invokeParticipant(
-    { service, method, data }: RestateServiceMethodRequest,
+    { service, method, data, keyed }: RestateServiceMethodRequest,
     { key }: RestateClientCallOptions = {},
   ): Promise<RestateServiceMethodResponse> {
     try {
+      assertArgs({ keyed }, { key });
       return await (this.ctx as any).ctx
         .invoke(service, method, encodeRpcRequest(data, key))
         .transform((response: Uint8Array) =>
@@ -131,11 +132,6 @@ export class SagaManager<Data> {
     });
 
     const actions = await this.saga.definition.start(this.ctx, instance);
-
-    // TODO: is this necessary?
-    if (actions.stepOutcome?.error) {
-      throw actions.stepOutcome.error;
-    }
 
     await this.processActions(instance, actions);
 

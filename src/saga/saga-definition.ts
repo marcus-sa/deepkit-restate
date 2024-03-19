@@ -89,18 +89,18 @@ export class SagaDefinition<Data> {
     request: RestateServiceMethodRequest,
     response: RestateServiceMethodResponse,
   ): Promise<SagaActions<Data>> {
-    if (request) {
-      const currentStep = this.steps[state.currentlyExecuting];
-      if (!currentStep) {
-        throw new TerminalError(
-          `Saga step is missing for execution state ${state}`,
-        );
-      }
-      const reply = currentStep.getReply(response, state.compensating);
-      if (reply) {
-        const replyData = this.deserializeReply(request, response);
-        await ctx.sideEffect(async () => reply.handler(sagaData, replyData));
-      }
+    const currentStep = this.steps[state.currentlyExecuting];
+    if (!currentStep) {
+      throw new TerminalError(
+        `Saga step is missing for execution state ${state}`,
+      );
+    }
+    const reply = currentStep.getReply(response, state.compensating);
+    if (reply) {
+      const replyData = this.deserializeReply(request, response);
+      await ctx.sideEffect(async () => {
+        await reply.handler(sagaData, replyData);
+      });
     }
 
     return await this.handleActions(ctx, state, sagaData, response.success);
