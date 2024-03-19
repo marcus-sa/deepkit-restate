@@ -149,14 +149,4 @@ export const deserializeRestateTerminalErrorType =
 
 export const restateSagaContextType = typeOf<RestateSagaContext>();
 
-export const restateContextToken = getContainerToken(restateContextType);
-
-export const restateKeyedContextToken = getContainerToken(
-  restateKeyedContextType,
-);
-
-export const restateSagaContextToken = getContainerToken(
-  restateSagaContextType,
-);
-
 export const SCOPE = 'restate';

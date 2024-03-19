@@ -33,13 +33,13 @@ import {
   RestateContext,
   RestateKeyedContext,
   SCOPE,
-  restateKeyedContextToken,
-  restateContextToken,
   RestateClientCallOptions,
   RestateRpcRequest,
   RestateRpcResponse,
   RestateSagaContext,
-  restateSagaContextToken,
+  restateContextType,
+  restateKeyedContextType,
+  restateSagaContextType,
 } from './types.js';
 
 export class RestateServer {
@@ -128,7 +128,7 @@ export class RestateServer {
           const injector = this.createScopedInjector();
 
           const ctx = this.createContext(_ctx);
-          injector.set(restateContextToken, ctx, module);
+          injector.set(restateContextType, ctx, module);
 
           const instance = injector.get(classType, module);
           return await this.callServiceMethod(instance, metadata, method, data);
@@ -156,7 +156,7 @@ export class RestateServer {
           const ctx = this.createContext(_ctx);
           Object.assign(ctx, { key });
 
-          injector.set(restateKeyedContextToken, ctx, module);
+          injector.set(restateKeyedContextType, ctx, module);
 
           const instance = injector.get(classType, module);
           return await this.callServiceMethod(instance, metadata, method, data);
@@ -222,7 +222,7 @@ export class RestateServer {
             { request }: { readonly request: RestateRpcRequest },
           ) => {
             const injector = this.createScopedInjector();
-            injector.set(restateSagaContextToken, ctx);
+            injector.set(restateSagaContextType, ctx);
             const restateSaga = injector.get(saga.classType, saga.module);
             const sagaManager = new SagaManager(
               ctx,
