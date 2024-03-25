@@ -1,6 +1,6 @@
 import { eventDispatcher } from '@deepkit/event';
 import { RpcResponse } from '@restatedev/restate-sdk/dist/generated/proto/dynrpc.js';
-import { onServerMainBootstrap } from '@deepkit/framework';
+import { onServerMainBootstrapDone } from '@deepkit/framework';
 import { InjectorContext } from '@deepkit/injector';
 import * as restate from '@restatedev/restate-sdk';
 import {
@@ -202,7 +202,7 @@ export class RestateServer {
     }
   }
 
-  @eventDispatcher.listen(onServerMainBootstrap)
+  @eventDispatcher.listen(onServerMainBootstrapDone)
   async listen() {
     for (const service of this.services) {
       if (service.metadata.keyed) {

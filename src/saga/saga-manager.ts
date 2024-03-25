@@ -94,6 +94,7 @@ export class SagaManager<Data> {
           );
         }
 
+        // TODO: this might not be sufficient for restate reruns
         await instance.save(this.ctx, this.metadata);
 
         if (actions.stepOutcome?.request) {
@@ -122,10 +123,13 @@ export class SagaManager<Data> {
   }
 
   async start(data: Data): Promise<SagaInstance<Data>> {
-    const instance = await new SagaInstance<Data>(data).restore(
-      this.ctx,
-      this.metadata,
-    );
+    // TODO: wait for state machine api.
+    //  currently we have to rerun everything in the same order to keep the restate journal consistent
+    // const instance = await new SagaInstance<Data>(data).restore(
+    //   this.ctx,
+    //   this.metadata,
+    // );
+    const instance = new SagaInstance(data);
 
     await this.ctx.sideEffect(async () => {
       await this.saga.onStarting?.(this.ctx.workflowId(), instance.sagaData);
