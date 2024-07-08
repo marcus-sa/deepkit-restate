@@ -130,6 +130,8 @@ export class RestateHandlerMetadata<T = readonly unknown[]> {
   readonly returnType: Type;
   readonly serializeReturn: BSONSerializer;
   readonly deserializeArgs: BSONDeserializer<T>;
+  readonly shared?: boolean;
+  readonly exclusive?: boolean;
 }
 
 export class RestateHandlerDecorator {
@@ -163,6 +165,22 @@ export class RestateHandlerDecorator {
 
   // eslint-disable-next-line @typescript-eslint/no-empty-function
   handler() {
+  }
+
+  // This only applies to workflows & objects
+  shared() {
+    if (this.t.exclusive) {
+      throw new Error('Handler is already marked as exclusive');
+    }
+    Object.assign(this.t, { shared: true });
+  }
+
+  // This only applies to virtual objects
+  exclusive() {
+    if (this.t.shared) {
+      throw new Error('Handler is already marked as shared');
+    }
+    Object.assign(this.t, { exclusive: true });
   }
 }
 

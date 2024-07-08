@@ -136,8 +136,8 @@ export class RestateServer {
     });
   }
 
-  private createObjectContext(key: string, ctx: restate.ObjectContext): RestateObjectContext {
-    return this.createContext<RestateObjectContext>(ctx, { key });
+  private createObjectContext(ctx: restate.ObjectContext): RestateObjectContext {
+    return this.createContext<RestateObjectContext>(ctx);
   }
 
   private createServiceContext(ctx: restate.Context): RestateServiceContext {
@@ -177,20 +177,29 @@ export class RestateServer {
     metadata,
   }: InjectorObject<unknown>) {
     return [...metadata.handlers].reduce(
-      (routes, handler) => ({
-        ...routes,
-        [handler.name]: async (
+      (handlers, handler) => {
+        let fn = async (
           _ctx: restate.ObjectContext,
-          key: string,
           data: RestateRpcRequest,
         ): Promise<RestateRpcResponse> => {
           const injector = this.createScopedInjector();
-          const ctx = this.createObjectContext(key, _ctx);
+          const ctx = this.createObjectContext(_ctx);
           injector.set(restateObjectContextType, ctx, module);
           const instance = injector.get(classType, module);
           return await this.callHandler(instance, metadata, handler, data);
-        },
-      }),
+        }
+
+        if (handler.shared) {
+          fn = restate.handlers.object.shared(fn);
+        } else if (handler.exclusive) {
+          fn = restate.handlers.object.exclusive(fn);
+        }
+
+        return {
+          ...handlers,
+          [handler.name]: fn,
+        };
+      },
       {},
     );
   }
