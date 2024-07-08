@@ -1,6 +1,6 @@
 import { ReceiveType, ReflectionKind, resolveReceiveType } from '@deepkit/type';
 
-import { RestateMethodRequest } from '../types.js';
+import { RestateHandlerRequest } from '../types.js';
 import { SagaDefinitionBuilder } from './saga-definition-builder.js';
 import { SagaStep } from './saga-step.js';
 import { Handler, PredicateFn, SagaReplyHandlerFn, SagaReplyHandlers } from './types.js';
@@ -101,7 +101,7 @@ export class StepBuilder<Data> {
 
   invoke<R, A extends any[]>(
     // TODO: support objects. services are currently only supported because there's no way to provide a key with nice dx
-    handler: Handler<Data, RestateMethodRequest<R, A, 'service'>>,
+    handler: Handler<Data, RestateHandlerRequest<R, A, 'service'>>,
   ): ParticipantStepBuilder<Data>;
   invoke(handler: Handler<Data, void>): LocalStepBuilder<Data>;
   invoke<T>(

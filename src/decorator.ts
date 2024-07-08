@@ -41,7 +41,7 @@ export class RestateClassMetadata {
   readonly classType: ClassType;
   readonly entities: Entities = new Map();
   readonly type: TypeObjectLiteral | TypeClass;
-  readonly methods = new Set<RestateMethodMetadata>();
+  readonly handlers = new Set<RestateHandlerMetadata>();
 }
 
 export class RestateServiceMetadata extends RestateClassMetadata {}
@@ -60,8 +60,8 @@ export class RestateServiceDecorator {
     Object.assign(this.t, { classType });
   }
 
-  addMethod(action: RestateMethodMetadata) {
-    this.t.methods.add(action);
+  addHandler(action: RestateHandlerMetadata) {
+    this.t.handlers.add(action);
   }
 
   service<T extends RestateService<string, any, any[]>>(type?: ReceiveType<T>) {
@@ -83,8 +83,8 @@ export class RestateObjectDecorator {
     Object.assign(this.t, { classType });
   }
 
-  addMethod(action: RestateMethodMetadata) {
-    this.t.methods.add(action);
+  addHandler(action: RestateHandlerMetadata) {
+    this.t.handlers.add(action);
   }
 
   object<T extends RestateObject<string, any, any[]>>(type?: ReceiveType<T>) {
@@ -106,8 +106,8 @@ export class RestateSagaDecorator {
     Object.assign(this.t, { classType });
   }
 
-  addMethod(action: RestateMethodMetadata) {
-    this.t.methods.add(action);
+  addHandler(action: RestateHandlerMetadata) {
+    this.t.handlers.add(action);
   }
 
   saga<T extends RestateSaga<string, any>>(type?: ReceiveType<T>) {
@@ -124,7 +124,7 @@ export class RestateSagaDecorator {
   }
 }
 
-export class RestateMethodMetadata<T = readonly unknown[]> {
+export class RestateHandlerMetadata<T = readonly unknown[]> {
   readonly name: string;
   readonly classType: ClassType;
   readonly returnType: Type;
@@ -132,8 +132,8 @@ export class RestateMethodMetadata<T = readonly unknown[]> {
   readonly deserializeArgs: BSONDeserializer<T>;
 }
 
-export class RestateMethodDecorator {
-  t = new RestateMethodMetadata();
+export class RestateHandlerDecorator {
+  t = new RestateHandlerMetadata();
 
   onDecorator(classType: ClassType, property: string | undefined) {
     if (!property) return;
@@ -156,13 +156,14 @@ export class RestateMethodDecorator {
       deserializeArgs,
     });
 
-    restateObjectDecorator.addMethod(this.t)(classType);
-    restateServiceDecorator.addMethod(this.t)(classType);
-    restateSagaDecorator.addMethod(this.t)(classType);
+    restateObjectDecorator.addHandler(this.t)(classType);
+    restateServiceDecorator.addHandler(this.t)(classType);
+    restateSagaDecorator.addHandler(this.t)(classType);
   }
 
   // eslint-disable-next-line @typescript-eslint/no-empty-function
-  method() {}
+  handler() {
+  }
 }
 
 type RestateClassFluidDecorator<T, D extends Function> = {
@@ -238,9 +239,9 @@ type MergedRestate<T extends any[]> = RestateMerge<
   Omit<UnionToIntersection<T[number]>, '_fetch' | 't'>
 >;
 
-export const restateMethodDecorator: PropertyDecoratorResult<
-  typeof RestateMethodDecorator
-> = createPropertyDecoratorContext(RestateMethodDecorator);
+export const restateHandlerDecorator: PropertyDecoratorResult<
+  typeof RestateHandlerDecorator
+> = createPropertyDecoratorContext(RestateHandlerDecorator);
 
 export type MergedRestateDecorator = Omit<
   MergedRestate<
@@ -248,15 +249,15 @@ export type MergedRestateDecorator = Omit<
       typeof restateObjectDecorator,
       typeof restateServiceDecorator,
       typeof restateSagaDecorator,
-      typeof restateMethodDecorator,
+      typeof restateHandlerDecorator,
     ]
   >,
-  'addMethod'
+  'addHandler'
 >;
 
 export const restate: MergedRestateDecorator = mergeDecorator(
   restateObjectDecorator,
   restateServiceDecorator,
   restateSagaDecorator,
-  restateMethodDecorator,
+  restateHandlerDecorator,
 ) as any as MergedRestateDecorator;

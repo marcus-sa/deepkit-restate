@@ -24,12 +24,12 @@ export interface Entity<T> {
 
 export type Entities = Map<string, Entity<unknown>>;
 
-type RestateMethodType = 'object' | 'service';
+type RestateHandlerType = 'object' | 'service';
 
-export interface RestateMethodRequest<
+export interface RestateHandlerRequest<
   R = any,
   A extends any[] = [],
-  T extends RestateMethodType = any,
+  T extends RestateHandlerType = any,
 > {
   readonly entities: Entities;
   readonly service: string;
@@ -40,29 +40,29 @@ export interface RestateMethodRequest<
   readonly __type?: T;
 }
 
-export type RestateObjectMethodRequest<
+export type RestateObjectHandlerRequest<
   R = any,
   A extends any[] = [],
-> = RestateMethodRequest<R, A, 'object'>;
+> = RestateHandlerRequest<R, A, 'object'>;
 
-export type RestateServiceMethodRequest<
+export type RestateServiceHandlerRequest<
   R = any,
   A extends any[] = [],
-> = RestateMethodRequest<R, A, 'service'>;
+> = RestateHandlerRequest<R, A, 'service'>;
 
 export type RestateRpcRequest = readonly uint8[];
 
 export type RestateRpcResponse = readonly uint8[];
 
-type RestateMethod<F, T extends RestateMethodType> = F extends (
+type RestateHandler<F, T extends RestateHandlerType> = F extends (
     ...args: infer P
   ) => infer R
-  ? (...args: P) => RestateMethodRequest<Awaited<R>, P, T>
+  ? (...args: P) => RestateHandlerRequest<Awaited<R>, P, T>
   : never;
 
-export type RestateObjectMethod<F> = RestateMethod<F, 'object'>;
+export type RestateObjectHandler<F> = RestateHandler<F, 'object'>;
 
-export type RestateServiceMethod<F> = RestateMethod<F, 'service'>;
+export type RestateServiceHandler<F> = RestateHandler<F, 'service'>;
 
 export type RestateService<
   Name extends string,
@@ -71,7 +71,7 @@ export type RestateService<
 > = {
   [Method in keyof Interface as Interface[Method] extends never
     ? never
-    : Method]: RestateServiceMethod<Interface[Method]>;
+    : Method]: RestateServiceHandler<Interface[Method]>;
 };
 
 export type RestateObject<
@@ -81,7 +81,7 @@ export type RestateObject<
 > = {
   [Method in keyof Interface as Interface[Method] extends never
     ? never
-    : Method]: RestateObjectMethod<Interface[Method]>;
+    : Method]: RestateObjectHandler<Interface[Method]>;
 };
 
 export interface RestateSaga<Name extends string, Data> {
@@ -93,21 +93,21 @@ export interface RestateCustomContext {
   // used for objects
   send(
     key: string,
-    call: RestateObjectMethodRequest,
+    request: RestateObjectHandlerRequest,
     options?: RestateSendOptions,
   ): Promise<void>;
   // used for services
   send(
-    call: RestateServiceMethodRequest,
+    request: RestateServiceHandlerRequest,
     options?: RestateSendOptions,
   ): Promise<void>;
   // used for objects
   rpc<R, A extends any[]>(
     key: string,
-    call: RestateObjectMethodRequest<R, A>,
+    request: RestateObjectHandlerRequest<R, A>,
   ): Promise<R>;
   // used for services
-  rpc<R, A extends any[]>(call: RestateServiceMethodRequest<R, A>): Promise<R>;
+  rpc<R, A extends any[]>(call: RestateServiceHandlerRequest<R, A>): Promise<R>;
 }
 
 type ContextWithoutClients<T> = Omit<
@@ -125,7 +125,7 @@ export interface RestateObjectContext
     ContextWithoutClients<ObjectContext> {
 }
 
-export interface RestateMethodResponse {
+export interface RestateHandlerResponse {
   readonly success: boolean;
   readonly data: Uint8Array;
   readonly typeName: string;
@@ -136,17 +136,17 @@ export interface RestateSagaContext
 
 export const restateServiceType = typeOf<RestateService<string, any, any[]>>();
 
-export const restateMethodResponseType = typeOf<RestateMethodResponse>();
+export const restateHandlerResponseType = typeOf<RestateHandlerResponse>();
 
-export const deserializeRestateMethodResponse =
-  getBSONDeserializer<RestateMethodResponse>(
+export const deserializeRestateHandlerResponse =
+  getBSONDeserializer<RestateHandlerResponse>(
     undefined,
-    restateMethodResponseType,
+    restateHandlerResponseType,
   );
 
-export const serializeRestateMethodResponse = getBSONSerializer(
+export const serializeRestateHandlerResponse = getBSONSerializer(
   undefined,
-  restateMethodResponseType,
+  restateHandlerResponseType,
 );
 
 export const restateObjectType = typeOf<RestateObject<string, any, any[]>>();

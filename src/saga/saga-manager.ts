@@ -6,9 +6,9 @@ import { SagaInstance } from './saga-instance.js';
 import { SagaActions } from './saga-actions.js';
 import { RestateSagaMetadata } from '../decorator.js';
 import {
-  deserializeRestateMethodResponse,
-  RestateMethodRequest,
-  RestateMethodResponse,
+  deserializeRestateHandlerResponse,
+  RestateHandlerRequest,
+  RestateHandlerResponse,
   RestateRpcResponse,
   RestateSagaContext,
   restateTerminalErrorType,
@@ -23,15 +23,15 @@ export class SagaManager<Data> {
   ) {}
 
   private async invokeParticipant(
-    { service, method, data }: RestateMethodRequest,
+    { service, method, data }: RestateHandlerRequest,
     // TODO: this has not yet been implemented
     key?: string,
-  ): Promise<RestateMethodResponse> {
+  ): Promise<RestateHandlerResponse> {
     try {
       return await (this.ctx as any)
         .invoke(service, method, encodeRpcRequest(data), key)
         .transform((response: RestateRpcResponse) =>
-          deserializeRestateMethodResponse(new Uint8Array(response)),
+          deserializeRestateHandlerResponse(new Uint8Array(response)),
         );
     } catch (err: unknown) {
       if (err instanceof TerminalError) {

@@ -25,17 +25,17 @@ import {
 } from '@deepkit/type';
 
 import {
-  deserializeRestateMethodResponse,
+  deserializeRestateHandlerResponse,
   Entities,
-  RestateMethodRequest,
-  RestateMethodResponse,
+  RestateHandlerRequest,
+  RestateHandlerResponse,
   RestateObject,
   restateObjectType,
   RestateRpcResponse,
   restateSagaType,
   RestateService,
   restateServiceType,
-  serializeRestateMethodResponse,
+  serializeRestateHandlerResponse,
 } from './types.js';
 import {
   restateObjectDecorator,
@@ -82,10 +82,6 @@ export function isRestateServiceType(type: Type): boolean {
     return false;
   }
   return isExtendable(type, restateServiceType);
-}
-
-export function isRestateObject(type: Type): boolean {
-  return isRestateObjectType(type);
 }
 
 export function isRestateObjectType(type: Type): boolean {
@@ -243,7 +239,7 @@ export function createClassProxy<
         }
         const { serializeArgs, deserializeReturn } = methods[method];
 
-        return (...args: readonly unknown[]): RestateMethodRequest => {
+        return (...args: readonly unknown[]): RestateHandlerRequest => {
           const data = serializeArgs(args);
           return {
             entities,
@@ -259,9 +255,9 @@ export function createClassProxy<
 }
 
 export function encodeRpcResponse(
-  response: RestateMethodResponse,
+  response: RestateHandlerResponse,
 ): RestateRpcResponse {
-  return Array.from(serializeRestateMethodResponse(response));
+  return Array.from(serializeRestateHandlerResponse(response));
 }
 
 export function decodeRestateServiceMethodResponse<T>(
@@ -269,7 +265,7 @@ export function decodeRestateServiceMethodResponse<T>(
   deserialize: BSONDeserializer<T>,
   entities: Entities,
 ): T {
-  const internalResponse = deserializeRestateMethodResponse(new Uint8Array(response));
+  const internalResponse = deserializeRestateHandlerResponse(new Uint8Array(response));
   if (internalResponse.success) {
     return deserialize(internalResponse.data);
   }

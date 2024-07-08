@@ -1,7 +1,7 @@
 import * as restate from '@restatedev/restate-sdk-clients';
-import type { Output, WorkflowSubmission } from '@restatedev/restate-sdk-clients/dist/esm/src/api';
+import type { WorkflowSubmission } from '@restatedev/restate-sdk-clients/dist/esm/src/api';
 import { BSONDeserializer, BSONSerializer } from '@deepkit/bson';
-import { ReceiveType, resolveReceiveType, Type, uint8 } from '@deepkit/type';
+import { ReceiveType, resolveReceiveType, Type } from '@deepkit/type';
 
 import { deserializeSagaState, SagaState } from './saga/saga-instance.js';
 import {
@@ -14,13 +14,13 @@ import {
 import {
   RestateCustomContext,
   RestateObject,
-  RestateObjectMethodRequest,
+  RestateObjectHandlerRequest,
   RestateRpcOptions,
   RestateRpcResponse,
   RestateSaga,
   RestateSendOptions,
   RestateService,
-  RestateServiceMethodRequest,
+  RestateServiceHandlerRequest,
 } from './types.js';
 
 interface RestateApiResponseError {
@@ -43,13 +43,15 @@ function isRestateApiResponseError(
   return 'code' in value || 'message' in value;
 }
 
+export type WorkflowStartStatus = Omit<WorkflowSubmission<unknown>, 'attachable'>;
+
 export class RestateSagaClient<Data> {
   private readonly serializeData: BSONSerializer;
   private readonly deserializeData: BSONDeserializer<Data>;
   private readonly serviceName: string;
 
   constructor(
-    private readonly ingress: restate.Ingress,
+    private readonly opts: restate.ConnectionOpts,
     private readonly type: Type,
   ) {
     this.serializeData = getSagaDataSerializer(this.type);
@@ -58,15 +60,16 @@ export class RestateSagaClient<Data> {
   }
 
   async state(id: string): Promise<SagaState<Data>> {
-    // @ts-ignore
-    const client = await this.ingress.workflowClient(
-      { name: this.serviceName },
-      id,
-    );
+    const url = `${this.opts.url}/${this.serviceName}/${id}/state`;
 
-    const result = (await (client as any)['state']()) as
-      | readonly uint8[]
-      | null;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+      },
+    });
+
+    const result = await response.json() as RestateRpcResponse | null;
     if (!result) {
       throw new Error('Missing saga state');
     }
@@ -79,26 +82,30 @@ export class RestateSagaClient<Data> {
     };
   }
 
-  async status(id: string): Promise<Output<Data>> {
-    return await this.ingress
-      .workflowClient(
-        { name: this.serviceName },
-        id,
-        // @ts-ignore
-      )
-      .workflowOutput();
-  }
+  // async status(id: string): Promise<Output<Data>> {
+  //   return await this.ingress
+  //     .workflowClient(
+  //       { name: this.serviceName },
+  //       id,
+  //     )
+  //     .workflowOutput();
+  // }
 
-  async start(id: string, data: Data): Promise<WorkflowSubmission<unknown>> {
+  async start(id: string, data: Data): Promise<WorkflowStartStatus> {
+    const url = `${this.opts.url}/${this.serviceName}/${id}/run/send`;
+
     const request = Array.from(this.serializeData(data));
-    console.log(this.ingress);
-    // @ts-ignore
-    const { status } = await this.ingress
-      .workflowClient({ name: this.serviceName }, id)
-      .workflowSubmit({
-        request,
-      });
-    return status;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ request }),
+    });
+
+    const { startStatus } = await response.json() as { readonly startStatus: WorkflowStartStatus };
+    return startStatus;
   }
 }
 
@@ -125,16 +132,16 @@ export class RestateClient implements RestateCustomContext {
     type?: ReceiveType<T>,
   ): RestateSagaClient<T['data']> {
     type = resolveReceiveType(type);
-    return new RestateSagaClient(this.ingress, type);
+    return new RestateSagaClient(this.opts, type);
   }
 
   rpc<R, A extends any[]>(
     key: string,
-    call: RestateObjectMethodRequest<R, A>,
+    request: RestateObjectHandlerRequest<R, A>,
     options?: RestateRpcOptions,
   ): Promise<R>;
   rpc<R, A extends any[]>(
-    call: RestateServiceMethodRequest<R, A>,
+    request: RestateServiceHandlerRequest<R, A>,
     options?: RestateRpcOptions,
   ): Promise<R>;
   async rpc<R>(...args: readonly any[]): Promise<R> {
@@ -177,11 +184,11 @@ export class RestateClient implements RestateCustomContext {
 
   send(
     key: string,
-    call: RestateObjectMethodRequest,
+    request: RestateObjectHandlerRequest,
     options?: RestateSendOptions,
   ): Promise<void>;
   send(
-    call: RestateServiceMethodRequest,
+    request: RestateServiceHandlerRequest,
     options?: RestateSendOptions,
   ): Promise<void>;
   async send(...args: readonly any[]): Promise<void> {
@@ -214,5 +221,6 @@ export class RestateClient implements RestateCustomContext {
     if (isRestateApiResponseError(result)) {
       throw new RestateApiError(result.code, result.message);
     }
+    return result;
   }
 }

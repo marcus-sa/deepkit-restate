@@ -52,7 +52,7 @@ describe('e2e', () => {
       class AccountController implements AccountService {
         constructor(private readonly ctx: RestateServiceContext) {}
 
-        @restate.method()
+        @restate.handler()
         async create(user: User): Promise<Account> {
           expect(user).toBeInstanceOf(User);
           return Account.create(this.ctx, user);
@@ -72,7 +72,7 @@ describe('e2e', () => {
           private readonly account: AccountServiceApi,
         ) {}
 
-        @restate.method()
+        @restate.handler()
         async create(username: string): Promise<User> {
           const user = User.create(this.ctx, username);
           const account = await this.ctx.rpc(this.account.create(user));

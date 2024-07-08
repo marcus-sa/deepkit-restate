@@ -1,9 +1,11 @@
-import { RestateMethodRequest } from '../types.js';
+import { RestateHandlerRequest } from '../types.js';
 
 export class SagaStepOutcome {
-  static forParticipant(request: RestateMethodRequest): SagaStepOutcome {
-    return new SagaStepOutcome(false, request);
-  }
+  constructor(
+    readonly local: boolean,
+    readonly request?: RestateHandlerRequest,
+    readonly error?: Error,
+  ) {}
 
   static forLocal(): SagaStepOutcome {
     return new SagaStepOutcome(true);
@@ -13,9 +15,7 @@ export class SagaStepOutcome {
     return new SagaStepOutcome(true, undefined, error);
   }
 
-  constructor(
-    readonly local: boolean,
-    readonly request?: RestateMethodRequest,
-    readonly error?: Error,
-  ) {}
+  static forParticipant(request: RestateHandlerRequest): SagaStepOutcome {
+    return new SagaStepOutcome(false, request);
+  }
 }

@@ -55,7 +55,7 @@ test('saga', () => {
   expect(metadata).toBeInstanceOf(RestateSagaMetadata);
 });
 
-test('method', () => {
+test('handler', () => {
   interface PaymentServiceInterface {
     send(): void;
   }
@@ -64,12 +64,12 @@ test('method', () => {
 
   @restate.service<PaymentServiceApi>()
   class PaymentService implements PaymentServiceInterface {
-    @restate.method()
+    @restate.handler()
     send(): void {}
   }
 
   const metadata = getRestateServiceMetadata(PaymentService);
-  const method = metadata?.methods.values().next().value;
+  const method = metadata?.handlers.values().next().value;
   assert(method);
   expect(method.name).toBe('send');
   expect(method.classType).toBe(PaymentService);

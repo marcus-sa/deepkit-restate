@@ -1,5 +1,7 @@
 import { reflect, ReflectionFunction, ReflectionKind, typeOf } from '@deepkit/type';
-import { RestateKeyedContext, RestateObject, RestateService } from './types';
+import { getBSONDeserializer, getBSONSerializer } from '@deepkit/bson';
+
+import { RestateObject, RestateService } from './types.js';
 import {
   createClassProxy,
   getClassConstructorParameters,
@@ -10,8 +12,7 @@ import {
   getTypeArgument,
   getUnwrappedReflectionFunctionReturnType,
   isRestateServiceType,
-} from './utils';
-import { bsonBinarySerializer, getBSONDeserializer, getBSONSerializer } from '@deepkit/bson';
+} from './utils.js';
 
 describe('isRestateServiceType', () => {
   test('returns true', () => {
@@ -170,8 +171,8 @@ test('getReflectionFunctionArgsType 2', () => {
     ],
   });
 
-  const serialize = getBSONSerializer(bsonBinarySerializer, argsType);
-  const deserialize = getBSONDeserializer(bsonBinarySerializer, argsType);
+  const serialize = getBSONSerializer(undefined, argsType);
+  const deserialize = getBSONDeserializer(undefined, argsType);
 
   const serialized = serialize([new User()]);
   const deserialized = deserialize(serialized) as readonly unknown[];

@@ -1,20 +1,11 @@
-import {
-  Handler,
-  PredicateFn,
-  SagaReplyHandler,
-  SagaReplyHandlers,
-} from './types.js';
-import {
-  RestateMethodResponse,
-  RestateMethodRequest,
-  RestateSagaContext,
-} from '../types.js';
+import { Handler, PredicateFn, SagaReplyHandler, SagaReplyHandlers } from './types.js';
+import { RestateHandlerRequest, RestateHandlerResponse, RestateSagaContext } from '../types.js';
 
 import { SagaStepOutcome } from './step-outcome.js';
 
 export class SagaStep<Data> {
   constructor(
-    readonly invoke: Handler<Data, RestateMethodRequest | void>,
+    readonly invoke: Handler<Data, RestateHandlerRequest | void>,
     readonly isParticipantInvocation: boolean,
     readonly compensate?: Handler<Data>,
     readonly compensatePredicate?: PredicateFn<Data>,
@@ -33,7 +24,7 @@ export class SagaStep<Data> {
   }
 
   getReply<T>(
-    response: RestateMethodResponse,
+    response: RestateHandlerResponse,
     compensating: boolean,
   ): SagaReplyHandler<Data, T> | undefined {
     const replyHandlers = compensating

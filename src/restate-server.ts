@@ -9,7 +9,7 @@ import { SAGA_STATE_KEY } from './saga/saga-instance.js';
 import { InjectorService, InjectorServices } from './services.js';
 import { InjectorObject, InjectorObjects } from './objects.js';
 import { InjectorSagas } from './sagas.js';
-import { RestateClassMetadata, RestateMethodMetadata } from './decorator.js';
+import { RestateClassMetadata, RestateHandlerMetadata } from './decorator.js';
 import { RestateConfig } from './restate.module.js';
 import { decodeRestateServiceMethodResponse, encodeRpcRequest, encodeRpcResponse } from './utils.js';
 import {
@@ -38,14 +38,14 @@ export class RestateServer {
   @eventDispatcher.listen(onServerMainBootstrapDone)
   async listen() {
     for (const object of this.objects) {
-      const handlers = this.createObject(object);
+      const handlers = this.createObjectHandlers(object);
       this.endpoint.bind(
         restate.object({ name: object.metadata.name, handlers }),
       );
     }
 
     for (const service of this.services) {
-      const handlers = this.createService(service);
+      const handlers = this.createServiceHandlers(service);
       this.endpoint.bind(
         restate.service({ name: service.metadata.name, handlers }),
       );
@@ -85,112 +85,78 @@ export class RestateServer {
     await this.endpoint.listen(this.config.port);
   }
 
-  private createCustomContext<
+  private createScopedInjector(): InjectorContext {
+    return this.injectorContext.createChildScope(SCOPE);
+  }
+
+  private createContext<
     T extends RestateObjectContext | RestateSagaContext | RestateServiceContext,
   >(
     ctx: restate.ObjectContext | restate.WorkflowContext | restate.Context,
-    custom: Partial<T>,
+    extra?: Partial<T>,
   ): T {
     return Object.assign(ctx, {
       serviceClient: undefined,
       serviceSendClient: undefined,
       objectSendClient: undefined,
       objectClient: undefined,
-      ...custom,
+      workflowClient: undefined,
+      workflowSendClient: undefined,
+      send: async (...args: readonly any[]): Promise<void> => {
+        const [key, { service, method, data }, options] =
+          args.length === 1 ? [undefined, ...args] : args;
+
+        try {
+          await (ctx as any).invokeOneWay(
+            service,
+            method,
+            encodeRpcRequest(data),
+            options?.delay,
+            key,
+          );
+        } catch (e) {
+          (ctx as any).stateMachine.handleDanglingPromiseError(e);
+        }
+      },
+      rpc: async <T>(...args: readonly any[]): Promise<T> => {
+        const [key, { service, method, data, deserializeReturn, entities }] =
+          args.length === 1 ? [undefined, ...args] : args;
+
+        return await (ctx as any)
+          .invoke(service, method, encodeRpcRequest(data), key)
+          .transform((response: RestateRpcResponse) =>
+            decodeRestateServiceMethodResponse(
+              response,
+              deserializeReturn,
+              entities,
+            ),
+          );
+      },
+      ...extra,
     });
+  }
+
+  private createObjectContext(key: string, ctx: restate.ObjectContext): RestateObjectContext {
+    return this.createContext<RestateObjectContext>(ctx, { key });
   }
 
   private createServiceContext(ctx: restate.Context): RestateServiceContext {
-    return this.createCustomContext<RestateServiceContext>(ctx, {
-      send: async (...args: readonly any[]): Promise<void> => {
-        const [key, { service, method, data }, options] =
-          args.length === 1 ? [undefined, ...args] : args;
-
-        try {
-          await (ctx as any).invokeOneWay(
-            service,
-            method,
-            encodeRpcRequest(data),
-            options?.delay,
-            key,
-          );
-        } catch (e) {
-          (ctx as any).stateMachine.handleDanglingPromiseError(e);
-        }
-      },
-      rpc: async <T>(...args: readonly any[]): Promise<T> => {
-        const [key, { service, method, data, deserializeReturn, entities }] =
-          args.length === 1 ? [undefined, ...args] : args;
-
-        return await (ctx as any)
-          .invoke(service, method, encodeRpcRequest(data), key)
-          .transform((response: RestateRpcResponse) =>
-            decodeRestateServiceMethodResponse(
-              response,
-              deserializeReturn,
-              entities,
-            ),
-          );
-      },
-    });
-  }
-
-  private createObjectContext(
-    key: string,
-    ctx: restate.ObjectContext,
-  ): RestateObjectContext {
-    return this.createCustomContext<RestateObjectContext>(ctx, {
-      key,
-      send: async (...args: readonly any[]): Promise<void> => {
-        const [key, { service, method, data }, options] =
-          args.length === 1 ? [undefined, ...args] : args;
-
-        try {
-          await (ctx as any).invokeOneWay(
-            service,
-            method,
-            encodeRpcRequest(data),
-            options?.delay,
-            key,
-          );
-        } catch (e) {
-          (ctx as any).stateMachine.handleDanglingPromiseError(e);
-        }
-      },
-      rpc: async <T>(...args: readonly any[]): Promise<T> => {
-        const [key, { service, method, data, deserializeReturn, entities }] =
-          args.length === 1 ? [undefined, ...args] : args;
-
-        return await (ctx as any)
-          .invoke(service, method, encodeRpcRequest(data), key)
-          .transform((response: RestateRpcResponse) =>
-            decodeRestateServiceMethodResponse(
-              response,
-              deserializeReturn,
-              entities,
-            ),
-          );
-      },
-    });
+    return this.createContext<RestateServiceContext>(ctx);
   }
 
   private createSagaContext(ctx: restate.WorkflowContext): RestateSagaContext {
-    return this.createCustomContext<RestateSagaContext>(ctx, {});
+    return Object.assign(this.createContext<RestateSagaContext>(ctx), { send: undefined, rpc: undefined });
   }
 
-  private createScopedInjector(): InjectorContext {
-    return this.injectorContext.createChildScope(SCOPE);
-  }
-
-  private createService({
+  private createServiceHandlers({
     classType,
     module,
     metadata,
   }: InjectorService<unknown>) {
-    return [...metadata.methods].reduce(
-      (routes, method) => ({
+    return [...metadata.handlers].reduce(
+      (routes, handler) => ({
         ...routes,
-        [method.name]: async (
+        [handler.name]: async (
           _ctx: restate.Context,
           data: RestateRpcRequest,
         ): Promise<RestateRpcResponse> => {
@@ -198,22 +164,22 @@ export class RestateServer {
           const ctx = this.createServiceContext(_ctx);
           injector.set(restateServiceContextType, ctx, module);
           const instance = injector.get(classType, module);
-          return await this.callMethod(instance, metadata, method, data);
+          return await this.callHandler(instance, metadata, handler, data);
         },
       }),
       {},
     );
   }
 
-  private createObject({
+  private createObjectHandlers({
     classType,
     module,
     metadata,
   }: InjectorObject<unknown>) {
-    return [...metadata.methods].reduce(
-      (routes, method) => ({
+    return [...metadata.handlers].reduce(
+      (routes, handler) => ({
         ...routes,
-        [method.name]: async (
+        [handler.name]: async (
           _ctx: restate.ObjectContext,
           key: string,
           data: RestateRpcRequest,
@@ -222,26 +188,26 @@ export class RestateServer {
           const ctx = this.createObjectContext(key, _ctx);
           injector.set(restateObjectContextType, ctx, module);
           const instance = injector.get(classType, module);
-          return await this.callMethod(instance, metadata, method, data);
+          return await this.callHandler(instance, metadata, handler, data);
         },
       }),
       {},
     );
   }
 
-  private async callMethod(
+  private async callHandler(
     instance: any,
     clazz: RestateClassMetadata,
-    method: RestateMethodMetadata,
-    data: RestateRpcRequest,
+    handler: RestateHandlerMetadata,
+    request: RestateRpcRequest,
   ): Promise<RestateRpcResponse> {
     try {
-      const args = method.deserializeArgs(new Uint8Array(data));
-      const result = await instance[method.name].bind(instance)(...args);
+      const args = handler.deserializeArgs(new Uint8Array(request));
+      const result = await instance[handler.name].bind(instance)(...args);
       return encodeRpcResponse({
         success: true,
-        data: method.serializeReturn(result),
-        typeName: method.returnType.typeName!,
+        data: handler.serializeReturn(result),
+        typeName: handler.returnType.typeName!,
       });
     } catch (err: any) {
       if (hasTypeInformation(err.constructor)) {
