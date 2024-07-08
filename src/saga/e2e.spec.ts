@@ -31,7 +31,7 @@ test('e2e', async () => {
 
   @restate.service<CustomerServiceApi>()
   class CustomerController implements CustomerService {
-    @restate.method()
+    @restate.handler()
     async reserveCredit(
       customerId: string,
       amount: float,
@@ -55,10 +55,6 @@ test('e2e', async () => {
   }
 
   type CreateOrderSagaApi = RestateSaga<'create-order', CreateOrderSagaData>;
-
-  class OrderRepository {
-    save(data: any) {}
-  }
 
   @restate.saga<CreateOrderSagaApi>()
   class CreateOrderSaga extends Saga<CreateOrderSagaData> {
@@ -119,10 +115,10 @@ test('e2e', async () => {
   });
   void app.startServer();
 
-  const admin = new RestateAdminClient('http://0.0.0.0:9070');
+  const admin = new RestateAdminClient({ url: 'http://0.0.0.0:9070' });
   await admin.deployments.create(`http://host.docker.internal:9083`);
 
-  const client = new RestateClient('http://0.0.0.0:8080');
+  const client = new RestateClient({ url: 'http://0.0.0.0:8080' });
 
   const orderId = uuid();
   const customerId = uuid();
@@ -138,9 +134,12 @@ test('e2e', async () => {
 
   await sleep(5);
 
+  // const response = await fetch(`http://0.0.0.0:8080/restate/workflow/create-order/${orderId}/output`);
+  // console.log(await response.text());
+
   const state = await createOrderSaga.state(orderId);
   console.log({ state });
 
-  const endStatus = await createOrderSaga.status(orderId);
-  console.log({ endStatus });
+  // const endStatus = await createOrderSaga.status(orderId);
+  // console.log({ endStatus });
 });

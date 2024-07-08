@@ -1,22 +1,19 @@
 import { AppModule, ControllerConfig, createModule } from '@deepkit/app';
 import { ClassType } from '@deepkit/core';
 
-import { Services } from './services.js';
+import { InjectorServices } from './services.js';
 import { RestateServer } from './restate-server.js';
+import { restateObjectContextType, restateSagaContextType, restateServiceContextType, SCOPE } from './types.js';
+import { InjectorSagas } from './sagas.js';
 import {
-  restateContextType,
-  restateKeyedContextType,
-  restateSagaContextType,
-  SCOPE,
-} from './types.js';
-import { Sagas } from './sagas.js';
-import {
-  createServiceProxy,
+  createClassProxy,
+  getRestateClassDeps,
+  getRestateObjectMetadata,
   getRestateSagaMetadata,
-  getRestateServiceDeps,
   getRestateServiceMetadata,
 } from './utils.js';
-import { RestateSagaMetadata, RestateServiceMetadata } from './decorator.js';
+import { RestateObjectMetadata, RestateSagaMetadata, RestateServiceMetadata } from './decorator.js';
+import { InjectorObjects } from './objects.js';
 
 export class RestateConfig {
   readonly port: number = 9080;
@@ -27,33 +24,39 @@ export class RestateModule extends createModule({
   listeners: [RestateServer],
   forRoot: true,
 }) {
-  readonly services = new Services();
-  readonly sagas = new Sagas();
+  readonly services = new InjectorServices();
+  readonly objects = new InjectorObjects();
+  readonly sagas = new InjectorSagas();
 
   override process() {
     this.addProvider({
-      provide: Services,
+      provide: InjectorServices,
       useValue: this.services,
     });
 
     this.addProvider({
-      provide: Sagas,
+      provide: InjectorObjects,
+      useValue: this.objects,
+    });
+
+    this.addProvider({
+      provide: InjectorSagas,
       useValue: this.sagas,
     });
 
     this.addProvider({
-      provide: restateContextType,
+      provide: restateServiceContextType,
       scope: SCOPE,
       useFactory() {
-        throw new Error('You cannot use an unkeyed context in a keyed service');
+        throw new Error('You cannot use a service context in an object');
       },
     });
 
     this.addProvider({
-      provide: restateKeyedContextType,
+      provide: restateObjectContextType,
       scope: SCOPE,
       useFactory() {
-        throw new Error('You cannot use a keyed context in an unkeyed service');
+        throw new Error('You cannot use an object context in a service');
       },
     });
 
@@ -74,6 +77,14 @@ export class RestateModule extends createModule({
     this.services.add({ classType, module, metadata });
   }
 
+  private addObject(
+    module: AppModule<any>,
+    classType: ClassType,
+    metadata: RestateObjectMetadata,
+  ): void {
+    this.objects.add({ classType, module, metadata });
+  }
+
   private addSaga(
     module: AppModule<any>,
     classType: ClassType,
@@ -83,14 +94,14 @@ export class RestateModule extends createModule({
   }
 
   private addDeps(classType: ClassType): void {
-    const restateServiceDeps = getRestateServiceDeps(classType);
+    const restateServiceDeps = getRestateClassDeps(classType);
 
     for (const dependency of restateServiceDeps) {
       if (!this.isProvided(dependency)) {
         this.addProvider({
           provide: dependency,
           scope: SCOPE,
-          useValue: createServiceProxy(dependency),
+          useValue: createClassProxy(dependency),
         });
       }
     }
@@ -103,13 +114,20 @@ export class RestateModule extends createModule({
     if (!controller) return;
 
     const serviceMetadata = getRestateServiceMetadata(controller);
-    const sagaMetadata = getRestateSagaMetadata(controller);
     if (serviceMetadata) {
       this.addService(module, controller, serviceMetadata);
-    } else if (sagaMetadata) {
-      this.addSaga(module, controller, sagaMetadata);
     } else {
-      return;
+      const objectMetadata = getRestateObjectMetadata(controller);
+      if (objectMetadata) {
+        this.addObject(module, controller, objectMetadata);
+      } else {
+        const sagaMetadata = getRestateSagaMetadata(controller);
+        if (sagaMetadata) {
+          this.addSaga(module, controller, sagaMetadata);
+        } else {
+          return;
+        }
+      }
     }
 
     this.addDeps(controller);

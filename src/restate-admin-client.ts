@@ -1,14 +1,22 @@
 export class InvocationClient {
-  kill() {}
+  kill() {
+  }
 
   cancel() {}
+
+  purge() {
+  }
+
+  #delete() {
+  }
 }
 
 export class DeploymentClient {
-  constructor(private readonly base: RestateAdminClient) {}
+  constructor(private readonly client: RestateAdminClient) {
+  }
 
   async create(uri: string): Promise<any> {
-    const response = await fetch(`${this.base.url}/deployments`, {
+    const response = await fetch(`${this.client.opts.url}/deployments`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -22,9 +30,14 @@ export class DeploymentClient {
   }
 }
 
+export interface RestateAdminClientOptions {
+  readonly url: string;
+}
+
 export class RestateAdminClient {
   readonly invocations = new InvocationClient();
   readonly deployments = new DeploymentClient(this);
 
-  constructor(readonly url: string) {}
+  constructor(readonly opts: RestateAdminClientOptions) {
+  }
 }

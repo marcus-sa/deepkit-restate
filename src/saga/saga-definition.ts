@@ -1,4 +1,4 @@
-import { ErrorCodes, TerminalError } from '@restatedev/restate-sdk';
+import { TerminalError } from '@restatedev/restate-sdk';
 
 import { SagaStep } from './saga-step.js';
 import { SagaExecutionState } from './saga-execution-state.js';
@@ -6,12 +6,12 @@ import { StepToExecute } from './step-to-execute.js';
 import { SagaInstance } from './saga-instance.js';
 import { SagaActions } from './saga-actions.js';
 import {
-  RestateServiceMethodResponse,
-  RestateServiceMethodRequest,
+  deserializeRestateTerminalErrorType,
   Entity,
+  RestateHandlerRequest,
+  RestateHandlerResponse,
   RestateSagaContext,
   restateTerminalErrorType,
-  deserializeRestateTerminalErrorType,
 } from '../types.js';
 
 export class SagaDefinition<Data> {
@@ -63,31 +63,12 @@ export class SagaDefinition<Data> {
     return this.executeNextStep(ctx, instance.sagaData, instance.currentState);
   }
 
-  private deserializeReply<T>(
-    request: RestateServiceMethodRequest,
-    response: RestateServiceMethodResponse,
-  ): T | TerminalError {
-    if (response.success) {
-      return request.deserializeReturn(response.data);
-    }
-    const entity = request.entities.get(response.typeName) as Entity<T> | null;
-    if (!entity) {
-      if (response.typeName === restateTerminalErrorType.typeName) {
-        return deserializeRestateTerminalErrorType(response.data);
-      }
-      throw new TerminalError(`Missing entity for type ${response.typeName}`, {
-        errorCode: ErrorCodes.INTERNAL,
-      });
-    }
-    return entity.deserialize(response.data);
-  }
-
   async handleReply(
     ctx: RestateSagaContext,
     state: SagaExecutionState,
     sagaData: Data,
-    request: RestateServiceMethodRequest,
-    response: RestateServiceMethodResponse,
+    request: RestateHandlerRequest,
+    response: RestateHandlerResponse,
   ): Promise<SagaActions<Data>> {
     const currentStep = this.steps[state.currentlyExecuting];
     if (!currentStep) {
@@ -98,12 +79,31 @@ export class SagaDefinition<Data> {
     const reply = currentStep.getReply(response, state.compensating);
     if (reply) {
       const replyData = this.deserializeReply(request, response);
-      await ctx.sideEffect(async () => {
+      await ctx.run(async () => {
         await reply.handler(sagaData, replyData);
       });
     }
 
     return await this.handleActions(ctx, state, sagaData, response.success);
+  }
+
+  private deserializeReply<T>(
+    request: RestateHandlerRequest,
+    response: RestateHandlerResponse,
+  ): T | TerminalError {
+    if (response.success) {
+      return request.deserializeReturn(response.data);
+    }
+    const entity = request.entities.get(response.typeName) as Entity<T> | null;
+    if (!entity) {
+      if (response.typeName === restateTerminalErrorType.typeName) {
+        return deserializeRestateTerminalErrorType(response.data);
+      }
+      throw new TerminalError(`Missing entity for type ${response.typeName}`, {
+        // errorCode: RestateErrorCodes.INTERNAL,
+      });
+    }
+    return entity.deserialize(response.data);
   }
 
   async handleActions(

@@ -1,30 +1,18 @@
+import { reflect, ReflectionFunction, ReflectionKind, typeOf } from '@deepkit/type';
+import { getBSONDeserializer, getBSONSerializer } from '@deepkit/bson';
+
+import { RestateObject, RestateService } from './types.js';
 import {
-  reflect,
-  ReflectionFunction,
-  ReflectionKind,
-  typeOf,
-} from '@deepkit/type';
-import {
-  RestateKeyedContext,
-  RestateKeyedService,
-  RestateService,
-} from './types';
-import {
-  createServiceProxy,
+  createClassProxy,
   getClassConstructorParameters,
   getReflectionFunctionArgsType,
-  getRestateServiceDeps,
-  getRestateServiceEntities,
-  getRestateServiceName,
+  getRestateClassDeps,
+  getRestateClassEntities,
+  getRestateClassName,
   getTypeArgument,
   getUnwrappedReflectionFunctionReturnType,
   isRestateServiceType,
-} from './utils';
-import {
-  bsonBinarySerializer,
-  getBSONDeserializer,
-  getBSONSerializer,
-} from '@deepkit/bson';
+} from './utils.js';
 
 describe('isRestateServiceType', () => {
   test('returns true', () => {
@@ -87,7 +75,7 @@ describe('getTypeArgument', () => {
 test('getRestateServiceName', () => {
   const type = typeOf<RestateService<'test', any>>();
 
-  expect(getRestateServiceName(type)).toMatchInlineSnapshot(`"test"`);
+  expect(getRestateClassName(type)).toMatchInlineSnapshot(`"test"`);
 });
 
 test('getRestateServiceEntities', () => {
@@ -95,24 +83,43 @@ test('getRestateServiceEntities', () => {
 
   const type = typeOf<RestateService<'test', any, [Entity]>>();
 
-  expect(getRestateServiceEntities(type)).toHaveLength(1);
+  expect(getRestateClassEntities(type)).toHaveLength(1);
 });
 
-test('getRestateDependenciesForService', () => {
-  interface PaymentServiceInterface {
-    send(): Promise<void>;
-  }
+describe('getRestateClassDeps', () => {
+  test('service', () => {
+    interface PaymentServiceInterface {
+      send(): Promise<void>;
+    }
 
-  type PaymentServiceApi = RestateService<'payment', PaymentServiceInterface>;
+    type PaymentServiceApi = RestateService<'payment', PaymentServiceInterface>;
 
-  class UserService {}
+    class UserService {}
 
-  class TestService {
-    constructor(payment: PaymentServiceApi, user: UserService) {}
-  }
+    class TestService {
+      constructor(payment: PaymentServiceApi, user: UserService) {}
+    }
 
-  const deps = getRestateServiceDeps(TestService);
-  expect(deps).toHaveLength(1);
+    const deps = getRestateClassDeps(TestService);
+    expect(deps).toHaveLength(1);
+  });
+
+  test('object', () => {
+    interface PaymentServiceInterface {
+      send(): Promise<void>;
+    }
+
+    type PaymentServiceApi = RestateObject<'payment', PaymentServiceInterface>;
+
+    class UserService {}
+
+    class TestService {
+      constructor(payment: PaymentServiceApi, user: UserService) {}
+    }
+
+    const deps = getRestateClassDeps(TestService);
+    expect(deps).toHaveLength(1);
+  });
 });
 
 test('getReflectionFunctionArgsType', () => {
@@ -164,15 +171,15 @@ test('getReflectionFunctionArgsType 2', () => {
     ],
   });
 
-  const serialize = getBSONSerializer(bsonBinarySerializer, argsType);
-  const deserialize = getBSONDeserializer(bsonBinarySerializer, argsType);
+  const serialize = getBSONSerializer(undefined, argsType);
+  const deserialize = getBSONDeserializer(undefined, argsType);
 
   const serialized = serialize([new User()]);
   const deserialized = deserialize(serialized) as readonly unknown[];
   expect(deserialized[0]).toBeInstanceOf(User);
 });
 
-test('getReflectionFunctionArgsType', () => {
+test('getReflectionFunctionArgsType 3', () => {
   function createUser(username: string, password: string): void {}
 
   const reflectionFunction = ReflectionFunction.from(createUser);
@@ -210,7 +217,7 @@ test('getUnwrappedReflectionFunctionReturnType', () => {
   });
 });
 
-describe('createServiceProxy', () => {
+describe('createRestateProxy', () => {
   class User {
     readonly createdAt: Date = new Date('2024-03-07T11:08:04.590Z');
   }
@@ -219,12 +226,9 @@ describe('createServiceProxy', () => {
     send(user: User): Promise<void>;
   }
 
-  type PaymentServiceApi = RestateKeyedService<
-    'payment',
-    PaymentServiceInterface
-  >;
+  type PaymentServiceApi = RestateObject<'payment', PaymentServiceInterface>;
 
-  const service = createServiceProxy<PaymentServiceApi>();
+  const service = createClassProxy<PaymentServiceApi>();
 
   test('method', () => {
     const { method } = service.send(new User());

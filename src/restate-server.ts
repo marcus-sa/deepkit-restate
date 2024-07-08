@@ -1,45 +1,27 @@
 import { eventDispatcher } from '@deepkit/event';
-import { RpcResponse } from '@restatedev/restate-sdk/dist/generated/proto/dynrpc.js';
 import { onServerMainBootstrapDone } from '@deepkit/framework';
 import { InjectorContext } from '@deepkit/injector';
 import * as restate from '@restatedev/restate-sdk';
-import {
-  assert,
-  hasTypeInformation,
-  integer,
-  PositiveNoZero,
-  reflect,
-  uint8,
-} from '@deepkit/type';
+import { hasTypeInformation, reflect, uint8 } from '@deepkit/type';
 
 import { SagaManager } from './saga/saga-manager.js';
 import { SAGA_STATE_KEY } from './saga/saga-instance.js';
-import { Service, Services } from './services.js';
-import { Sagas } from './sagas.js';
-import {
-  RestateServiceMetadata,
-  RestateServiceMethodMetadata,
-} from './decorator.js';
+import { InjectorService, InjectorServices } from './services.js';
+import { InjectorObject, InjectorObjects } from './objects.js';
+import { InjectorSagas } from './sagas.js';
+import { RestateClassMetadata, RestateHandlerMetadata } from './decorator.js';
 import { RestateConfig } from './restate.module.js';
+import { decodeRestateServiceMethodResponse, encodeRpcRequest, encodeRpcResponse } from './utils.js';
 import {
-  assertArgs,
-  decodeRestateServiceMethodResponse,
-  encodeRpcRequest,
-  encodeRpcResponse,
-} from './utils.js';
-import {
-  CustomContext,
-  RestateServiceMethodRequest,
-  RestateContext,
-  RestateKeyedContext,
-  SCOPE,
-  RestateClientCallOptions,
+  RestateObjectContext,
+  restateObjectContextType,
   RestateRpcRequest,
   RestateRpcResponse,
   RestateSagaContext,
-  restateContextType,
-  restateKeyedContextType,
   restateSagaContextType,
+  RestateServiceContext,
+  restateServiceContextType,
+  SCOPE,
 } from './types.js';
 
 export class RestateServer {
@@ -47,143 +29,199 @@ export class RestateServer {
 
   constructor(
     private readonly config: RestateConfig,
-    private readonly services: Services,
-    private readonly sagas: Sagas,
+    private readonly services: InjectorServices,
+    private readonly objects: InjectorObjects,
+    private readonly sagas: InjectorSagas,
     private readonly injectorContext: InjectorContext,
   ) {}
 
-  createContext(
-    ctx: restate.Context | restate.KeyedContext,
-  ): RestateContext | RestateKeyedContext | RestateSagaContext {
-    return Object.assign(ctx, <CustomContext>{
-      send: async (
-        { service, method, data, keyed }: RestateServiceMethodRequest,
-        { key }: RestateClientCallOptions = {},
-      ): Promise<void> => {
-        assertArgs({ keyed }, { key });
+  @eventDispatcher.listen(onServerMainBootstrapDone)
+  async listen() {
+    for (const object of this.objects) {
+      const handlers = this.createObjectHandlers(object);
+      this.endpoint.bind(
+        restate.object({ name: object.metadata.name, handlers }),
+      );
+    }
 
-        await (ctx as any).invokeOneWay(
-          service,
-          method,
-          encodeRpcRequest(data, key),
-          0,
-        );
-      },
-      sendDelayed: async (
-        { service, method, data, keyed }: RestateServiceMethodRequest,
-        ms: number,
-        { key }: RestateClientCallOptions = {},
-      ): Promise<void> => {
-        assert<integer & PositiveNoZero>(ms);
-        assertArgs({ keyed }, { key });
+    for (const service of this.services) {
+      const handlers = this.createServiceHandlers(service);
+      this.endpoint.bind(
+        restate.service({ name: service.metadata.name, handlers }),
+      );
+    }
 
-        await (ctx as any).invokeOneWay(
-          service,
-          method,
-          encodeRpcRequest(data, key),
-          ms,
-        );
+    for (const saga of this.sagas) {
+      this.endpoint.bind(
+        restate.workflow({
+          name: saga.metadata.name,
+          handlers: {
+            run: async (
+              _ctx: restate.WorkflowContext,
+              { request }: { readonly request: RestateRpcRequest },
+            ) => {
+              const injector = this.createScopedInjector();
+              const ctx = this.createSagaContext(_ctx);
+              injector.set(restateSagaContextType, ctx);
+              const restateSaga = injector.get(saga.classType, saga.module);
+              const sagaManager = new SagaManager(
+                ctx,
+                restateSaga,
+                saga.metadata,
+              );
+              const data = saga.metadata.deserializeData(
+                new Uint8Array(request),
+              );
+              await sagaManager.start(data);
+            },
+            state: async (ctx: restate.WorkflowSharedContext) => {
+              return await ctx.get<readonly uint8[]>(SAGA_STATE_KEY);
+            },
+          },
+        }),
+      );
+    }
+
+    await this.endpoint.listen(this.config.port);
+  }
+
+  private createScopedInjector(): InjectorContext {
+    return this.injectorContext.createChildScope(SCOPE);
+  }
+
+  private createContext<
+    T extends RestateObjectContext | RestateSagaContext | RestateServiceContext,
+  >(
+    ctx: restate.ObjectContext | restate.WorkflowContext | restate.Context,
+    extra?: Partial<T>,
+  ): T {
+    return Object.assign(ctx, {
+      serviceClient: undefined,
+      serviceSendClient: undefined,
+      objectSendClient: undefined,
+      objectClient: undefined,
+      workflowClient: undefined,
+      workflowSendClient: undefined,
+      send: async (...args: readonly any[]): Promise<void> => {
+        const [key, { service, method, data }, options] =
+          args.length === 1 ? [undefined, ...args] : args;
+
+        try {
+          await (ctx as any).invokeOneWay(
+            service,
+            method,
+            encodeRpcRequest(data),
+            options?.delay,
+            key,
+          );
+        } catch (e) {
+          (ctx as any).stateMachine.handleDanglingPromiseError(e);
+        }
       },
-      rpc: async <T>(
-        {
-          service,
-          method,
-          data,
-          deserializeReturn,
-          keyed,
-          entities,
-        }: RestateServiceMethodRequest,
-        { key }: RestateClientCallOptions = {},
-      ): Promise<T> => {
-        assertArgs({ keyed }, { key });
-        return (ctx as any)
-          .invoke(service, method, encodeRpcRequest(data, key))
-          .transform((response: Uint8Array) =>
+      rpc: async <T>(...args: readonly any[]): Promise<T> => {
+        const [key, { service, method, data, deserializeReturn, entities }] =
+          args.length === 1 ? [undefined, ...args] : args;
+
+        return await (ctx as any)
+          .invoke(service, method, encodeRpcRequest(data), key)
+          .transform((response: RestateRpcResponse) =>
             decodeRestateServiceMethodResponse(
-              new Uint8Array(RpcResponse.decode(response).response),
+              response,
               deserializeReturn,
               entities,
             ),
           );
       },
+      ...extra,
     });
   }
 
-  createScopedInjector(): InjectorContext {
-    return this.injectorContext.createChildScope(SCOPE);
+  private createObjectContext(ctx: restate.ObjectContext): RestateObjectContext {
+    return this.createContext<RestateObjectContext>(ctx);
   }
 
-  createUnKeyedService({
+  private createServiceContext(ctx: restate.Context): RestateServiceContext {
+    return this.createContext<RestateServiceContext>(ctx);
+  }
+
+  private createSagaContext(ctx: restate.WorkflowContext): RestateSagaContext {
+    return Object.assign(this.createContext<RestateSagaContext>(ctx), { send: undefined, rpc: undefined });
+  }
+
+  private createServiceHandlers({
     classType,
     module,
     metadata,
-  }: Service<unknown>): restate.UnKeyedRouter<unknown> {
-    return [...metadata.methods].reduce(
-      (routes, method) => ({
+  }: InjectorService<unknown>) {
+    return [...metadata.handlers].reduce(
+      (routes, handler) => ({
         ...routes,
-        [method.name]: async (
+        [handler.name]: async (
           _ctx: restate.Context,
           data: RestateRpcRequest,
         ): Promise<RestateRpcResponse> => {
           const injector = this.createScopedInjector();
-
-          const ctx = this.createContext(_ctx);
-          injector.set(restateContextType, ctx, module);
-
+          const ctx = this.createServiceContext(_ctx);
+          injector.set(restateServiceContextType, ctx, module);
           const instance = injector.get(classType, module);
-          return await this.callServiceMethod(instance, metadata, method, data);
+          return await this.callHandler(instance, metadata, handler, data);
         },
       }),
-      {} as restate.UnKeyedRouter<unknown>,
+      {},
     );
   }
 
-  createKeyedService({
+  private createObjectHandlers({
     classType,
     module,
     metadata,
-  }: Service<unknown>): restate.KeyedRouter<unknown> {
-    return [...metadata.methods].reduce(
-      (routes, method) => ({
-        ...routes,
-        [method.name]: async (
-          _ctx: restate.KeyedContext,
-          key: string,
+  }: InjectorObject<unknown>) {
+    return [...metadata.handlers].reduce(
+      (handlers, handler) => {
+        let fn = async (
+          _ctx: restate.ObjectContext,
           data: RestateRpcRequest,
         ): Promise<RestateRpcResponse> => {
           const injector = this.createScopedInjector();
-
-          const ctx = this.createContext(_ctx);
-          Object.assign(ctx, { key });
-
-          injector.set(restateKeyedContextType, ctx, module);
-
+          const ctx = this.createObjectContext(_ctx);
+          injector.set(restateObjectContextType, ctx, module);
           const instance = injector.get(classType, module);
-          return await this.callServiceMethod(instance, metadata, method, data);
-        },
-      }),
-      {} as restate.KeyedRouter<unknown>,
+          return await this.callHandler(instance, metadata, handler, data);
+        }
+
+        if (handler.shared) {
+          fn = restate.handlers.object.shared(fn);
+        } else if (handler.exclusive) {
+          fn = restate.handlers.object.exclusive(fn);
+        }
+
+        return {
+          ...handlers,
+          [handler.name]: fn,
+        };
+      },
+      {},
     );
   }
 
-  async callServiceMethod(
+  private async callHandler(
     instance: any,
-    service: RestateServiceMetadata,
-    method: RestateServiceMethodMetadata,
-    data: RestateRpcRequest,
+    clazz: RestateClassMetadata,
+    handler: RestateHandlerMetadata,
+    request: RestateRpcRequest,
   ): Promise<RestateRpcResponse> {
     try {
-      const args = method.deserializeArgs(new Uint8Array(data));
-      const result = await instance[method.name].bind(instance)(...args);
+      const args = handler.deserializeArgs(new Uint8Array(request));
+      const result = await instance[handler.name].bind(instance)(...args);
       return encodeRpcResponse({
         success: true,
-        data: method.serializeReturn(result),
-        typeName: method.returnType.typeName!,
+        data: handler.serializeReturn(result),
+        typeName: handler.returnType.typeName!,
       });
     } catch (err: any) {
       if (hasTypeInformation(err.constructor)) {
         const entityName = reflect(err.constructor).typeName!;
-        const entity = service.entities.get(entityName);
+        const entity = clazz.entities.get(entityName);
         if (entity) {
           return encodeRpcResponse({
             success: false,
@@ -195,50 +233,10 @@ export class RestateServer {
       if (err instanceof TypeError) {
         throw new restate.TerminalError(err.message, {
           cause: TypeError.name,
-          errorCode: restate.ErrorCodes.INTERNAL,
+          // errorCode: restate.RestateErrorCodes.INTERNAL,
         });
       }
       throw err;
     }
-  }
-
-  @eventDispatcher.listen(onServerMainBootstrapDone)
-  async listen() {
-    for (const service of this.services) {
-      if (service.metadata.keyed) {
-        const router = this.createKeyedService(service);
-        this.endpoint.bindKeyedRouter(service.metadata.name, router);
-      } else {
-        const router = this.createUnKeyedService(service);
-        this.endpoint.bindRouter(service.metadata.name, router);
-      }
-    }
-
-    for (const saga of this.sagas) {
-      this.endpoint.bind(
-        restate.workflow.workflow(saga.metadata.name, {
-          run: async (
-            ctx: RestateSagaContext,
-            { request }: { readonly request: RestateRpcRequest },
-          ) => {
-            const injector = this.createScopedInjector();
-            injector.set(restateSagaContextType, ctx);
-            const restateSaga = injector.get(saga.classType, saga.module);
-            const sagaManager = new SagaManager(
-              ctx,
-              restateSaga,
-              saga.metadata,
-            );
-            const data = saga.metadata.deserializeData(new Uint8Array(request));
-            await sagaManager.start(data);
-          },
-          state: async (ctx: restate.workflow.SharedWfContext) => {
-            return await ctx.get<readonly uint8[]>(SAGA_STATE_KEY);
-          },
-        }),
-      );
-    }
-
-    await this.endpoint.listen(this.config.port);
   }
 }

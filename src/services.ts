@@ -3,10 +3,10 @@ import { ClassType } from '@deepkit/core';
 
 import { RestateServiceMetadata } from './decorator.js';
 
-export interface Service<T> {
+export interface InjectorService<T> {
   readonly classType: ClassType<T>;
   readonly module?: InjectorModule;
   readonly metadata: RestateServiceMetadata;
 }
 
-export class Services extends Set<Service<unknown>> {}
+export class InjectorServices extends Set<InjectorService<unknown>> {}

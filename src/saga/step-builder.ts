@@ -1,14 +1,9 @@
 import { ReceiveType, ReflectionKind, resolveReceiveType } from '@deepkit/type';
 
-import { RestateServiceMethodRequest } from '../types.js';
+import { RestateHandlerRequest } from '../types.js';
 import { SagaDefinitionBuilder } from './saga-definition-builder.js';
 import { SagaStep } from './saga-step.js';
-import {
-  Handler,
-  SagaReplyHandlerFn,
-  SagaReplyHandlers,
-  PredicateFn,
-} from './types.js';
+import { Handler, PredicateFn, SagaReplyHandlerFn, SagaReplyHandlers } from './types.js';
 import { SagaDefinition } from './saga-definition.js';
 
 export interface BaseStepBuilder<Data> {
@@ -98,21 +93,26 @@ class InvokedStepBuilder<Data>
   }
 }
 
+const RETURN_REGEX =
+  /(?:function[^{]+|[\w$]+\s*\(.*?\))\s*{[^}]*\breturn\b[^}]*}/;
+
 export class StepBuilder<Data> {
   constructor(private readonly builder: SagaDefinitionBuilder<Data>) {}
 
   invoke<R, A extends any[]>(
-    handler: Handler<Data, RestateServiceMethodRequest<R, A>>,
+    // TODO: support objects. services are currently only supported because there's no way to provide a key with nice dx
+    handler: Handler<Data, RestateHandlerRequest<R, A, 'service'>>,
   ): ParticipantStepBuilder<Data>;
   invoke(handler: Handler<Data, void>): LocalStepBuilder<Data>;
   invoke<T>(
     handler: Handler<Data, T>,
   ): ParticipantStepBuilder<Data> | LocalStepBuilder<Data> {
     /**
-     * Deepkit doesn't support inferring types or method overloading, so we have to use an alternative approach to detect if it's a participant invocation
-     * I think we can "safely" rely on this regex because local invocations aren't allowed to return anything
+     * Deepkit doesn't support inferring types or method overloading,
+     * so we have to use an alternative approach to detect if it's a participant invocation.
+     * We can "safely" rely on this regex because local invocations aren't allowed to return anything.
      */
-    const isParticipantInvocation = returnRegex.test(handler.toString());
+    const isParticipantInvocation = RETURN_REGEX.test(handler.toString());
     return new InvokedStepBuilder<Data>(
       this.builder,
       handler,
@@ -120,6 +120,3 @@ export class StepBuilder<Data> {
     );
   }
 }
-
-const returnRegex =
-  /(?:function[^{]+|[\w$]+\s*\(.*?\))\s*{[^}]*\breturn\b[^}]*}/;
