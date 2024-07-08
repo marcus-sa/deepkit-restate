@@ -190,9 +190,9 @@ export class RestateServer {
         }
 
         if (handler.shared) {
-          fn = restate.handlers.object.shared(fn);
+          fn = restate.handlers.object.shared(fn as any);
         } else if (handler.exclusive) {
-          fn = restate.handlers.object.exclusive(fn);
+          fn = restate.handlers.object.exclusive(fn as any);
         }
 
         return {
