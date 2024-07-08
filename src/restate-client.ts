@@ -104,7 +104,8 @@ export class RestateSagaClient<Data> {
 export class RestateClient implements RestateCustomContext {
   private readonly ingress: restate.Ingress;
 
-  constructor(readonly opts: restate.ConnectionOpts) {}
+  constructor(private readonly opts: restate.ConnectionOpts) {
+  }
 
   service<T extends RestateService<string, any, any[]>>(
     type?: ReceiveType<T>,
@@ -155,7 +156,7 @@ export class RestateClient implements RestateCustomContext {
     const response = await fetch(url, {
       method: 'POST',
       headers,
-      body: JSON.stringify(data),
+      body: JSON.stringify(Array.from(data)),
     });
 
     const result = (await response.json()) as
@@ -202,7 +203,7 @@ export class RestateClient implements RestateCustomContext {
     const response = await fetch(url, {
       method: 'POST',
       headers,
-      body: JSON.stringify(data),
+      body: JSON.stringify(Array.from(data)),
     });
 
     const result = (await response.json()) as

@@ -6,12 +6,12 @@ import { SagaActions } from './saga-actions.js';
 import { RestateSagaMetadata } from '../decorator.js';
 import {
   deserializeRestateMethodResponse,
-  RestateSagaContext,
   RestateMethodRequest,
   RestateMethodResponse,
+  RestateRpcResponse,
+  RestateSagaContext,
   restateTerminalErrorType,
   serializeRestateTerminalErrorType,
-  RestateSendOptions,
 } from '../types.js';
 
 export class SagaManager<Data> {
@@ -29,8 +29,8 @@ export class SagaManager<Data> {
     try {
       return await (this.ctx as any).ctx
         .invoke(service, method, data, key)
-        .transform((response: Uint8Array) =>
-          deserializeRestateMethodResponse(response),
+        .transform((response: RestateRpcResponse) =>
+          deserializeRestateMethodResponse(new Uint8Array(response)),
         );
     } catch (err: unknown) {
       if (err instanceof TerminalError) {

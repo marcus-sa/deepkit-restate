@@ -34,7 +34,7 @@ export interface RestateMethodRequest<
   readonly entities: Entities;
   readonly service: string;
   readonly method: string;
-  readonly data: RestateRpcRequest;
+  readonly data: Uint8Array;
   readonly deserializeReturn: BSONDeserializer<R>;
   /** @internal */
   readonly __type?: T;
@@ -63,10 +63,6 @@ type RestateMethod<F, T extends RestateMethodType> = F extends (
 export type RestateObjectMethod<F> = RestateMethod<F, 'object'>;
 
 export type RestateServiceMethod<F> = RestateMethod<F, 'service'>;
-
-export interface RestateServiceOptions {
-  readonly keyed: boolean;
-}
 
 export type RestateService<
   Name extends string,

@@ -244,7 +244,7 @@ export function createClassProxy<
         const { serializeArgs, deserializeReturn } = methods[method];
 
         return (...args: readonly unknown[]): RestateMethodRequest => {
-          const data = Array.from(serializeArgs(args));
+          const data = serializeArgs(args);
           return {
             entities,
             service,
@@ -275,6 +275,9 @@ export function decodeRestateServiceMethodResponse<T>(
   }
   const entity = entities.get(internalResponse.typeName);
   if (!entity) {
+    // if (internalResponse.typeName === restateTerminalErrorType.typeName) {
+    //   throw deserializeRestateTerminalErrorType(internalResponse.data);
+    // }
     throw new TerminalError('Unknown entity');
   }
   throw entity.deserialize(internalResponse.data);

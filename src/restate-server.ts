@@ -100,6 +100,47 @@ export class RestateServer {
     });
   }
 
+  private createServiceContext(ctx: restate.Context): RestateServiceContext {
+    return this.createCustomContext<RestateServiceContext>(ctx, {
+      send: async (...args: readonly any[]): Promise<void> => {
+        const [key, { service, method, data }, options] =
+          args.length === 1 ? [undefined, ...args] : args;
+
+        // Restate expects Uint8Array content to be JSON
+        const arr = new TextEncoder().encode(JSON.stringify(Array.from(data)));
+
+        try {
+          await (ctx as any).invokeOneWay(
+            service,
+            method,
+            arr,
+            options?.delay,
+            key,
+          );
+        } catch (e) {
+          (ctx as any).stateMachine.handleDanglingPromiseError(e);
+        }
+      },
+      rpc: async <T>(...args: readonly any[]): Promise<T> => {
+        const [key, { service, method, data, deserializeReturn, entities }] =
+          args.length === 1 ? [undefined, ...args] : args;
+
+        // Restate expects Uint8Array content to be JSON
+        const arr = new TextEncoder().encode(JSON.stringify(Array.from(data)));
+
+        return await (ctx as any)
+          .invoke(service, method, arr, key)
+          .transform((response: RestateRpcResponse) =>
+            decodeRestateServiceMethodResponse(
+              new Uint8Array(response),
+              deserializeReturn,
+              entities,
+            ),
+          );
+      },
+    });
+  }
+
   private createObjectContext(
     key: string,
     ctx: restate.ObjectContext,
@@ -110,23 +151,33 @@ export class RestateServer {
         const [key, { service, method, data }, options] =
           args.length === 1 ? [undefined, ...args] : args;
 
-        await (ctx as any).invokeOneWay(
-          service,
-          method,
-          data,
-          options?.delay,
-          key,
-        );
+        // Restate expects Uint8Array content to be JSON
+        const arr = new TextEncoder().encode(JSON.stringify(Array.from(data)));
+
+        try {
+          await (ctx as any).invokeOneWay(
+            service,
+            method,
+            arr,
+            options?.delay,
+            key,
+          );
+        } catch (e) {
+          (ctx as any).stateMachine.handleDanglingPromiseError(e);
+        }
       },
       rpc: async <T>(...args: readonly any[]): Promise<T> => {
         const [key, { service, method, data, deserializeReturn, entities }] =
           args.length === 1 ? [undefined, ...args] : args;
 
-        return (ctx as any)
-          .invoke(service, method, data, key)
-          .transform((response: Uint8Array) =>
+        // Restate expects Uint8Array content to be JSON
+        const arr = new TextEncoder().encode(JSON.stringify(Array.from(data)));
+
+        return await (ctx as any)
+          .invoke(service, method, arr, key)
+          .transform((response: RestateRpcResponse) =>
             decodeRestateServiceMethodResponse(
-              response,
+              new Uint8Array(response),
               deserializeReturn,
               entities,
             ),
@@ -224,36 +275,5 @@ export class RestateServer {
       }
       throw err;
     }
-  }
-
-  private createServiceContext(ctx: restate.Context): RestateServiceContext {
-    return this.createCustomContext<RestateServiceContext>(ctx, {
-      send: async (...args: readonly any[]): Promise<void> => {
-        const [key, { service, method, data }, options] =
-          args.length === 1 ? [undefined, ...args] : args;
-
-        await (ctx as any).invokeOneWay(
-          service,
-          method,
-          data,
-          options?.delay,
-          key,
-        );
-      },
-      rpc: async <T>(...args: readonly any[]): Promise<T> => {
-        const [key, { service, method, data, deserializeReturn, entities }] =
-          args.length === 1 ? [undefined, ...args] : args;
-
-        return (ctx as any)
-          .invoke(service, method, data, key)
-          .transform((response: Uint8Array) =>
-            decodeRestateServiceMethodResponse(
-              response,
-              deserializeReturn,
-              entities,
-            ),
-          );
-      },
-    });
   }
 }

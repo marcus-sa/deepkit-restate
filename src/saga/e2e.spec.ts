@@ -119,7 +119,7 @@ test('e2e', async () => {
   });
   void app.startServer();
 
-  const admin = new RestateAdminClient('http://0.0.0.0:9070');
+  const admin = new RestateAdminClient({ url: 'http://0.0.0.0:9070' });
   await admin.deployments.create(`http://host.docker.internal:9083`);
 
   const client = new RestateClient({ url: 'http://0.0.0.0:8080' });
