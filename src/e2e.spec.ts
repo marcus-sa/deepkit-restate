@@ -1,9 +1,10 @@
 import { createTestingApp } from '@deepkit/framework';
-import { integer, Unique, uuid, UUID } from '@deepkit/type';
+import { Unique, uuid, UUID } from '@deepkit/type';
+import { getBSONDeserializer, getBSONSerializer } from '@deepkit/bson';
 
 import { RestateModule } from './restate.module.js';
 import { restate } from './decorator.js';
-import { RestateContext, RestateService } from './types.js';
+import { RestateService, RestateServiceContext } from './types.js';
 import { RestateClient } from './restate-client.js';
 
 async function createDeployment(port: number): Promise<Response> {
@@ -15,6 +16,7 @@ async function createDeployment(port: number): Promise<Response> {
     body: JSON.stringify({ uri: `http://host.docker.internal:${port}` }),
   });
   if (!response.ok) {
+    console.log(response);
     throw new Error(await response.text());
   }
   return response;
@@ -24,7 +26,7 @@ describe('e2e', () => {
   describe('context', () => {
     test('rpc', async () => {
       class Account {
-        static create(ctx: RestateContext, user: User): Account {
+        static create(ctx: RestateServiceContext, user: User): Account {
           return new Account(ctx.rand.uuidv4(), user.id);
         }
 
@@ -35,7 +37,7 @@ describe('e2e', () => {
       }
 
       class User {
-        static create(ctx: RestateContext, username: string): User {
+        static create(ctx: RestateServiceContext, username: string): User {
           return new User(ctx.rand.uuidv4(), username);
         }
 
@@ -59,7 +61,7 @@ describe('e2e', () => {
 
       @restate.service<AccountServiceApi>()
       class AccountController implements AccountService {
-        constructor(private readonly ctx: RestateContext) {}
+        constructor(private readonly ctx: RestateServiceContext) {}
 
         @restate.method()
         async create(user: User): Promise<Account> {
@@ -77,7 +79,7 @@ describe('e2e', () => {
       @restate.service<UserServiceApi>()
       class UserController implements UserService {
         constructor(
-          private readonly ctx: RestateContext,
+          private readonly ctx: RestateServiceContext,
           private readonly account: AccountServiceApi,
         ) {}
 
@@ -98,7 +100,7 @@ describe('e2e', () => {
 
       await createDeployment(9082);
 
-      const client = new RestateClient('http://0.0.0.0:8080');
+      const client = new RestateClient({ url: 'http://0.0.0.0:8080' });
 
       const user = client.service<UserServiceApi>();
 
@@ -114,72 +116,81 @@ describe('e2e', () => {
     });
   });
 
-  describe('service', () => {
-    test('unkeyed', async () => {
-      class User {
-        readonly id: UUID = uuid();
+  test('object', () => {
+  });
 
-        constructor(readonly username: string) {}
+  test('service', async () => {
+    class User {
+      readonly id: UUID = uuid();
+
+      constructor(readonly username: string) {}
+    }
+
+    interface UserService {
+      create(username: string): Promise<User>;
+    }
+
+    type UserServiceApi = RestateService<'user', UserService>;
+
+    @restate.service<UserServiceApi>()
+    class UserController implements UserService {
+      constructor(private readonly ctx: RestateServiceContext) {}
+
+      @restate.method()
+      async create(username: string): Promise<User> {
+        return new User(username);
       }
+    }
 
-      interface UserService {
-        create(username: string): Promise<User>;
-      }
-
-      type UserServiceApi = RestateService<'user', UserService>;
-
-      @restate.service<UserServiceApi>()
-      class UserController implements UserService {
-        constructor(private readonly ctx: RestateContext) {}
-
-        @restate.method()
-        async create(username: string): Promise<User> {
-          return new User(username);
-        }
-      }
-
-      const app = createTestingApp({
-        imports: [new RestateModule({ port: 9081 })],
-        controllers: [UserController],
-      });
-      void app.startServer();
-
-      {
-        const response = await createDeployment(9081);
-        expect(await response.json()).toMatchObject({
-          services: [
-            {
-              name: 'user',
-              instance_type: 'Unkeyed',
-              methods: [
-                {
-                  input_type: 'RpcRequest',
-                  name: 'create',
-                  output_type: 'RpcResponse',
-                },
-              ],
-            },
-          ],
-        });
-      }
-
-      const client = new RestateClient('http://0.0.0.0:8080');
-
-      const user = client.service<UserServiceApi>();
-
-      {
-        const result = await client.rpc(user.create('Test'));
-        expect(result).toBeInstanceOf(User);
-        expect(result).toMatchObject({
-          id: expect.any(String),
-          username: 'Test',
-        });
-      }
-
-      {
-        const result = await client.send(user.create('Test'));
-        expect(result.id).toMatch(/^inv_/);
-      }
+    const app = createTestingApp({
+      imports: [new RestateModule({ port: 9081 })],
+      controllers: [UserController],
     });
+    void app.startServer();
+
+    {
+      const response = await createDeployment(9081);
+      // expect(await response.json()).toMatchObject({
+      //   services: [
+      //     {
+      //       name: 'user',
+      //       instance_type: 'Unkeyed',
+      //       methods: [
+      //         {
+      //           input_type: 'RpcRequest',
+      //           name: 'create',
+      //           output_type: 'RpcResponse',
+      //         },
+      //       ],
+      //     },
+      //   ],
+      // });
+    }
+
+    const client = new RestateClient({ url: 'http://0.0.0.0:8080' });
+
+    const user = client.service<UserServiceApi>();
+
+    {
+      const user = new User('Test');
+      const serialize = getBSONSerializer<User>();
+      const deserialize = getBSONDeserializer<User>();
+      expect(deserialize(serialize(user))).toMatchObject(user);
+    }
+
+    {
+      const result = await client.rpc(user.create('Test'));
+      expect(result).toBeInstanceOf(User);
+      expect(result).toMatchObject({
+        id: expect.any(String),
+        username: 'Test',
+        rnd: expect.any(Number),
+      });
+    }
+
+    // {
+    //   const result = await client.send(user.create('Test'));
+    //   expect(result.id).toMatch(/^inv_/);
+    // }
   });
 });

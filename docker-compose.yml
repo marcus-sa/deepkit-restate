@@ -2,13 +2,13 @@ version: '3'
 
 services:
   restate:
-    image: docker.io/restatedev/restate:0.8
+    image: docker.io/restatedev/restate:1.0
     ports:
       - '8080:8080'
       - '9070:9070'
     environment:
-      - 'RESTATE_CONFIG=/etc/config/restate.yml'
+      - 'RESTATE_CONFIG=/etc/config/restate.toml'
     volumes:
-      - ./restate.yml:/etc/config/restate.yml
+      - ./restate.toml:/etc/config/restate.toml
     extra_hosts:
       - 'host.docker.internal:host-gateway'

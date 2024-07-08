@@ -1,19 +1,17 @@
 import { TerminalError } from '@restatedev/restate-sdk';
-import { RpcResponse } from '@restatedev/restate-sdk/dist/generated/proto/dynrpc.js';
 
 import { Saga } from './saga.js';
 import { SagaInstance } from './saga-instance.js';
 import { SagaActions } from './saga-actions.js';
 import { RestateSagaMetadata } from '../decorator.js';
-import { assertArgs, encodeRpcRequest } from '../utils.js';
 import {
-  deserializeRestateServiceMethodResponse,
-  RestateClientCallOptions,
+  deserializeRestateMethodResponse,
   RestateSagaContext,
-  RestateServiceMethodRequest,
-  RestateServiceMethodResponse,
+  RestateMethodRequest,
+  RestateMethodResponse,
   restateTerminalErrorType,
   serializeRestateTerminalErrorType,
+  RestateSendOptions,
 } from '../types.js';
 
 export class SagaManager<Data> {
@@ -24,17 +22,15 @@ export class SagaManager<Data> {
   ) {}
 
   private async invokeParticipant(
-    { service, method, data, keyed }: RestateServiceMethodRequest,
-    { key }: RestateClientCallOptions = {},
-  ): Promise<RestateServiceMethodResponse> {
+    { service, method, data }: RestateMethodRequest,
+    // TODO: this has not yet been implemented
+    key?: string,
+  ): Promise<RestateMethodResponse> {
     try {
-      assertArgs({ keyed }, { key });
       return await (this.ctx as any).ctx
-        .invoke(service, method, encodeRpcRequest(data, key))
+        .invoke(service, method, data, key)
         .transform((response: Uint8Array) =>
-          deserializeRestateServiceMethodResponse(
-            new Uint8Array(RpcResponse.decode(response).response),
-          ),
+          deserializeRestateMethodResponse(response),
         );
     } catch (err: unknown) {
       if (err instanceof TerminalError) {
@@ -54,13 +50,13 @@ export class SagaManager<Data> {
     sagaData: Data,
   ): Promise<void> {
     if (compensating) {
-      await this.ctx.sideEffect(async () => {
-        await this.saga.onSagaRolledBack?.(this.ctx.workflowId(), sagaData);
+      await this.ctx.run(async () => {
+        await this.saga.onSagaRolledBack?.(this.ctx.key, sagaData);
       });
     } else {
-      await this.ctx.sideEffect(async () => {
+      await this.ctx.run(async () => {
         await this.saga.onSagaCompletedSuccessfully?.(
-          this.ctx.workflowId(),
+          this.ctx.key,
           sagaData,
         );
       });
@@ -131,8 +127,8 @@ export class SagaManager<Data> {
     // );
     const instance = new SagaInstance(data);
 
-    await this.ctx.sideEffect(async () => {
-      await this.saga.onStarting?.(this.ctx.workflowId(), instance.sagaData);
+    await this.ctx.run(async () => {
+      await this.saga.onStarting?.(this.ctx.key, instance.sagaData);
     });
 
     const actions = await this.saga.definition.start(this.ctx, instance);

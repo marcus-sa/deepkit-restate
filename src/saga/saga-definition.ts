@@ -1,4 +1,4 @@
-import { ErrorCodes, TerminalError } from '@restatedev/restate-sdk';
+import { RestateError, TerminalError } from '@restatedev/restate-sdk';
 
 import { SagaStep } from './saga-step.js';
 import { SagaExecutionState } from './saga-execution-state.js';
@@ -6,8 +6,8 @@ import { StepToExecute } from './step-to-execute.js';
 import { SagaInstance } from './saga-instance.js';
 import { SagaActions } from './saga-actions.js';
 import {
-  RestateServiceMethodResponse,
-  RestateServiceMethodRequest,
+  RestateMethodResponse,
+  RestateMethodRequest,
   Entity,
   RestateSagaContext,
   restateTerminalErrorType,
@@ -64,8 +64,8 @@ export class SagaDefinition<Data> {
   }
 
   private deserializeReply<T>(
-    request: RestateServiceMethodRequest,
-    response: RestateServiceMethodResponse,
+    request: RestateMethodRequest,
+    response: RestateMethodResponse,
   ): T | TerminalError {
     if (response.success) {
       return request.deserializeReturn(response.data);
@@ -76,7 +76,7 @@ export class SagaDefinition<Data> {
         return deserializeRestateTerminalErrorType(response.data);
       }
       throw new TerminalError(`Missing entity for type ${response.typeName}`, {
-        errorCode: ErrorCodes.INTERNAL,
+        // errorCode: RestateErrorCodes.INTERNAL,
       });
     }
     return entity.deserialize(response.data);
@@ -86,8 +86,8 @@ export class SagaDefinition<Data> {
     ctx: RestateSagaContext,
     state: SagaExecutionState,
     sagaData: Data,
-    request: RestateServiceMethodRequest,
-    response: RestateServiceMethodResponse,
+    request: RestateMethodRequest,
+    response: RestateMethodResponse,
   ): Promise<SagaActions<Data>> {
     const currentStep = this.steps[state.currentlyExecuting];
     if (!currentStep) {
@@ -98,7 +98,7 @@ export class SagaDefinition<Data> {
     const reply = currentStep.getReply(response, state.compensating);
     if (reply) {
       const replyData = this.deserializeReply(request, response);
-      await ctx.sideEffect(async () => {
+      await ctx.run(async () => {
         await reply.handler(sagaData, replyData);
       });
     }

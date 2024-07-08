@@ -1,0 +1,8 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="true" type="JavaScriptTestRunnerVitest">
+    <node-interpreter value="$USER_HOME$/.asdf/shims/node" />
+    <envs />
+    <scope-kind value="ALL" />
+    <method v="2" />
+  </configuration>
+</component>

@@ -122,7 +122,7 @@ test('e2e', async () => {
   const admin = new RestateAdminClient('http://0.0.0.0:9070');
   await admin.deployments.create(`http://host.docker.internal:9083`);
 
-  const client = new RestateClient('http://0.0.0.0:8080');
+  const client = new RestateClient({ url: 'http://0.0.0.0:8080' });
 
   const orderId = uuid();
   const customerId = uuid();

@@ -1,6 +1,6 @@
 import { ReceiveType, ReflectionKind, resolveReceiveType } from '@deepkit/type';
 
-import { RestateServiceMethodRequest } from '../types.js';
+import { RestateMethodRequest } from '../types.js';
 import { SagaDefinitionBuilder } from './saga-definition-builder.js';
 import { SagaStep } from './saga-step.js';
 import {
@@ -102,7 +102,7 @@ export class StepBuilder<Data> {
   constructor(private readonly builder: SagaDefinitionBuilder<Data>) {}
 
   invoke<R, A extends any[]>(
-    handler: Handler<Data, RestateServiceMethodRequest<R, A>>,
+    handler: Handler<Data, RestateMethodRequest<R, A>>,
   ): ParticipantStepBuilder<Data>;
   invoke(handler: Handler<Data, void>): LocalStepBuilder<Data>;
   invoke<T>(

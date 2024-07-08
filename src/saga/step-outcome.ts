@@ -1,7 +1,7 @@
-import { RestateServiceMethodRequest } from '../types.js';
+import { RestateMethodRequest } from '../types.js';
 
 export class SagaStepOutcome {
-  static forParticipant(request: RestateServiceMethodRequest): SagaStepOutcome {
+  static forParticipant(request: RestateMethodRequest): SagaStepOutcome {
     return new SagaStepOutcome(false, request);
   }
 
@@ -15,7 +15,7 @@ export class SagaStepOutcome {
 
   constructor(
     readonly local: boolean,
-    readonly request?: RestateServiceMethodRequest,
+    readonly request?: RestateMethodRequest,
     readonly error?: Error,
   ) {}
 }
