@@ -1,5 +1,6 @@
 import { TerminalError } from '@restatedev/restate-sdk';
 
+import { encodeRpcRequest } from '../utils.js';
 import { Saga } from './saga.js';
 import { SagaInstance } from './saga-instance.js';
 import { SagaActions } from './saga-actions.js';
@@ -27,8 +28,8 @@ export class SagaManager<Data> {
     key?: string,
   ): Promise<RestateMethodResponse> {
     try {
-      return await (this.ctx as any).ctx
-        .invoke(service, method, data, key)
+      return await (this.ctx as any)
+        .invoke(service, method, encodeRpcRequest(data), key)
         .transform((response: RestateRpcResponse) =>
           deserializeRestateMethodResponse(new Uint8Array(response)),
         );

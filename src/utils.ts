@@ -265,11 +265,11 @@ export function encodeRpcResponse(
 }
 
 export function decodeRestateServiceMethodResponse<T>(
-  response: Uint8Array,
+  response: RestateRpcResponse,
   deserialize: BSONDeserializer<T>,
   entities: Entities,
 ): T {
-  const internalResponse = deserializeRestateMethodResponse(response);
+  const internalResponse = deserializeRestateMethodResponse(new Uint8Array(response));
   if (internalResponse.success) {
     return deserialize(internalResponse.data);
   }
@@ -299,4 +299,9 @@ export function getRestateSagaMetadata(
   classType: ClassType,
 ): RestateSagaMetadata | undefined {
   return restateSagaDecorator._fetch(classType);
+}
+
+// Restate expects Uint8Array content to be JSON
+export function encodeRpcRequest(data: Uint8Array): Uint8Array {
+  return new TextEncoder().encode(JSON.stringify(Array.from(data)));
 }

@@ -54,7 +54,6 @@ describe('e2e', () => {
 
         @restate.method()
         async create(user: User): Promise<Account> {
-          console.log('account', 'create');
           expect(user).toBeInstanceOf(User);
           return Account.create(this.ctx, user);
         }
@@ -75,10 +74,9 @@ describe('e2e', () => {
 
         @restate.method()
         async create(username: string): Promise<User> {
-          console.log('user', 'create');
           const user = User.create(this.ctx, username);
-          console.log(user);
           const account = await this.ctx.rpc(this.account.create(user));
+          expect(account).toBeInstanceOf(Account);
           user.setAccount(account);
           return user;
         }

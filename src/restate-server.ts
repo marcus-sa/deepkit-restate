@@ -11,7 +11,7 @@ import { InjectorObject, InjectorObjects } from './objects.js';
 import { InjectorSagas } from './sagas.js';
 import { RestateClassMetadata, RestateMethodMetadata } from './decorator.js';
 import { RestateConfig } from './restate.module.js';
-import { decodeRestateServiceMethodResponse, encodeRpcResponse } from './utils.js';
+import { decodeRestateServiceMethodResponse, encodeRpcRequest, encodeRpcResponse } from './utils.js';
 import {
   RestateObjectContext,
   restateObjectContextType,
@@ -106,14 +106,11 @@ export class RestateServer {
         const [key, { service, method, data }, options] =
           args.length === 1 ? [undefined, ...args] : args;
 
-        // Restate expects Uint8Array content to be JSON
-        const arr = new TextEncoder().encode(JSON.stringify(Array.from(data)));
-
         try {
           await (ctx as any).invokeOneWay(
             service,
             method,
-            arr,
+            encodeRpcRequest(data),
             options?.delay,
             key,
           );
@@ -125,14 +122,11 @@ export class RestateServer {
         const [key, { service, method, data, deserializeReturn, entities }] =
           args.length === 1 ? [undefined, ...args] : args;
 
-        // Restate expects Uint8Array content to be JSON
-        const arr = new TextEncoder().encode(JSON.stringify(Array.from(data)));
-
         return await (ctx as any)
-          .invoke(service, method, arr, key)
+          .invoke(service, method, encodeRpcRequest(data), key)
           .transform((response: RestateRpcResponse) =>
             decodeRestateServiceMethodResponse(
-              new Uint8Array(response),
+              response,
               deserializeReturn,
               entities,
             ),
@@ -151,14 +145,11 @@ export class RestateServer {
         const [key, { service, method, data }, options] =
           args.length === 1 ? [undefined, ...args] : args;
 
-        // Restate expects Uint8Array content to be JSON
-        const arr = new TextEncoder().encode(JSON.stringify(Array.from(data)));
-
         try {
           await (ctx as any).invokeOneWay(
             service,
             method,
-            arr,
+            encodeRpcRequest(data),
             options?.delay,
             key,
           );
@@ -170,14 +161,11 @@ export class RestateServer {
         const [key, { service, method, data, deserializeReturn, entities }] =
           args.length === 1 ? [undefined, ...args] : args;
 
-        // Restate expects Uint8Array content to be JSON
-        const arr = new TextEncoder().encode(JSON.stringify(Array.from(data)));
-
         return await (ctx as any)
-          .invoke(service, method, arr, key)
+          .invoke(service, method, encodeRpcRequest(data), key)
           .transform((response: RestateRpcResponse) =>
             decodeRestateServiceMethodResponse(
-              new Uint8Array(response),
+              response,
               deserializeReturn,
               entities,
             ),

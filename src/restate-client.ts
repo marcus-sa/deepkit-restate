@@ -91,6 +91,7 @@ export class RestateSagaClient<Data> {
 
   async start(id: string, data: Data): Promise<WorkflowSubmission<unknown>> {
     const request = Array.from(this.serializeData(data));
+    console.log(this.ingress);
     // @ts-ignore
     const { status } = await this.ingress
       .workflowClient({ name: this.serviceName }, id)
@@ -105,6 +106,7 @@ export class RestateClient implements RestateCustomContext {
   private readonly ingress: restate.Ingress;
 
   constructor(private readonly opts: restate.ConnectionOpts) {
+    this.ingress = restate.connect(opts);
   }
 
   service<T extends RestateService<string, any, any[]>>(
@@ -167,7 +169,7 @@ export class RestateClient implements RestateCustomContext {
     }
 
     return decodeRestateServiceMethodResponse(
-      new Uint8Array(result),
+      result,
       deserializeReturn,
       entities,
     );
