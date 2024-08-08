@@ -1,4 +1,4 @@
-import { createTestingApp } from '@deepkit/framework';
+import { createTestingApp, TestingFacade } from '@deepkit/framework';
 import { Unique, uuid, UUID } from '@deepkit/type';
 
 import { RestateModule } from './restate.module.js';
@@ -113,37 +113,43 @@ describe('e2e', () => {
   });
 
   describe('service', async () => {
-    test('rpc', async () => {
-      class User {
-        readonly id: UUID = uuid();
+    class User {
+      readonly id: UUID = uuid();
 
-        constructor(public readonly username: string) {
-        }
+      constructor(public readonly username: string) {
+      }
+    }
+
+    interface UserService {
+      create(username: string): Promise<User>;
+    }
+
+    type UserServiceApi = RestateService<'user', UserService>;
+
+    @restate.service<UserServiceApi>()
+    class UserController implements UserService {
+      constructor(private readonly ctx: RestateServiceContext) {
       }
 
-      interface UserService {
-        create(username: string): Promise<User>;
+      @restate.handler()
+      async create(username: string): Promise<User> {
+        return new User(username);
       }
+    }
 
-      type UserServiceApi = RestateService<'user', UserService>;
+    let app: TestingFacade<any>;
 
-      @restate.service<UserServiceApi>()
-      class UserController implements UserService {
-        constructor(private readonly ctx: RestateServiceContext) {
-        }
-
-        @restate.method()
-        async create(username: string): Promise<User> {
-          return new User(username);
-        }
-      }
-
-      const app = createTestingApp({
+    beforeEach(() => {
+      app = createTestingApp({
         imports: [new RestateModule({ port: 9081 })],
         controllers: [UserController],
       });
       void app.startServer();
+    });
 
+    afterEach(() => app.stopServer());
+
+    test('rpc', async () => {
       await admin.deployments.create('http://host.docker.internal:9081');
 
       const user = client.service<UserServiceApi>();
@@ -159,6 +165,23 @@ describe('e2e', () => {
     });
 
     test('send', async () => {
+      const app = createTestingApp({
+        imports: [new RestateModule({ port: 9081 })],
+        controllers: [UserController],
+      });
+      void app.startServer();
+
+      await admin.deployments.create('http://host.docker.internal:9081');
+
+      const user = client.service<UserServiceApi>();
+
+      {
+        const status = await client.send(user.create('Test'));
+        expect(status).toMatchObject({
+          invocationId: expect.any(String),
+          status: 'Accepted',
+        });
+      }
     });
   });
 });

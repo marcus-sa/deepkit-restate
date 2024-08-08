@@ -16,11 +16,11 @@ import {
   RestateObject,
   RestateObjectHandlerRequest,
   RestateRpcOptions,
-  RestateRpcResponse,
   RestateSaga,
   RestateSendOptions,
   RestateService,
   RestateServiceHandlerRequest,
+  SendStatus,
 } from './types.js';
 
 interface RestateApiResponseError {
@@ -43,7 +43,10 @@ function isRestateApiResponseError(
   return 'code' in value || 'message' in value;
 }
 
-export type WorkflowStartStatus = Omit<WorkflowSubmission<unknown>, 'attachable'>;
+export type WorkflowStartStatus = Omit<
+  WorkflowSubmission<unknown>,
+  'attachable'
+>;
 
 export class RestateSagaClient<Data> {
   private readonly serializeData: BSONSerializer;
@@ -65,16 +68,18 @@ export class RestateSagaClient<Data> {
     const response = await fetch(url, {
       method: 'POST',
       headers: {
-        'content-type': 'application/json',
+        'content-type': 'application/octet-stream',
+        accept: 'application/octet-stream',
       },
     });
 
-    const result = await response.json() as RestateRpcResponse | null;
-    if (!result) {
+    if (!response.ok) {
       throw new Error('Missing saga state');
     }
 
-    const state = deserializeSagaState(new Uint8Array(result));
+    const state = deserializeSagaState(
+      new Uint8Array(await response.arrayBuffer()),
+    );
 
     return {
       sagaData: this.deserializeData(state.sagaData),
@@ -82,38 +87,24 @@ export class RestateSagaClient<Data> {
     };
   }
 
-  // async status(id: string): Promise<Output<Data>> {
-  //   return await this.ingress
-  //     .workflowClient(
-  //       { name: this.serviceName },
-  //       id,
-  //     )
-  //     .workflowOutput();
-  // }
-
   async start(id: string, data: Data): Promise<WorkflowStartStatus> {
     const url = `${this.opts.url}/${this.serviceName}/${id}/run/send`;
-
-    const request = Array.from(this.serializeData(data));
 
     const response = await fetch(url, {
       method: 'POST',
       headers: {
-        'content-type': 'application/json',
+        'content-type': 'application/octet-stream',
+        accept: 'application/json',
       },
-      body: JSON.stringify({ request }),
+      body: this.serializeData(data),
     });
 
-    const { startStatus } = await response.json() as { readonly startStatus: WorkflowStartStatus };
-    return startStatus;
+    return (await response.json()) as WorkflowStartStatus;
   }
 }
 
 export class RestateClient implements RestateCustomContext {
-  private readonly ingress: restate.Ingress;
-
   constructor(private readonly opts: restate.ConnectionOpts) {
-    this.ingress = restate.connect(opts);
   }
 
   service<T extends RestateService<string, any, any[]>>(
@@ -157,7 +148,10 @@ export class RestateClient implements RestateCustomContext {
         : `${this.opts.url}/${service}/${method}`,
     );
 
-    const headers = new Headers([['content-type', 'application/json']]);
+    const headers = new Headers([
+      ['content-type', 'application/octet-stream'],
+      ['accept', 'application/octet-stream'],
+    ]);
     if (options?.idempotencyKey) {
       headers.set('idempotency-key', options.idempotencyKey);
     }
@@ -165,15 +159,17 @@ export class RestateClient implements RestateCustomContext {
     const response = await fetch(url, {
       method: 'POST',
       headers,
-      body: JSON.stringify(Array.from(data)),
-    });
+      body: data, // TODO: uint8arrays
+    } as RequestInit);
 
-    const result = (await response.json()) as
-      | RestateApiResponseError
-      | RestateRpcResponse;
-    if (isRestateApiResponseError(result)) {
-      throw new RestateApiError(result.code, result.message);
-    }
+    const result = new Uint8Array(await response.arrayBuffer());
+
+    // const result = (await response.json()) as
+    //   | RestateApiResponseError
+    //   | RestateRpcResponse;
+    // if (isRestateApiResponseError(result)) {
+    //   throw new RestateApiError(result.code, result.message);
+    // }
 
     return decodeRestateServiceMethodResponse(
       result,
@@ -186,12 +182,12 @@ export class RestateClient implements RestateCustomContext {
     key: string,
     request: RestateObjectHandlerRequest,
     options?: RestateSendOptions,
-  ): Promise<void>;
+  ): Promise<SendStatus>;
   send(
     request: RestateServiceHandlerRequest,
     options?: RestateSendOptions,
-  ): Promise<void>;
-  async send(...args: readonly any[]): Promise<void> {
+  ): Promise<SendStatus>;
+  async send(...args: readonly any[]): Promise<SendStatus> {
     const [key, { service, method, data }, options] =
       args.length === 1 ? [undefined, ...args] : args;
 
@@ -204,7 +200,10 @@ export class RestateClient implements RestateCustomContext {
       url.searchParams.set('delay', options.delay);
     }
 
-    const headers = new Headers([['content-type', 'application/json']]);
+    const headers = new Headers([
+      ['content-type', 'application/octet-stream'],
+      ['accept', 'application/json'],
+    ]);
     if (options?.idempotencyKey) {
       headers.set('idempotency-key', options.idempotencyKey);
     }
@@ -212,15 +211,9 @@ export class RestateClient implements RestateCustomContext {
     const response = await fetch(url, {
       method: 'POST',
       headers,
-      body: JSON.stringify(Array.from(data)),
-    });
+      body: data,
+    } as RequestInit);
 
-    const result = (await response.json()) as
-      | RestateApiResponseError
-      | undefined;
-    if (isRestateApiResponseError(result)) {
-      throw new RestateApiError(result.code, result.message);
-    }
-    return result;
+    return (await response.json()) as SendStatus;
   }
 }

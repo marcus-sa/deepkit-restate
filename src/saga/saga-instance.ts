@@ -1,10 +1,6 @@
 import { typeOf, uint8 } from '@deepkit/type';
 import { WorkflowContext } from '@restatedev/restate-sdk';
-import {
-  bsonBinarySerializer,
-  getBSONDeserializer,
-  getBSONSerializer,
-} from '@deepkit/bson';
+import { bsonBinarySerializer, getBSONDeserializer, getBSONSerializer } from '@deepkit/bson';
 
 import { SagaExecutionState } from './saga-execution-state.js';
 import { RestateSagaMetadata } from '../decorator.js';
@@ -43,7 +39,7 @@ export class SagaInstance<Data> implements SagaState<Data> {
         serializeSagaState({
           currentState: this.currentState,
           sagaData: metadata.serializeData(this.sagaData),
-        } satisfies SagaState<Uint8Array>),
+        } satisfies SagaState),
       ),
     );
   }

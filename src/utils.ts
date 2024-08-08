@@ -28,14 +28,11 @@ import {
   deserializeRestateHandlerResponse,
   Entities,
   RestateHandlerRequest,
-  RestateHandlerResponse,
   RestateObject,
   restateObjectType,
-  RestateRpcResponse,
   restateSagaType,
   RestateService,
   restateServiceType,
-  serializeRestateHandlerResponse,
 } from './types.js';
 import {
   restateObjectDecorator,
@@ -254,18 +251,12 @@ export function createClassProxy<
   );
 }
 
-export function encodeRpcResponse(
-  response: RestateHandlerResponse,
-): RestateRpcResponse {
-  return Array.from(serializeRestateHandlerResponse(response));
-}
-
 export function decodeRestateServiceMethodResponse<T>(
-  response: RestateRpcResponse,
+  response: Uint8Array,
   deserialize: BSONDeserializer<T>,
   entities: Entities,
 ): T {
-  const internalResponse = deserializeRestateHandlerResponse(new Uint8Array(response));
+  const internalResponse = deserializeRestateHandlerResponse(response);
   if (internalResponse.success) {
     return deserialize(internalResponse.data);
   }
@@ -295,9 +286,4 @@ export function getRestateSagaMetadata(
   classType: ClassType,
 ): RestateSagaMetadata | undefined {
   return restateSagaDecorator._fetch(classType);
-}
-
-// Restate expects Uint8Array content to be JSON
-export function encodeRpcRequest(data: Uint8Array): Uint8Array {
-  return new TextEncoder().encode(JSON.stringify(Array.from(data)));
 }

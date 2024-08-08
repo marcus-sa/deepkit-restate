@@ -1,6 +1,5 @@
 import { TerminalError } from '@restatedev/restate-sdk';
 
-import { encodeRpcRequest } from '../utils.js';
 import { Saga } from './saga.js';
 import { SagaInstance } from './saga-instance.js';
 import { SagaActions } from './saga-actions.js';
@@ -9,7 +8,6 @@ import {
   deserializeRestateHandlerResponse,
   RestateHandlerRequest,
   RestateHandlerResponse,
-  RestateRpcResponse,
   RestateSagaContext,
   restateTerminalErrorType,
   serializeRestateTerminalErrorType,
@@ -28,11 +26,14 @@ export class SagaManager<Data> {
     key?: string,
   ): Promise<RestateHandlerResponse> {
     try {
-      return await (this.ctx as any)
-        .invoke(service, method, encodeRpcRequest(data), key)
-        .transform((response: RestateRpcResponse) =>
-          deserializeRestateHandlerResponse(new Uint8Array(response)),
-        );
+      return await (this.ctx as any).invoke(
+        service,
+        method,
+        data,
+        key,
+        undefined,
+        (response: Uint8Array) => deserializeRestateHandlerResponse(response),
+      );
     } catch (err: unknown) {
       if (err instanceof TerminalError) {
         return {
@@ -56,10 +57,7 @@ export class SagaManager<Data> {
       });
     } else {
       await this.ctx.run(async () => {
-        await this.saga.onSagaCompletedSuccessfully?.(
-          this.ctx.key,
-          sagaData,
-        );
+        await this.saga.onSagaCompletedSuccessfully?.(this.ctx.key, sagaData);
       });
     }
   }

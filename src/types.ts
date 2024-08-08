@@ -1,7 +1,10 @@
-import { typeOf, uint8 } from '@deepkit/type';
+import { typeOf } from '@deepkit/type';
 import { Context as ServiceContext, ObjectContext, TerminalError, WorkflowContext } from '@restatedev/restate-sdk';
 import { ClassType } from '@deepkit/core';
 import { BSONDeserializer, BSONSerializer, getBSONDeserializer, getBSONSerializer } from '@deepkit/bson';
+import type { Send } from '@restatedev/restate-sdk-clients/dist/esm/src/api';
+
+export type SendStatus = Omit<Send, 'attachable'>;
 
 export interface RestateApiInvocation {
   readonly id: string;
@@ -50,10 +53,6 @@ export type RestateServiceHandlerRequest<
   A extends any[] = [],
 > = RestateHandlerRequest<R, A, 'service'>;
 
-export type RestateRpcRequest = readonly uint8[];
-
-export type RestateRpcResponse = readonly uint8[];
-
 type RestateHandler<F, T extends RestateHandlerType> = F extends (
     ...args: infer P
   ) => infer R
@@ -95,12 +94,12 @@ export interface RestateCustomContext {
     key: string,
     request: RestateObjectHandlerRequest,
     options?: RestateSendOptions,
-  ): Promise<void>;
+  ): Promise<SendStatus>;
   // used for services
   send(
     request: RestateServiceHandlerRequest,
     options?: RestateSendOptions,
-  ): Promise<void>;
+  ): Promise<SendStatus>;
   // used for objects
   rpc<R, A extends any[]>(
     key: string,
