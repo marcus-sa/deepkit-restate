@@ -12,7 +12,7 @@ import {
   getSagaDataSerializer,
 } from './utils.js';
 import {
-  RestateCustomContext,
+  RestateClientContext,
   RestateObject,
   RestateObjectHandlerRequest,
   RestateRpcOptions,
@@ -103,7 +103,7 @@ export class RestateSagaClient<Data> {
   }
 }
 
-export class RestateClient implements RestateCustomContext {
+export class RestateClient implements RestateClientContext {
   constructor(private readonly opts: restate.ConnectionOpts) {
   }
 

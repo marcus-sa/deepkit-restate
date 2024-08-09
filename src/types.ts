@@ -1,8 +1,9 @@
-import { typeOf } from '@deepkit/type';
+import { ReceiveType, typeOf } from '@deepkit/type';
 import { Context as ServiceContext, ObjectContext, TerminalError, WorkflowContext } from '@restatedev/restate-sdk';
 import { ClassType } from '@deepkit/core';
 import { BSONDeserializer, BSONSerializer, getBSONDeserializer, getBSONSerializer } from '@deepkit/bson';
 import type { Send } from '@restatedev/restate-sdk-clients/dist/esm/src/api';
+import type { RunAction } from '@restatedev/restate-sdk/dist/esm/src/context';
 
 export type SendStatus = Omit<Send, 'attachable'>;
 
@@ -88,7 +89,7 @@ export interface RestateSaga<Name extends string, Data> {
   readonly data: Data;
 }
 
-export interface RestateCustomContext {
+export interface RestateClientContext {
   // used for objects
   send(
     key: string,
@@ -109,9 +110,19 @@ export interface RestateCustomContext {
   rpc<R, A extends any[]>(call: RestateServiceHandlerRequest<R, A>): Promise<R>;
 }
 
+export interface RestateCustomContext extends RestateClientContext {
+  run<T = void>(action: RunAction<T>, type?: ReceiveType<T>): Promise<T>;
+
+  // run<T>(name: string, action: RunAction<T>): Promise<T>;
+}
+
 type ContextWithoutClients<T> = Omit<
   T,
-  'serviceClient' | 'serviceSendClient' | 'objectSendClient' | 'objectClient'
+  | 'serviceClient'
+  | 'serviceSendClient'
+  | 'objectSendClient'
+  | 'objectClient'
+  | 'run'
 >;
 
 export interface RestateServiceContext
@@ -131,7 +142,9 @@ export interface RestateHandlerResponse {
 }
 
 export interface RestateSagaContext
-  extends ContextWithoutClients<WorkflowContext> {}
+  extends Omit<RestateCustomContext, 'rpc' | 'send'>,
+    ContextWithoutClients<WorkflowContext> {
+}
 
 export const restateServiceType = typeOf<RestateService<string, any, any[]>>();
 

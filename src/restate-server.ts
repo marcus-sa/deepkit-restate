@@ -2,7 +2,15 @@ import { eventDispatcher } from '@deepkit/event';
 import { onServerMainBootstrapDone } from '@deepkit/framework';
 import { InjectorContext } from '@deepkit/injector';
 import * as restate from '@restatedev/restate-sdk';
-import { hasTypeInformation, reflect, uint8 } from '@deepkit/type';
+import {
+  deserialize,
+  hasTypeInformation,
+  ReceiveType,
+  reflect,
+  resolveReceiveType,
+  serialize,
+  uint8,
+} from '@deepkit/type';
 
 import { SagaManager } from './saga/saga-manager.js';
 import { SAGA_STATE_KEY } from './saga/saga-instance.js';
@@ -23,6 +31,7 @@ import {
   SendStatus,
   serializeRestateHandlerResponse,
 } from './types.js';
+import type { RunAction } from '@restatedev/restate-sdk/dist/esm/src/context';
 
 const DEFAULT_HANDLER_OPTS = {
   contentType: 'application/octet-stream',
@@ -106,50 +115,80 @@ export class RestateServer {
     ctx: restate.ObjectContext | restate.WorkflowContext | restate.Context,
     extra?: Partial<T>,
   ): T {
-    return Object.assign(ctx, {
-      serviceClient: undefined,
-      serviceSendClient: undefined,
-      objectSendClient: undefined,
-      objectClient: undefined,
-      workflowClient: undefined,
-      workflowSendClient: undefined,
-      send: async (...args: readonly any[]): Promise<SendStatus> => {
-        const [key, { service, method, data }, options] =
-          args.length === 1 ? [undefined, ...args] : args;
+    return Object.assign(
+      { ...ctx },
+      {
+        serviceClient: undefined,
+        serviceSendClient: undefined,
+        objectSendClient: undefined,
+        objectClient: undefined,
+        workflowClient: undefined,
+        workflowSendClient: undefined,
+        // TypeError: Cannot read properties of undefined (reading 'kind')
+        //   at ReflectionTransformer.getArrowFunctionΩPropertyAccessIdentifier
+        // run: async <T>(action: RunAction<T>, type?: ReceiveType<T>): Promise<T> => {
+        async run<T = void>(action: RunAction<T>, type?: ReceiveType<T>): Promise<T> {
+          type = resolveReceiveType(type);
+          // TODO: serialize using bson instead when https://github.com/restatedev/sdk-typescript/issues/410 is implemented
+          const result = await ctx.run(async () => {
+            const result = await action();
+            if (!result) return void 0;
+            return serialize(
+              result,
+              { loosely: false },
+              undefined,
+              undefined,
+              type,
+            );
+          });
+          // @ts-expect-error otherwise ts complains
+          if (!result) return void 0;
+          return deserialize(
+            result,
+            { loosely: false },
+            undefined,
+            undefined,
+            type,
+          );
+        },
+        send: async (...args: readonly any[]): Promise<SendStatus> => {
+          const [key, { service, method, data }, options] =
+            args.length === 1 ? [undefined, ...args] : args;
 
-        try {
-          return await (ctx as any).invokeOneWay(
+          try {
+            return await (ctx as any).invokeOneWay(
+              service,
+              method,
+              data,
+              options?.delay,
+              key,
+            );
+          } catch (e) {
+            (ctx as any).stateMachine.handleDanglingPromiseError(e);
+            throw e;
+          }
+        },
+        rpc: async <T>(...args: readonly any[]): Promise<T> => {
+          const [key, { service, method, data, deserializeReturn, entities }] =
+            args.length === 1 ? [undefined, ...args] : args;
+
+          return await (ctx as any).invoke(
             service,
             method,
             data,
-            options?.delay,
             key,
+            undefined,
+            (response: Uint8Array) =>
+              decodeRestateServiceMethodResponse(
+                response,
+                deserializeReturn,
+                entities,
+              ),
           );
-        } catch (e) {
-          (ctx as any).stateMachine.handleDanglingPromiseError(e);
-          throw e;
-        }
+        },
+        ...extra,
       },
-      rpc: async <T>(...args: readonly any[]): Promise<T> => {
-        const [key, { service, method, data, deserializeReturn, entities }] =
-          args.length === 1 ? [undefined, ...args] : args;
-
-        return await (ctx as any).invoke(
-          service,
-          method,
-          data,
-          key,
-          undefined,
-          (response: Uint8Array) =>
-            decodeRestateServiceMethodResponse(
-              response,
-              deserializeReturn,
-              entities,
-            ),
-        );
-      },
-      ...extra,
-    });
+    );
   }
 
   private createObjectContext(

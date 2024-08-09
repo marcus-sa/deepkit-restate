@@ -1,5 +1,5 @@
 import { createTestingApp, TestingFacade } from '@deepkit/framework';
-import { Unique, uuid, UUID } from '@deepkit/type';
+import { PrimaryKey, Unique, uuid, UUID } from '@deepkit/type';
 
 import { RestateModule } from './restate.module.js';
 import { restate } from './decorator.js';
@@ -99,6 +99,53 @@ describe('e2e', () => {
           id: expect.any(String),
           username: 'Test',
           accountId: expect.any(String),
+        });
+      }
+    });
+
+    test('run', async () => {
+      class User {
+        readonly id: UUID & PrimaryKey = uuid();
+
+        constructor(public readonly username: string) {
+        }
+      }
+
+      interface UserService {
+        create(username: string): Promise<User>;
+      }
+
+      type UserServiceApi = RestateService<'user', UserService>;
+
+      @restate.service<UserServiceApi>()
+      class UserController implements UserService {
+        constructor(private readonly ctx: RestateServiceContext) {
+        }
+
+        @restate.handler()
+        async create(username: string): Promise<User> {
+          const user = await this.ctx.run<User>(() => new User(username));
+          expect(user).toBeInstanceOf(User);
+          return user;
+        }
+      }
+
+      const app = createTestingApp({
+        imports: [new RestateModule({ port: 9082 })],
+        controllers: [UserController],
+      });
+      void app.startServer();
+
+      await admin.deployments.create('http://host.docker.internal:9082');
+
+      const user = client.service<UserServiceApi>();
+
+      {
+        const result = await client.rpc(user.create('Test'));
+        expect(result).toBeInstanceOf(User);
+        expect(result).toMatchObject({
+          id: expect.any(String),
+          username: 'Test',
         });
       }
     });

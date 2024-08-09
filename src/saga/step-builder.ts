@@ -12,6 +12,7 @@ export interface BaseStepBuilder<Data> {
 }
 
 export interface LocalStepBuilder<Data> extends BaseStepBuilder<Data> {
+  // TODO: allow participants to be invoked
   compensate(handler: Handler<Data>): this;
 }
 
@@ -20,6 +21,8 @@ export interface ParticipantStepBuilder<Data> extends BaseStepBuilder<Data> {
     handler: (data: Data, reply: T) => Promise<void> | void,
     type?: ReceiveType<T>,
   ): this;
+
+  // TODO: allow participants to be invoked
   compensate(handler: Handler<Data>, predicate?: PredicateFn<Data>): this;
 }
 
