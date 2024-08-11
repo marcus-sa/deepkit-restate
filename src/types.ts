@@ -116,9 +116,10 @@ export interface RestateClientContext {
 }
 
 export interface RestateCustomContext extends RestateClientContext {
-  run<T = void>(action: RunAction<T>, type?: ReceiveType<T>): Promise<T>;
+  // run should only return a value if a generic is provided
+  run(action: RunAction<unknown>): Promise<void>;
 
-  // run<T>(name: string, action: RunAction<T>): Promise<T>;
+  run<T>(action: RunAction<T>, type?: ReceiveType<T>): Promise<T>;
 }
 
 type ContextWithoutClients<T> = Omit<
@@ -143,7 +144,7 @@ export interface RestateObjectContext
 export interface RestateHandlerResponse {
   readonly success: boolean;
   readonly data: Uint8Array;
-  readonly typeName: string;
+  readonly typeName?: string;
 }
 
 export interface RestateSagaContext

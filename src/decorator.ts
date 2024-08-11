@@ -1,11 +1,5 @@
 import { ClassType } from '@deepkit/core';
-import {
-  bsonBinarySerializer,
-  BSONDeserializer,
-  BSONSerializer,
-  getBSONDeserializer,
-  getBSONSerializer,
-} from '@deepkit/bson';
+import { BSONDeserializer, BSONSerializer, getBSONDeserializer, getBSONSerializer } from '@deepkit/bson';
 import {
   ClassDecoratorFn,
   createClassDecoratorContext,
@@ -164,10 +158,10 @@ export class RestateHandlerDecorator {
 
     const returnType =
       getUnwrappedReflectionFunctionReturnType(reflectionMethod);
-    const serializeReturn = getBSONSerializer(bsonBinarySerializer, returnType);
+    const serializeReturn = getBSONSerializer(undefined, returnType);
 
     const argsType = getReflectionFunctionArgsType(reflectionMethod);
-    const deserializeArgs = getBSONDeserializer(bsonBinarySerializer, argsType);
+    const deserializeArgs = getBSONDeserializer(undefined, argsType);
 
     Object.assign(this.t, {
       name: property,
@@ -207,7 +201,7 @@ export class RestateHandlerDecorator {
 
     options = { 'allow.auto.create.topics': 'true', ...options };
     Object.assign(this.t, {
-      kafka: <RestateHandlerKafkaMetadata>{ topic, argsType, options },
+      kafka: { topic, argsType, options } satisfies RestateHandlerKafkaMetadata,
     });
   }
 

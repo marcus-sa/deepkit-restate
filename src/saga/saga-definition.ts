@@ -94,7 +94,7 @@ export class SagaDefinition<Data> {
     if (response.success) {
       return request.deserializeReturn(response.data);
     }
-    const entity = request.entities.get(response.typeName) as Entity<T> | null;
+    const entity = request.entities.get(response.typeName!) as Entity<T> | null;
     if (!entity) {
       if (response.typeName === restateTerminalErrorType.typeName) {
         return deserializeRestateTerminalErrorType(response.data);

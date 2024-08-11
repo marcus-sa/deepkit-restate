@@ -8,6 +8,7 @@ import {
   hasTypeInformation,
   ReceiveType,
   reflect,
+  ReflectionKind,
   resolveReceiveType,
   serialize,
   uint8,
@@ -147,11 +148,14 @@ export class RestateServer {
           action: RunAction<T>,
           type?: ReceiveType<T>,
         ): Promise<T> {
-          type = resolveReceiveType(type);
+          try {
+            type = resolveReceiveType(type);
+          } catch {
+          }
           // TODO: serialize using bson instead when https://github.com/restatedev/sdk-typescript/issues/410 is implemented
           const result = await ctx.run(async () => {
             const result = await action();
-            if (!result) return void 0;
+            if (!type) return void 0;
             return serialize(
               result,
               { loosely: false },
@@ -160,8 +164,7 @@ export class RestateServer {
               type,
             );
           });
-          // @ts-expect-error otherwise ts complains
-          if (!result) return void 0;
+          if (!type) return void 0;
           return deserialize(
             result,
             { loosely: false },
@@ -231,12 +234,12 @@ export class RestateServer {
     protocol: 'object' | 'service',
     classes: InjectorObject<unknown>[] | InjectorService<unknown>[],
   ) {
-    const metadata = classes.flatMap(({ metadata }) => ({
+    const classesMetadata = classes.map(({ metadata }) => ({
       name: metadata.name,
       handlers: [...metadata.handlers],
     }));
     await Promise.all(
-      metadata.flatMap(metadata => {
+      classesMetadata.flatMap(metadata => {
         return metadata.handlers.map(async handler => {
           const url = `${this.config.admin.url}/subscriptions`;
 
@@ -326,8 +329,12 @@ export class RestateServer {
       const result = await instance[handler.name].bind(instance)(...args);
       return serializeRestateHandlerResponse({
         success: true,
-        data: handler.serializeReturn(result),
-        typeName: handler.returnType.typeName!,
+        data:
+          handler.returnType.kind !== ReflectionKind.void &&
+          handler.returnType.kind !== ReflectionKind.undefined
+            ? handler.serializeReturn(result)
+            : new Uint8Array(),
+        typeName: handler.returnType.typeName,
       });
     } catch (err: any) {
       if (hasTypeInformation(err.constructor)) {

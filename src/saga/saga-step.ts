@@ -31,7 +31,7 @@ export class SagaStep<Data> {
       ? this.compensationReplyHandlers
       : this.actionReplyHandlers;
 
-    return replyHandlers?.get(response.typeName);
+    return replyHandlers?.get(response.typeName!);
   }
 
   async createStepOutcome(

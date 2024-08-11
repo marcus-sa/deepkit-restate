@@ -260,6 +260,9 @@ export function decodeRestateServiceMethodResponse<T>(
   if (internalResponse.success) {
     return deserialize(internalResponse.data);
   }
+  if (!internalResponse.typeName) {
+    throw new TerminalError('Missing typeName');
+  }
   const entity = entities.get(internalResponse.typeName);
   if (!entity) {
     // if (internalResponse.typeName === restateTerminalErrorType.typeName) {
