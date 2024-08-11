@@ -44,6 +44,11 @@ export interface RestateHandlerRequest<
   readonly __type?: T;
 }
 
+export interface RestateKafkaTopic<T extends string, A extends any[]> {
+  readonly topic: T;
+  readonly args: A;
+}
+
 export type RestateObjectHandlerRequest<
   R = any,
   A extends any[] = [],

@@ -30,7 +30,7 @@ export class DeploymentClient {
   }
 }
 
-export interface RestateAdminClientOptions {
+export class RestateAdminClientOptions {
   readonly url: string;
 }
 

@@ -12,3 +12,11 @@ services:
       - ./restate.toml:/etc/config/restate.toml
     extra_hosts:
       - 'host.docker.internal:host-gateway'
+
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:v24.2.2
+    ports:
+      - '8081:8081'
+      - '8082:8082'
+      - '9092:9092'
+      - '19644:9644'

@@ -1,4 +1,3 @@
-import * as restate from '@restatedev/restate-sdk-clients';
 import type { WorkflowSubmission } from '@restatedev/restate-sdk-clients/dist/esm/src/api';
 import { BSONDeserializer, BSONSerializer } from '@deepkit/bson';
 import { ReceiveType, resolveReceiveType, Type } from '@deepkit/type';
@@ -48,13 +47,18 @@ export type WorkflowStartStatus = Omit<
   'attachable'
 >;
 
+export class RestateIngressClientOptions {
+  readonly url: string;
+  readonly headers?: Record<string, string>;
+}
+
 export class RestateSagaClient<Data> {
   private readonly serializeData: BSONSerializer;
   private readonly deserializeData: BSONDeserializer<Data>;
   private readonly serviceName: string;
 
   constructor(
-    private readonly opts: restate.ConnectionOpts,
+    private readonly opts: RestateIngressClientOptions,
     private readonly type: Type,
   ) {
     this.serializeData = getSagaDataSerializer(this.type);
@@ -104,7 +108,7 @@ export class RestateSagaClient<Data> {
 }
 
 export class RestateClient implements RestateClientContext {
-  constructor(private readonly opts: restate.ConnectionOpts) {
+  constructor(private readonly opts: RestateIngressClientOptions) {
   }
 
   service<T extends RestateService<string, any, any[]>>(

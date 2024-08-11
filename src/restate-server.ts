@@ -1,6 +1,7 @@
 import { eventDispatcher } from '@deepkit/event';
-import { onServerMainBootstrapDone } from '@deepkit/framework';
+import { onServerMainBootstrap } from '@deepkit/framework';
 import { InjectorContext } from '@deepkit/injector';
+import type { RunAction } from '@restatedev/restate-sdk/dist/esm/src/context';
 import * as restate from '@restatedev/restate-sdk';
 import {
   deserialize,
@@ -20,6 +21,7 @@ import { InjectorSagas } from './sagas.js';
 import { RestateClassMetadata, RestateHandlerMetadata } from './decorator.js';
 import { RestateConfig } from './restate.module.js';
 import { decodeRestateServiceMethodResponse } from './utils.js';
+import { RestateAdminClient } from './restate-admin-client.js';
 import {
   RestateObjectContext,
   restateObjectContextType,
@@ -31,7 +33,6 @@ import {
   SendStatus,
   serializeRestateHandlerResponse,
 } from './types.js';
-import type { RunAction } from '@restatedev/restate-sdk/dist/esm/src/context';
 
 const DEFAULT_HANDLER_OPTS = {
   contentType: 'application/octet-stream',
@@ -47,9 +48,10 @@ export class RestateServer {
     private readonly objects: InjectorObjects,
     private readonly sagas: InjectorSagas,
     private readonly injectorContext: InjectorContext,
+    private readonly admin: RestateAdminClient,
   ) {}
 
-  @eventDispatcher.listen(onServerMainBootstrapDone)
+  @eventDispatcher.listen(onServerMainBootstrap)
   async listen() {
     for (const object of this.objects) {
       const handlers = this.createObjectHandlers(object);
@@ -103,6 +105,20 @@ export class RestateServer {
     }
 
     await this.endpoint.listen(this.config.port);
+
+    if (this.config.autoDeploy) {
+      await this.admin.deployments.create(
+        `${this.config.host}:${this.config.port}`,
+      );
+    }
+
+    if (this.config.kafka) {
+      // TODO: filter out handlers by existing subscriptions
+      await Promise.all([
+        this.addHandlerKafkaSubscriptions('object', [...this.objects]),
+        this.addHandlerKafkaSubscriptions('service', [...this.services]),
+      ]);
+    }
   }
 
   private createScopedInjector(): InjectorContext {
@@ -127,7 +143,10 @@ export class RestateServer {
         // TypeError: Cannot read properties of undefined (reading 'kind')
         //   at ReflectionTransformer.getArrowFunctionΩPropertyAccessIdentifier
         // run: async <T>(action: RunAction<T>, type?: ReceiveType<T>): Promise<T> => {
-        async run<T = void>(action: RunAction<T>, type?: ReceiveType<T>): Promise<T> {
+        async run<T = void>(
+          action: RunAction<T>,
+          type?: ReceiveType<T>,
+        ): Promise<T> {
           type = resolveReceiveType(type);
           // TODO: serialize using bson instead when https://github.com/restatedev/sdk-typescript/issues/410 is implemented
           const result = await ctx.run(async () => {
@@ -208,11 +227,44 @@ export class RestateServer {
     });
   }
 
+  private async addHandlerKafkaSubscriptions(
+    protocol: 'object' | 'service',
+    classes: InjectorObject<unknown>[] | InjectorService<unknown>[],
+  ) {
+    const metadata = classes.flatMap(({ metadata }) => ({
+      name: metadata.name,
+      handlers: [...metadata.handlers],
+    }));
+    await Promise.all(
+      metadata.flatMap(metadata => {
+        return metadata.handlers.map(async handler => {
+          const url = `${this.config.admin.url}/subscriptions`;
+
+          const response = await fetch(url, {
+            method: 'POST',
+            body: JSON.stringify({
+              source: `kafka://${this.config.kafka!.clusterName}/${handler.kafka!.topic}`,
+              // TODO: figure out if protocol "object://" is for objects?
+              sink: `${protocol}://${metadata.name}/${handler.name}`,
+              options: handler.kafka?.options,
+            }),
+            headers: {
+              'content-type': 'application/json',
+            },
+          });
+          if (response.status !== 201) {
+            throw new Error(await response.text());
+          }
+        });
+      }),
+    );
+  }
+
   private createServiceHandlers({
-    classType,
-    module,
-    metadata,
-  }: InjectorService<unknown>) {
+                                  classType,
+                                  module,
+                                  metadata,
+                                }: InjectorService<unknown>) {
     return [...metadata.handlers].reduce(
       (handlers, handler) => ({
         ...handlers,
@@ -235,10 +287,10 @@ export class RestateServer {
   }
 
   private createObjectHandlers({
-    classType,
-    module,
-    metadata,
-  }: InjectorObject<unknown>) {
+                                 classType,
+                                 module,
+                                 metadata,
+                               }: InjectorObject<unknown>) {
     return [...metadata.handlers].reduce(
       (handlers, handler) => ({
         ...handlers,

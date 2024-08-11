@@ -1,3 +1,7 @@
 [worker.invoker.retry-policy]
 initial-interval = "50ms"
 max-attempts = 3
+
+[[ingress.kafka-clusters]]
+name = "restate"
+brokers = ["PLAINTEXT://redpanda:9092"]

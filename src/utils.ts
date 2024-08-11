@@ -287,3 +287,26 @@ export function getRestateSagaMetadata(
 ): RestateSagaMetadata | undefined {
   return restateSagaDecorator._fetch(classType);
 }
+
+export function assertValidKafkaTopicName(topicName: string): void {
+  if (!/^[a-zA-Z0-9._-]+$/.test(topicName)) {
+    throw new Error(
+      `Invalid topic name validation pattern ^[a-zA-Z0-9._-]+$ failed for ${topicName}`,
+    );
+  }
+}
+
+export function getRestateKafkaTopicSource(type: Type): string {
+  const typeArgument = getTypeArgument(type, 0);
+  assertType(typeArgument, ReflectionKind.literal);
+  if (!(typeof typeArgument.literal === 'string')) {
+    throw new Error('Value must be a string');
+  }
+  return typeArgument.literal;
+}
+
+export function getRestateKafkaTopicArgsType(type: Type): TypeTuple {
+  const typeArgument = getTypeArgument(type, 1);
+  assertType(typeArgument, ReflectionKind.tuple);
+  return typeArgument;
+}

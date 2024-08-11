@@ -14,23 +14,29 @@ import {
   DualDecorator,
   ExtractApiDataType,
   ExtractClass,
+  isSameType,
   mergeDecorator,
   PropertyDecoratorFn,
   PropertyDecoratorResult,
   ReceiveType,
   ReflectionClass,
   resolveReceiveType,
+  stringifyType,
   Type,
   TypeClass,
   TypeObjectLiteral,
+  TypeTuple,
   UnionToIntersection,
 } from '@deepkit/type';
 
-import { Entities, RestateObject, RestateSaga, RestateService } from './types.js';
+import { Entities, RestateKafkaTopic, RestateObject, RestateSaga, RestateService } from './types.js';
 import {
+  assertValidKafkaTopicName,
   getReflectionFunctionArgsType,
   getRestateClassEntities,
   getRestateClassName,
+  getRestateKafkaTopicArgsType,
+  getRestateKafkaTopicSource,
   getSagaDataDeserializer,
   getSagaDataSerializer,
   getUnwrappedReflectionFunctionReturnType,
@@ -124,14 +130,27 @@ export class RestateSagaDecorator {
   }
 }
 
+export type RestateHandlerKafkaOptions = Record<
+  string,
+  string | number | boolean
+>;
+
+export interface RestateHandlerKafkaMetadata {
+  readonly topic: string;
+  readonly argsType: TypeTuple;
+  readonly options?: RestateHandlerKafkaOptions;
+}
+
 export class RestateHandlerMetadata<T = readonly unknown[]> {
   readonly name: string;
   readonly classType: ClassType;
   readonly returnType: Type;
+  readonly argsType: TypeTuple;
   readonly serializeReturn: BSONSerializer;
   readonly deserializeArgs: BSONDeserializer<T>;
   readonly shared?: boolean;
   readonly exclusive?: boolean;
+  readonly kafka?: RestateHandlerKafkaMetadata;
 }
 
 export class RestateHandlerDecorator {
@@ -155,6 +174,7 @@ export class RestateHandlerDecorator {
       classType,
       returnType,
       serializeReturn,
+      argsType,
       deserializeArgs,
     });
 
@@ -167,6 +187,30 @@ export class RestateHandlerDecorator {
   handler() {
   }
 
+  // FIXME: options and type are somehow required
+  kafka<T extends RestateKafkaTopic<string, any[]>>(
+    options?: Record<string, string>,
+    type?: ReceiveType<T>,
+  ) {
+    // TODO: assert that handler args match kafka topic args
+    type = resolveReceiveType(type);
+
+    const topic = getRestateKafkaTopicSource(type);
+    assertValidKafkaTopicName(topic);
+
+    const argsType = getRestateKafkaTopicArgsType(type);
+    if (!isSameType(argsType, this.t.argsType)) {
+      throw new Error(
+        `Handler "${this.t.name}" parameters ${stringifyType(this.t.argsType)} does not match Kafka topic "${topic}" arguments ${stringifyType(argsType)}`,
+      );
+    }
+
+    options = { 'allow.auto.create.topics': 'true', ...options };
+    Object.assign(this.t, {
+      kafka: <RestateHandlerKafkaMetadata>{ topic, argsType, options },
+    });
+  }
+
   // This only applies to workflows & objects
   shared() {
     if (this.t.exclusive) {
@@ -175,7 +219,7 @@ export class RestateHandlerDecorator {
     Object.assign(this.t, { shared: true });
   }
 
-  // This only applies to virtual objects
+  // This only applies to objects
   exclusive() {
     if (this.t.shared) {
       throw new Error('Handler is already marked as shared');

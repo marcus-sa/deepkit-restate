@@ -2,9 +2,13 @@ import { AppModule, ControllerConfig, createModule } from '@deepkit/app';
 import { ClassType } from '@deepkit/core';
 
 import { InjectorServices } from './services.js';
+import { InjectorObjects } from './objects.js';
+import { InjectorSagas } from './sagas.js';
 import { RestateServer } from './restate-server.js';
 import { restateObjectContextType, restateSagaContextType, restateServiceContextType, SCOPE } from './types.js';
-import { InjectorSagas } from './sagas.js';
+import { RestateObjectMetadata, RestateSagaMetadata, RestateServiceMetadata } from './decorator.js';
+import { RestateAdminClient, RestateAdminClientOptions } from './restate-admin-client.js';
+import { RestateClient, RestateIngressClientOptions } from './restate-client.js';
 import {
   createClassProxy,
   getRestateClassDeps,
@@ -12,16 +16,23 @@ import {
   getRestateSagaMetadata,
   getRestateServiceMetadata,
 } from './utils.js';
-import { RestateObjectMetadata, RestateSagaMetadata, RestateServiceMetadata } from './decorator.js';
-import { InjectorObjects } from './objects.js';
+
+export class RestateKafkaConfig {
+  readonly clusterName: string;
+}
 
 export class RestateConfig {
+  readonly host: string = '0.0.0.0';
   readonly port: number = 9080;
+  readonly autoDeploy = true;
+  readonly ingress: RestateIngressClientOptions;
+  readonly admin: RestateAdminClientOptions;
+  readonly kafka?: RestateKafkaConfig;
 }
 
 export class RestateModule extends createModule({
   config: RestateConfig,
-  listeners: [RestateServer],
+  listeners: [RestateServer, RestateClient, RestateAdminClient],
   forRoot: true,
 }) {
   readonly services = new InjectorServices();

@@ -1,18 +1,23 @@
 {
   "name": "deepkit-restate",
-  "version": "0.0.27",
+  "version": "0.0.30",
   "license": "MIT",
   "repository": "https://github.com/marcus-sa/deepkit-restate",
   "author": "Marcus S. Abildskov <root@marcus-sa.dev>",
   "type": "module",
-  "main": "./lib/cjs/src/index.js",
-  "module": "./lib/esm/src/index.js",
-  "types": "./lib/types/src/index.d.ts",
+  "main": "./lib/index.cjs",
+  "module": "./lib/index.js",
+  "types": "./lib/index.d.ts",
   "exports": {
     ".": {
-      "require": "./lib/cjs/src/index.js",
-      "import": "./lib/esm/src/index.js",
-      "types": "./lib/types/src/index.d.ts"
+      "require": "./lib/index.cjs",
+      "import": "./lib/index.js",
+      "types": "./lib/index.d.ts"
+    },
+    "./kafka": {
+      "require": "./lib/kafka/index.cjs",
+      "import": "./lib/kafka/index.js",
+      "types": "./lib/kafka/index.d.ts"
     }
   },
   "files": [
@@ -21,7 +26,7 @@
   ],
   "scripts": {
     "postinstall": "deepkit-type-install",
-    "build": "rm -rf lib && tsc -p tsconfig.esm.json && tsc -p tsconfig.cjs.json && tsc -p tsconfig.types.json",
+    "build": "tsup",
     "test": "vitest run",
     "prepublish": "pnpm build"
   },
@@ -32,6 +37,7 @@
   },
   "peerDependencies": {
     "@deepkit/app": "^1.0.1-alpha.153",
+    "@deepkit/broker": "^1.0.1-alpha.153",
     "@deepkit/bson": "^1.0.1-alpha.153",
     "@deepkit/core": "^1.0.1-alpha.147",
     "@deepkit/event": "^1.0.1-alpha.153",
@@ -39,12 +45,14 @@
     "@deepkit/framework": "^1.0.1-alpha.153",
     "@deepkit/injector": "^1.0.1-alpha.153",
     "@deepkit/type": "^1.0.1-alpha.153",
-    "@deepkit/broker": "^1.0.1-alpha.153"
+    "kafkajs": "^2.2.4"
   },
   "devDependencies": {
     "@deepkit/type-compiler": "1.0.1-alpha.150",
     "@deepkit/vite": "1.0.1-alpha.150",
+    "@swc/core": "^1.7.10",
     "prettier": "3.3.2",
+    "tsup": "^8.2.4",
     "typescript": "5.5.2",
     "vite": "5.3.1",
     "vitest": "1.6.0"

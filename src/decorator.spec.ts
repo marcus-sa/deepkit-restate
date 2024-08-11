@@ -1,10 +1,11 @@
 import assert from 'node:assert';
-import { isType } from '@deepkit/type';
+import { isType, uuid, UUID } from '@deepkit/type';
 
-import { RestateObject, RestateSaga, RestateService } from './types.js';
+import { RestateKafkaTopic, RestateObject, RestateSaga, RestateService } from './types.js';
 import { restate, RestateObjectMetadata, RestateSagaMetadata, RestateServiceMetadata } from './decorator.js';
 import { getRestateObjectMetadata, getRestateSagaMetadata, getRestateServiceMetadata } from './utils.js';
 import { Saga } from './saga/saga.js';
+import { describe } from 'vitest';
 
 test('object', () => {
   interface PaymentServiceInterface {
@@ -73,4 +74,38 @@ test('handler', () => {
   assert(method);
   expect(method.name).toBe('send');
   expect(method.classType).toBe(PaymentService);
+});
+
+describe('kafka', () => {
+  test('invalid handler parameters', () => {
+    class Consumer {
+      readonly id: UUID = uuid();
+    }
+
+    interface IAccountingService {
+    }
+
+    type KafkaConsumerTopic = RestateKafkaTopic<
+      'consumer',
+      [consumer: Consumer]
+    >;
+
+    type AccountingServiceApi = RestateService<
+      'accounting',
+      IAccountingService
+    >;
+
+    expect(() => {
+      @restate.service<AccountingServiceApi>()
+      class AccountingService implements IAccountingService {
+        // FIXME: options and type are somehow required
+        // @ts-ignore
+        @restate.handler().kafka<KafkaConsumerTopic>()
+        createAccount(consumer: Consumer, name: string): void {
+        }
+      }
+    }).toThrowErrorMatchingInlineSnapshot(
+      `[Error: Handler "createAccount" parameters [consumer: Consumer, name: string] does not match Kafka topic "consumer" arguments [consumer: Consumer]]`,
+    );
+  });
 });

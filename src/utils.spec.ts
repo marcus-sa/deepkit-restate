@@ -3,6 +3,7 @@ import { getBSONDeserializer, getBSONSerializer } from '@deepkit/bson';
 
 import { RestateObject, RestateService } from './types.js';
 import {
+  assertValidKafkaTopicName,
   createClassProxy,
   getClassConstructorParameters,
   getReflectionFunctionArgsType,
@@ -273,5 +274,19 @@ describe('createRestateProxy', () => {
         0,
       ]
     `);
+  });
+});
+
+describe('assertValidKafkaTopicName', () => {
+  test('valid', () => {
+    assertValidKafkaTopicName('consumer');
+  });
+
+  test('invalid', () => {
+    expect(() =>
+      assertValidKafkaTopicName('restate/consumer'),
+    ).toThrowErrorMatchingInlineSnapshot(
+      `[Error: Invalid topic name validation pattern ^[a-zA-Z0-9._-]+$ failed for restate/consumer]`,
+    );
   });
 });
