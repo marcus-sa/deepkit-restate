@@ -21,7 +21,11 @@ export class KafkaSubscriptionsClient {
   constructor(private readonly client: RestateAdminClient) {
   }
 
-  async create({ source, sink, options }: KafkaSubscriptionsCreateOptions): Promise<Response> {
+  async create({
+                 source,
+                 sink,
+                 options,
+               }: KafkaSubscriptionsCreateOptions): Promise<Response> {
     const url = `${this.client.opts.url}/subscriptions`;
 
     const response = await fetch(url, {

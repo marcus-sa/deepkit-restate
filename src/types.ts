@@ -1,9 +1,9 @@
 import { ReceiveType, typeOf } from '@deepkit/type';
-import { Context as ServiceContext, ObjectContext, TerminalError, WorkflowContext } from '@restatedev/restate-sdk';
-import { ClassType } from '@deepkit/core';
-import { BSONDeserializer, BSONSerializer, getBSONDeserializer, getBSONSerializer } from '@deepkit/bson';
 import type { Send } from '@restatedev/restate-sdk-clients/dist/esm/src/api';
 import type { RunAction } from '@restatedev/restate-sdk/dist/esm/src/context';
+import { ClassType } from '@deepkit/core';
+import { Context as ServiceContext, ObjectContext, TerminalError, WorkflowContext } from '@restatedev/restate-sdk';
+import { BSONDeserializer, BSONSerializer, getBSONDeserializer, getBSONSerializer } from '@deepkit/bson';
 
 export type SendStatus = Omit<Send, 'attachable'>;
 
@@ -118,7 +118,6 @@ export interface RestateClientContext {
 export interface RestateCustomContext extends RestateClientContext {
   // run should only return a value if a generic is provided
   run(action: RunAction<unknown>): Promise<void>;
-
   run<T>(action: RunAction<T>, type?: ReceiveType<T>): Promise<T>;
 }
 

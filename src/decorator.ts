@@ -124,10 +124,7 @@ export class RestateSagaDecorator {
   }
 }
 
-export type RestateHandlerKafkaOptions = Record<
-  string,
-  string
->;
+export type RestateHandlerKafkaOptions = Record<string, string>;
 
 export interface RestateHandlerKafkaMetadata {
   readonly topic: string;

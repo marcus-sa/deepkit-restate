@@ -1,15 +1,14 @@
-import { KafkaConfig, ProducerConfig } from 'kafkajs';
 import { createModule } from '@deepkit/app';
 
 import { RestateKafkaProducer } from './producer.js';
 
-export class RestateKafkaProducerConfig {
-  readonly kafka: KafkaConfig;
-  readonly producer?: ProducerConfig;
+export class RestateKafkaConfig {
+  readonly brokers: string[];
+  readonly clientId?: string;
 }
 
 export class RestateKafkaProducerModule extends createModule({
-  config: RestateKafkaProducerConfig,
+  config: RestateKafkaConfig,
   providers: [RestateKafkaProducer],
   listeners: [RestateKafkaProducer],
   forRoot: true,

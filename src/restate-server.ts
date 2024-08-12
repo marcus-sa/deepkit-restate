@@ -110,9 +110,7 @@ export class RestateServer {
 
     if (this.config.admin?.autoDeploy) {
       const admin = this.injectorContext.get(RestateAdminClient);
-      await admin.deployments.create(
-        `${config.host}:${config.port}`,
-      );
+      await admin.deployments.create(`${config.host}:${config.port}`);
     }
 
     if (this.config.kafka) {

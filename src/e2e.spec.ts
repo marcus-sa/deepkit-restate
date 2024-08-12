@@ -1,4 +1,4 @@
-import { createTestingApp, TestingFacade } from '@deepkit/framework';
+import { createTestingApp } from '@deepkit/framework';
 import { PrimaryKey, Unique, uuid, UUID } from '@deepkit/type';
 import { sleep } from '@deepkit/core';
 
@@ -6,10 +6,6 @@ import { RestateModule } from './restate.module.js';
 import { restate } from './decorator.js';
 import { RestateService, RestateServiceContext } from './types.js';
 import { RestateClient } from './restate-client.js';
-import { RestateAdminClient } from './restate-admin-client.js';
-
-const client = new RestateClient({ url: 'http://0.0.0.0:8080' });
-const admin = new RestateAdminClient({ url: 'http://0.0.0.0:9070' });
 
 describe('e2e', () => {
   describe('context', () => {
@@ -84,12 +80,25 @@ describe('e2e', () => {
       }
 
       const app = createTestingApp({
-        imports: [new RestateModule({ port: 9082 })],
-        controllers: [UserController, AccountController],
+        imports: [
+          new RestateModule({
+            server: {
+              host: 'http://host.docker.internal',
+              port: 9083,
+            },
+            admin: {
+              url: 'http://0.0.0.0:9070',
+            },
+            ingress: {
+              url: 'http://0.0.0.0:8080',
+            },
+          }),
+        ],
+        controllers: [UserController],
       });
-      void app.startServer();
+      await app.startServer();
 
-      await admin.deployments.create('http://host.docker.internal:9082');
+      const client = app.app.getInjectorContext().get<RestateClient>();
 
       const user = client.service<UserServiceApi>();
 
@@ -134,8 +143,10 @@ describe('e2e', () => {
       const app = createTestingApp({
         imports: [
           new RestateModule({
-            host: 'http://host.docker.internal',
-            port: 9086,
+            server: {
+              host: 'http://host.docker.internal',
+              port: 9084,
+            },
             admin: {
               url: 'http://0.0.0.0:9070',
             },
@@ -147,6 +158,8 @@ describe('e2e', () => {
         controllers: [UserController],
       });
       await app.startServer();
+
+      const client = app.app.getInjectorContext().get<RestateClient>();
 
       const user = client.service<UserServiceApi>();
 
@@ -189,8 +202,10 @@ describe('e2e', () => {
       const app = createTestingApp({
         imports: [
           new RestateModule({
-            host: 'http://host.docker.internal',
-            port: 9085,
+            server: {
+              host: 'http://host.docker.internal',
+              port: 9085,
+            },
             admin: {
               url: 'http://0.0.0.0:9070',
             },
@@ -202,6 +217,8 @@ describe('e2e', () => {
         controllers: [UserController],
       });
       await app.startServer();
+
+      const client = app.app.getInjectorContext().get<RestateClient>();
 
       const user = client.service<UserServiceApi>();
 
@@ -251,20 +268,26 @@ describe('e2e', () => {
       }
     }
 
-    let app: TestingFacade<any>;
-
-    beforeEach(() => {
-      app = createTestingApp({
-        imports: [new RestateModule({ port: 9081 })],
+    test('rpc', async () => {
+      const app = createTestingApp({
+        imports: [
+          new RestateModule({
+            server: {
+              host: 'http://host.docker.internal',
+              port: 9086,
+            },
+            admin: {
+              url: 'http://0.0.0.0:9070',
+            },
+            ingress: {
+              url: 'http://0.0.0.0:8080',
+            },
+          })],
         controllers: [UserController],
       });
-      void app.startServer();
-    });
+      await app.startServer();
 
-    afterEach(() => app.stopServer());
-
-    test('rpc', async () => {
-      await admin.deployments.create('http://host.docker.internal:9081');
+      const client = app.app.getInjectorContext().get<RestateClient>();
 
       const user = client.service<UserServiceApi>();
 
@@ -280,12 +303,24 @@ describe('e2e', () => {
 
     test('send', async () => {
       const app = createTestingApp({
-        imports: [new RestateModule({ port: 9081 })],
+        imports: [
+          new RestateModule({
+            server: {
+              host: 'http://host.docker.internal',
+              port: 9087,
+            },
+            admin: {
+              url: 'http://0.0.0.0:9070',
+            },
+            ingress: {
+              url: 'http://0.0.0.0:8080',
+            },
+          })],
         controllers: [UserController],
       });
-      void app.startServer();
+      await app.startServer();
 
-      await admin.deployments.create('http://host.docker.internal:9081');
+      const client = app.app.getInjectorContext().get<RestateClient>();
 
       const user = client.service<UserServiceApi>();
 

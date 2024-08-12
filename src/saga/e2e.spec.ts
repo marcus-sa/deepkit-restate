@@ -6,7 +6,6 @@ import { Saga } from './saga.js';
 import { restate } from '../decorator.js';
 import { RestateSaga, RestateService } from '../types.js';
 import { RestateModule } from '../restate.module.js';
-import { RestateAdminClient } from '../restate-admin-client.js';
 import { RestateClient } from '../restate-client.js';
 
 test('e2e', async () => {
@@ -110,15 +109,25 @@ test('e2e', async () => {
   }
 
   const app = createTestingApp({
-    imports: [new RestateModule({ port: 9083 })],
-    controllers: [CreateOrderSaga, CustomerController],
+    imports: [
+      new RestateModule({
+        server: {
+          host: 'http://host.docker.internal',
+          port: 9088,
+        },
+        admin: {
+          url: 'http://0.0.0.0:9070',
+        },
+        ingress: {
+          url: 'http://0.0.0.0:8080',
+        },
+      }),
+    ],
+    controllers: [CreateOrderSaga],
   });
-  void app.startServer();
+  await app.startServer();
 
-  const admin = new RestateAdminClient({ url: 'http://0.0.0.0:9070' });
-  await admin.deployments.create(`http://host.docker.internal:9083`);
-
-  const client = new RestateClient({ url: 'http://0.0.0.0:8080' });
+  const client = app.app.getInjectorContext().get<RestateClient>();
 
   const orderId = uuid();
   const customerId = uuid();
