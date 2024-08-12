@@ -4,9 +4,9 @@ import { ReceiveType, resolveReceiveType } from '@deepkit/type';
 import { eventDispatcher } from '@deepkit/event';
 import { onServerMainBootstrap, onServerMainShutdown } from '@deepkit/framework';
 
+import { RestateKafkaProducerConfig } from './kafka-producer.module.js';
 import { RestateKafkaTopic } from '../types.js';
 import { getRestateKafkaTopicArgsType, getRestateKafkaTopicSource } from '../utils.js';
-import { RestateKafkaConfig } from './kafka.module.js';
 
 export type KafkaProducerPublishOptions = Pick<
   ProducerRecord,
@@ -17,7 +17,7 @@ export class RestateKafkaProducer {
   readonly #kafka: Kafka;
   readonly #producer: Producer;
 
-  constructor(config: RestateKafkaConfig) {
+  constructor(config: RestateKafkaProducerConfig) {
     this.#kafka = new Kafka(config.kafka);
     this.#producer = this.#kafka.producer(config.producer);
   }

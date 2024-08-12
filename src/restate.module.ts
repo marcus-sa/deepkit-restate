@@ -1,14 +1,15 @@
 import { AppModule, ControllerConfig, createModule } from '@deepkit/app';
 import { ClassType } from '@deepkit/core';
 
+import { RestateAdminClient } from './restate-admin-client.js';
+import { RestateClient } from './restate-client.js';
+import { RestateConfig } from './config.js';
 import { InjectorServices } from './services.js';
 import { InjectorObjects } from './objects.js';
 import { InjectorSagas } from './sagas.js';
 import { RestateServer } from './restate-server.js';
 import { restateObjectContextType, restateSagaContextType, restateServiceContextType, SCOPE } from './types.js';
 import { RestateObjectMetadata, RestateSagaMetadata, RestateServiceMetadata } from './decorator.js';
-import { RestateAdminClient, RestateAdminClientOptions } from './restate-admin-client.js';
-import { RestateClient, RestateIngressClientOptions } from './restate-client.js';
 import {
   createClassProxy,
   getRestateClassDeps,
@@ -17,22 +18,8 @@ import {
   getRestateServiceMetadata,
 } from './utils.js';
 
-export class RestateKafkaConfig {
-  readonly clusterName: string;
-}
-
-export class RestateConfig {
-  readonly host: string = '0.0.0.0';
-  readonly port: number = 9080;
-  readonly autoDeploy = true;
-  readonly ingress: RestateIngressClientOptions;
-  readonly admin: RestateAdminClientOptions;
-  readonly kafka?: RestateKafkaConfig;
-}
-
 export class RestateModule extends createModule({
   config: RestateConfig,
-  listeners: [RestateServer, RestateClient, RestateAdminClient],
   forRoot: true,
 }) {
   readonly services = new InjectorServices();
@@ -40,44 +27,63 @@ export class RestateModule extends createModule({
   readonly sagas = new InjectorSagas();
 
   override process() {
-    this.addProvider({
-      provide: InjectorServices,
-      useValue: this.services,
-    });
+    if (this.config.ingress) {
+      this.addProvider(RestateClient);
+    } else {
+      this.addProvider({
+        provide: RestateClient,
+        useFactory() {
+          throw new Error('Restate ingress config is missing');
+        },
+      });
+    }
 
-    this.addProvider({
-      provide: InjectorObjects,
-      useValue: this.objects,
-    });
+    if (this.config.admin) {
+      this.addProvider(RestateAdminClient);
+    }
 
-    this.addProvider({
-      provide: InjectorSagas,
-      useValue: this.sagas,
-    });
+    if (this.config.server) {
+      this.addListener(RestateServer);
 
-    this.addProvider({
-      provide: restateServiceContextType,
-      scope: SCOPE,
-      useFactory() {
-        throw new Error('You cannot use a service context in an object');
-      },
-    });
+      this.addProvider({
+        provide: InjectorServices,
+        useValue: this.services,
+      });
 
-    this.addProvider({
-      provide: restateObjectContextType,
-      scope: SCOPE,
-      useFactory() {
-        throw new Error('You cannot use an object context in a service');
-      },
-    });
+      this.addProvider({
+        provide: InjectorObjects,
+        useValue: this.objects,
+      });
 
-    this.addProvider({
-      provide: restateSagaContextType,
-      scope: SCOPE,
-      useFactory() {
-        throw new Error('You cannot use a saga context outside a saga');
-      },
-    });
+      this.addProvider({
+        provide: InjectorSagas,
+        useValue: this.sagas,
+      });
+
+      this.addProvider({
+        provide: restateServiceContextType,
+        scope: SCOPE,
+        useFactory() {
+          throw new Error('You cannot use a service context in an object');
+        },
+      });
+
+      this.addProvider({
+        provide: restateObjectContextType,
+        scope: SCOPE,
+        useFactory() {
+          throw new Error('You cannot use an object context in a service');
+        },
+      });
+
+      this.addProvider({
+        provide: restateSagaContextType,
+        scope: SCOPE,
+        useFactory() {
+          throw new Error('You cannot use a saga context outside a saga');
+        },
+      });
+    }
   }
 
   private addService(
@@ -139,6 +145,10 @@ export class RestateModule extends createModule({
           return;
         }
       }
+    }
+
+    if (!this.config.server) {
+      throw new Error('Restate server config is missing');
     }
 
     this.addDeps(controller);

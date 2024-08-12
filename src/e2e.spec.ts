@@ -1,12 +1,12 @@
 import { createTestingApp, TestingFacade } from '@deepkit/framework';
 import { PrimaryKey, Unique, uuid, UUID } from '@deepkit/type';
+import { sleep } from '@deepkit/core';
 
 import { RestateModule } from './restate.module.js';
 import { restate } from './decorator.js';
 import { RestateService, RestateServiceContext } from './types.js';
 import { RestateClient } from './restate-client.js';
 import { RestateAdminClient } from './restate-admin-client.js';
-import { sleep } from '@deepkit/core';
 
 const client = new RestateClient({ url: 'http://0.0.0.0:8080' });
 const admin = new RestateAdminClient({ url: 'http://0.0.0.0:9070' });

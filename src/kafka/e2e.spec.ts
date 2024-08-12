@@ -4,7 +4,7 @@ import { uuid, UUID } from '@deepkit/type';
 import { RestateKafkaTopic, RestateService } from '../types.js';
 import { restate } from '../decorator.js';
 import { RestateModule } from '../restate.module.js';
-import { RestateKafkaModule } from './kafka.module.js';
+import { RestateKafkaProducerModule } from './kafka-producer.module.js';
 import { RestateKafkaProducer } from './producer.js';
 
 test('e2e', async () => {
@@ -24,7 +24,7 @@ test('e2e', async () => {
   class AccountingService implements IAccountingService {
     // FIXME: options and type are somehow required
     // @ts-ignore
-    @restate.handler().kafka<KafkaConsumerTopic>()
+    @restate.kafka<KafkaConsumerTopic>().handler()
     createAccount(consumer: Consumer): void {
       expect(consumer).toBeInstanceOf(Consumer);
     }
@@ -45,7 +45,7 @@ test('e2e', async () => {
           url: 'http://0.0.0.0:8080',
         },
       }),
-      new RestateKafkaModule({
+      new RestateKafkaProducerModule({
         kafka: {
           clientId: 'e2e',
           brokers: ['0.0.0.0:9092'],

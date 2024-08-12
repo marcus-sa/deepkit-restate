@@ -20,7 +20,7 @@ import { InjectorService, InjectorServices } from './services.js';
 import { InjectorObject, InjectorObjects } from './objects.js';
 import { InjectorSagas } from './sagas.js';
 import { RestateClassMetadata, RestateHandlerMetadata } from './decorator.js';
-import { RestateConfig } from './restate.module.js';
+import { RestateConfig } from './config.js';
 import { decodeRestateServiceMethodResponse } from './utils.js';
 import { RestateAdminClient } from './restate-admin-client.js';
 import {
@@ -49,11 +49,12 @@ export class RestateServer {
     private readonly objects: InjectorObjects,
     private readonly sagas: InjectorSagas,
     private readonly injectorContext: InjectorContext,
-    private readonly admin: RestateAdminClient,
   ) {}
 
   @eventDispatcher.listen(onServerMainBootstrap)
   async listen() {
+    const config = this.config.server!;
+
     for (const object of this.objects) {
       const handlers = this.createObjectHandlers(object);
       this.endpoint.bind(
@@ -105,15 +106,19 @@ export class RestateServer {
       );
     }
 
-    await this.endpoint.listen(this.config.port);
+    await this.endpoint.listen(config.port);
 
-    if (this.config.autoDeploy) {
-      await this.admin.deployments.create(
-        `${this.config.host}:${this.config.port}`,
+    if (this.config.admin?.autoDeploy) {
+      const admin = this.injectorContext.get(RestateAdminClient);
+      await admin.deployments.create(
+        `${config.host}:${config.port}`,
       );
     }
 
     if (this.config.kafka) {
+      if (!this.config.admin) {
+        throw new Error('Restate admin config is missing for Kafka');
+      }
       // TODO: filter out handlers by existing subscriptions
       await Promise.all([
         this.addHandlerKafkaSubscriptions('object', [...this.objects]),
@@ -234,6 +239,7 @@ export class RestateServer {
     protocol: 'object' | 'service',
     classes: InjectorObject<unknown>[] | InjectorService<unknown>[],
   ) {
+    const admin = this.injectorContext.get(RestateAdminClient);
     const classesMetadata = classes.map(({ metadata }) => ({
       name: metadata.name,
       handlers: [...metadata.handlers],
@@ -241,23 +247,14 @@ export class RestateServer {
     await Promise.all(
       classesMetadata.flatMap(metadata => {
         return metadata.handlers.map(async handler => {
-          const url = `${this.config.admin.url}/subscriptions`;
+          const url = `${this.config.admin!.url}/subscriptions`;
 
-          const response = await fetch(url, {
-            method: 'POST',
-            body: JSON.stringify({
-              source: `kafka://${this.config.kafka!.clusterName}/${handler.kafka!.topic}`,
-              // TODO: figure out if protocol "object://" is for objects?
-              sink: `${protocol}://${metadata.name}/${handler.name}`,
-              options: handler.kafka?.options,
-            }),
-            headers: {
-              'content-type': 'application/json',
-            },
+          await admin.kafka.subscriptions.create({
+            source: `kafka://${this.config.kafka!.clusterName}/${handler.kafka!.topic}`,
+            // TODO: figure out if protocol "object://" is needed for objects?
+            sink: `${protocol}://${metadata.name}/${handler.name}`,
+            options: handler.kafka?.options,
           });
-          if (response.status !== 201) {
-            throw new Error(await response.text());
-          }
         });
       }),
     );

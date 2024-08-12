@@ -126,7 +126,7 @@ export class RestateSagaDecorator {
 
 export type RestateHandlerKafkaOptions = Record<
   string,
-  string | number | boolean
+  string
 >;
 
 export interface RestateHandlerKafkaMetadata {

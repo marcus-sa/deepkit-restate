@@ -1,11 +1,10 @@
 import assert from 'node:assert';
 import { isType, uuid, UUID } from '@deepkit/type';
 
+import { Saga } from './saga/saga.js';
 import { RestateKafkaTopic, RestateObject, RestateSaga, RestateService } from './types.js';
 import { restate, RestateObjectMetadata, RestateSagaMetadata, RestateServiceMetadata } from './decorator.js';
 import { getRestateObjectMetadata, getRestateSagaMetadata, getRestateServiceMetadata } from './utils.js';
-import { Saga } from './saga/saga.js';
-import { describe } from 'vitest';
 
 test('object', () => {
   interface PaymentServiceInterface {
@@ -100,7 +99,7 @@ describe('kafka', () => {
       class AccountingService implements IAccountingService {
         // FIXME: options and type are somehow required
         // @ts-ignore
-        @restate.handler().kafka<KafkaConsumerTopic>()
+        @restate.kafka<KafkaConsumerTopic>().handler()
         createAccount(consumer: Consumer, name: string): void {
         }
       }
