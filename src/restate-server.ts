@@ -1,7 +1,6 @@
 import { eventDispatcher } from '@deepkit/event';
 import { onServerMainBootstrap } from '@deepkit/framework';
 import { InjectorContext } from '@deepkit/injector';
-import type { RunAction } from '@restatedev/restate-sdk/dist/esm/src/context';
 import * as restate from '@restatedev/restate-sdk';
 import {
   deserialize,
@@ -23,7 +22,7 @@ import { RestateClassMetadata, RestateHandlerMetadata } from './decorator.js';
 import { RestateConfig } from './config.js';
 import { decodeRestateServiceMethodResponse } from './utils.js';
 import { RestateAdminClient } from './restate-admin-client.js';
-import { RestateContextStorage } from './restate-context-storage';
+import { RestateContextStorage } from './restate-context-storage.js';
 import {
   RestateObjectContext,
   restateObjectContextType,
@@ -31,8 +30,9 @@ import {
   restateSagaContextType,
   RestateServiceContext,
   restateServiceContextType,
+  RestateStatus,
+  RunAction,
   SCOPE,
-  SendStatus,
   serializeRestateHandlerResponse,
 } from './types.js';
 
@@ -139,6 +139,7 @@ export class RestateServer {
               type,
             );
           });
+          // @ts-ignore
           if (!type) return void 0;
           return deserialize(
             result,
@@ -148,7 +149,7 @@ export class RestateServer {
             type,
           );
         },
-        send: async (...args: readonly any[]): Promise<SendStatus> => {
+        send: async (...args: readonly any[]): Promise<RestateStatus> => {
           const [key, { service, method, data }, options] =
             args.length === 1 ? [undefined, ...args] : args;
 

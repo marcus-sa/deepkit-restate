@@ -1,23 +1,23 @@
 {
   "name": "deepkit-restate",
-  "version": "0.0.35",
+  "version": "0.0.37",
   "license": "MIT",
   "repository": "https://github.com/marcus-sa/deepkit-restate",
   "author": "Marcus S. Abildskov <root@marcus-sa.dev>",
   "type": "module",
-  "main": "./lib/index.cjs",
-  "module": "./lib/index.js",
-  "types": "./lib/index.d.ts",
+  "main": "./lib/cjs/src/index.js",
+  "module": "./lib/esm/src/index.js",
+  "types": "./lib/types/src/index.d.ts",
   "exports": {
     ".": {
-      "require": "./lib/index.cjs",
-      "import": "./lib/index.js",
-      "types": "./lib/index.d.ts"
+      "require": "./lib/cjs/src/index.js",
+      "import": "./lib/esm/src/index.js",
+      "types": "./lib/types/src/index.d.ts"
     },
     "./kafka": {
-      "require": "./lib/kafka/index.cjs",
-      "import": "./lib/kafka/index.js",
-      "types": "./lib/kafka/index.d.ts"
+      "require": "./lib/cjs/src/kafka/index.js",
+      "import": "./lib/esm/src/kafka/index.js",
+      "types": "./lib/types/src/kafka/index.d.ts"
     }
   },
   "files": [
@@ -26,7 +26,7 @@
   ],
   "scripts": {
     "postinstall": "deepkit-type-install",
-    "build": "tsup",
+    "build": "rm -rf lib && tsc -p tsconfig.cjs.json && tsc -p tsconfig.esm.json && tsc -p tsconfig.types.json",
     "test": "vitest run",
     "prepublish": "pnpm build"
   },
@@ -52,7 +52,6 @@
     "@deepkit/vite": "1.0.1-alpha.150",
     "@swc/core": "^1.7.10",
     "prettier": "3.3.2",
-    "tsup": "^8.2.4",
     "typescript": "5.5.2",
     "vite": "5.3.1",
     "vitest": "1.6.0"
@@ -63,7 +62,29 @@
     }
   },
   "engines": {
-    "node": "21.6.2",
+    "node": ">=18.12.0",
     "pnpm": "9.4.0"
-  }
+  },
+  "packemon": [
+    {
+      "inputs": {
+        "index": "src/index.ts"
+      },
+      "platform": "node",
+      "format": [
+        "cjs",
+        "mjs"
+      ]
+    },
+    {
+      "inputs": {
+        "kafka": "src/kafka/index.ts"
+      },
+      "platform": "node",
+      "format": [
+        "cjs",
+        "mjs"
+      ]
+    }
+  ]
 }
