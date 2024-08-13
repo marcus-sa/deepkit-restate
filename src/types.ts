@@ -1,7 +1,17 @@
 import { ReceiveType, typeOf } from '@deepkit/type';
 import { ClassType } from '@deepkit/core';
-import { Context as ServiceContext, ObjectContext, TerminalError, WorkflowContext } from '@restatedev/restate-sdk';
-import { BSONDeserializer, BSONSerializer, getBSONDeserializer, getBSONSerializer } from '@deepkit/bson';
+import {
+  Context as ServiceContext,
+  ObjectContext,
+  TerminalError,
+  WorkflowContext,
+} from '@restatedev/restate-sdk';
+import {
+  BSONDeserializer,
+  BSONSerializer,
+  getBSONDeserializer,
+  getBSONSerializer,
+} from '@deepkit/bson';
 
 export interface RestateStatus {
   invocationId: string;
@@ -63,8 +73,8 @@ export type RestateServiceHandlerRequest<
 > = RestateHandlerRequest<R, A, 'service'>;
 
 type RestateHandler<F, T extends RestateHandlerType> = F extends (
-    ...args: infer P
-  ) => infer R
+  ...args: infer P
+) => infer R
   ? (...args: P) => RestateHandlerRequest<Awaited<R>, P, T>
   : never;
 
@@ -136,13 +146,11 @@ type ContextWithoutClients<T> = Omit<
 
 export interface RestateServiceContext
   extends RestateCustomContext,
-    ContextWithoutClients<ServiceContext> {
-}
+    ContextWithoutClients<ServiceContext> {}
 
 export interface RestateObjectContext
   extends RestateCustomContext,
-    ContextWithoutClients<ObjectContext> {
-}
+    ContextWithoutClients<ObjectContext> {}
 
 export interface RestateHandlerResponse {
   readonly success: boolean;
@@ -152,8 +160,7 @@ export interface RestateHandlerResponse {
 
 export interface RestateSagaContext
   extends Omit<RestateCustomContext, 'rpc' | 'send'>,
-    ContextWithoutClients<WorkflowContext> {
-}
+    ContextWithoutClients<WorkflowContext> {}
 
 export const restateServiceType = typeOf<RestateService<string, any, any[]>>();
 

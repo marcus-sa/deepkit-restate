@@ -58,8 +58,9 @@ test('e2e', async () => {
   @restate.saga<CreateOrderSagaApi>()
   class CreateOrderSaga extends Saga<CreateOrderSagaData> {
     readonly definition = this.step()
-      .invoke(this.create)
       .compensate(this.reject)
+      .step()
+      .invoke(this.create)
       .step()
       .invoke(this.reserveCustomerCredit)
       // .onReply<TerminalError>(this.handleTerminalError)

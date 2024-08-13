@@ -102,8 +102,7 @@ export class RestateSagaClient<Data> {
 }
 
 export class RestateClient implements RestateClientContext {
-  constructor(private readonly opts: RestateIngressClientOptions) {
-  }
+  constructor(private readonly opts: RestateIngressClientOptions) {}
 
   service<T extends RestateService<string, any, any[]>>(
     type?: ReceiveType<T>,

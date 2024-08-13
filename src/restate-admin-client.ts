@@ -1,14 +1,11 @@
 export class InvocationClient {
-  kill() {
-  }
+  kill() {}
 
   cancel() {}
 
-  purge() {
-  }
+  purge() {}
 
-  #delete() {
-  }
+  #delete() {}
 }
 
 export interface KafkaSubscriptionsCreateOptions {
@@ -18,14 +15,13 @@ export interface KafkaSubscriptionsCreateOptions {
 }
 
 export class KafkaSubscriptionsClient {
-  constructor(private readonly client: RestateAdminClient) {
-  }
+  constructor(private readonly client: RestateAdminClient) {}
 
   async create({
-                 source,
-                 sink,
-                 options,
-               }: KafkaSubscriptionsCreateOptions): Promise<Response> {
+    source,
+    sink,
+    options,
+  }: KafkaSubscriptionsCreateOptions): Promise<Response> {
     const url = `${this.client.opts.url}/subscriptions`;
 
     const response = await fetch(url, {
@@ -55,8 +51,7 @@ export class KafkaClient {
 }
 
 export class DeploymentClient {
-  constructor(private readonly client: RestateAdminClient) {
-  }
+  constructor(private readonly client: RestateAdminClient) {}
 
   async create(uri: string): Promise<any> {
     const response = await fetch(`${this.client.opts.url}/deployments`, {
@@ -83,6 +78,5 @@ export class RestateAdminClient {
   readonly deployments = new DeploymentClient(this);
   readonly kafka = new KafkaClient(this);
 
-  constructor(readonly opts: RestateAdminClientOptions) {
-  }
+  constructor(readonly opts: RestateAdminClientOptions) {}
 }

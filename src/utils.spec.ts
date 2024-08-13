@@ -1,5 +1,10 @@
 import { getBSONDeserializer, getBSONSerializer } from '@deepkit/bson';
-import { reflect, ReflectionFunction, ReflectionKind, typeOf } from '@deepkit/type';
+import {
+  reflect,
+  ReflectionFunction,
+  ReflectionKind,
+  typeOf,
+} from '@deepkit/type';
 
 import { RestateObject, RestateService } from './types.js';
 import {

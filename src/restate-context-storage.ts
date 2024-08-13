@@ -10,8 +10,7 @@ import {
 
 export class RestateContextStorage extends AsyncLocalStorage<
   RestateObjectContext | RestateSagaContext | RestateServiceContext
-> {
-}
+> {}
 
 export class NoopRestateContextStorage {
   getStore(): Pick<RestateCustomContext, 'run'> {

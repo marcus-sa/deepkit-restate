@@ -1,5 +1,10 @@
 import { ClassType } from '@deepkit/core';
-import { BSONDeserializer, BSONSerializer, getBSONDeserializer, getBSONSerializer } from '@deepkit/bson';
+import {
+  BSONDeserializer,
+  BSONSerializer,
+  getBSONDeserializer,
+  getBSONSerializer,
+} from '@deepkit/bson';
 import {
   ClassDecoratorFn,
   createClassDecoratorContext,
@@ -23,7 +28,13 @@ import {
   UnionToIntersection,
 } from '@deepkit/type';
 
-import { Entities, RestateKafkaTopic, RestateObject, RestateSaga, RestateService } from './types.js';
+import {
+  Entities,
+  RestateKafkaTopic,
+  RestateObject,
+  RestateSaga,
+  RestateService,
+} from './types.js';
 import {
   assertValidKafkaTopicName,
   getReflectionFunctionArgsType,
@@ -175,8 +186,7 @@ export class RestateHandlerDecorator {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-empty-function
-  handler() {
-  }
+  handler() {}
 
   // FIXME: options and type are somehow required
   kafka<T extends RestateKafkaTopic<string, any[]>>(
@@ -222,20 +232,20 @@ export class RestateHandlerDecorator {
 type RestateClassFluidDecorator<T, D extends Function> = {
   [K in keyof T]: K extends 'service'
     ? <
-      For extends
+        For extends
           | RestateService<string, any, any[]>
-        | RestateObject<string, any, any[]>,
-    >(
-      type?: ReceiveType<For>,
-    ) => D & RestateClassFluidDecorator<T, D>
-    : K extends 'saga'
-      ? <For extends RestateSaga<string, any>>(
+          | RestateObject<string, any, any[]>,
+      >(
         type?: ReceiveType<For>,
       ) => D & RestateClassFluidDecorator<T, D>
+    : K extends 'saga'
+      ? <For extends RestateSaga<string, any>>(
+          type?: ReceiveType<For>,
+        ) => D & RestateClassFluidDecorator<T, D>
       : T[K] extends (...args: infer K) => any
         ? (...args: K) => D & RestateClassFluidDecorator<T, D>
         : D &
-        RestateClassFluidDecorator<T, D> & { _data: ExtractApiDataType<T> };
+            RestateClassFluidDecorator<T, D> & { _data: ExtractApiDataType<T> };
 };
 
 type RestateServiceDecoratorResult = RestateClassFluidDecorator<
@@ -271,16 +281,16 @@ export const restateSagaDecorator = createClassDecoratorContext(
 type RestateMerge<U> = {
   [K in keyof U]: K extends 'service'
     ? <
-      For extends
+        For extends
           | RestateService<string, any, any[]>
-        | RestateObject<any, any, any[]>,
-    >(
-      type?: ReceiveType<For>,
-    ) => (PropertyDecoratorFn | ClassDecoratorFn) & U
-    : K extends 'saga'
-      ? <For extends RestateSaga<string, any>>(
+          | RestateObject<any, any, any[]>,
+      >(
         type?: ReceiveType<For>,
       ) => (PropertyDecoratorFn | ClassDecoratorFn) & U
+    : K extends 'saga'
+      ? <For extends RestateSaga<string, any>>(
+          type?: ReceiveType<For>,
+        ) => (PropertyDecoratorFn | ClassDecoratorFn) & U
       : U[K] extends (...a: infer A) => infer R
         ? R extends DualDecorator
           ? (...a: A) => (PropertyDecoratorFn | ClassDecoratorFn) & R & U

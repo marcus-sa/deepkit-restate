@@ -4,7 +4,12 @@ import { RestateHandlerRequest } from '../types.js';
 import { SagaDefinitionBuilder } from './saga-definition-builder.js';
 import { SagaStep } from './saga-step.js';
 import { SagaDefinition } from './saga-definition.js';
-import { Handler, PredicateFn, SagaReplyHandlerFn, SagaReplyHandlers } from './types.js';
+import {
+  Handler,
+  PredicateFn,
+  SagaReplyHandlerFn,
+  SagaReplyHandlers,
+} from './types.js';
 
 export interface BaseStepBuilder<Data> {
   step(): StepBuilder<Data>;
@@ -22,7 +27,8 @@ export interface ParticipantStepBuilder<Data> extends BaseStepBuilder<Data> {
     type?: ReceiveType<T>,
   ): this;
 
-  // TODO: allow participants to be invoked
+  // We might be able
+  // to remove predicate function and instead check if compensate returns anything when marked as participant invoker
   compensate(handler: Handler<Data>, predicate?: PredicateFn<Data>): this;
 }
 
@@ -37,15 +43,15 @@ class InvokedStepBuilder<Data>
 
   constructor(
     private readonly builder: SagaDefinitionBuilder<Data>,
-    private readonly handler: Handler<Data>,
     private readonly isParticipantInvocation: boolean,
+    private readonly handler?: Handler<Data>,
   ) {}
 
   private addStep(): void {
     this.builder.addStep(
       new SagaStep<Data>(
-        this.handler.bind(this.builder.saga),
         this.isParticipantInvocation,
+        this.handler?.bind(this.builder.saga),
         this.compensator,
         this.compensationPredictor,
         this.actionReplyHandlers,
@@ -102,6 +108,28 @@ const RETURN_REGEX =
 export class StepBuilder<Data> {
   constructor(private readonly builder: SagaDefinitionBuilder<Data>) {}
 
+  compensate<R, A extends any[]>(
+    // TODO: support objects. services are currently only supported because there's no way to provide a key with nice dx
+    handler: Handler<Data, RestateHandlerRequest<R, A, 'service'>>,
+    predicate?: PredicateFn<Data>,
+  ): ParticipantStepBuilder<Data>;
+  compensate(handler: Handler<Data, void>): LocalStepBuilder<Data>;
+  compensate<T>(
+    handler: Handler<Data, T>,
+    predicate?: PredicateFn<Data>,
+  ): ParticipantStepBuilder<Data> | LocalStepBuilder<Data> {
+    /**
+     * Deepkit doesn't support inferring types or method overloading,
+     * so we have to use an alternative approach to detect if it's a participant invocation.
+     * We can "safely" rely on this regex because local invocations aren't allowed to return anything.
+     */
+    const isParticipantInvocation = RETURN_REGEX.test(handler.toString());
+    return new InvokedStepBuilder<Data>(
+      this.builder,
+      isParticipantInvocation,
+    ).compensate(handler, predicate);
+  }
+
   invoke<R, A extends any[]>(
     // TODO: support objects. services are currently only supported because there's no way to provide a key with nice dx
     handler: Handler<Data, RestateHandlerRequest<R, A, 'service'>>,
@@ -118,8 +146,8 @@ export class StepBuilder<Data> {
     const isParticipantInvocation = RETURN_REGEX.test(handler.toString());
     return new InvokedStepBuilder<Data>(
       this.builder,
-      handler,
       isParticipantInvocation,
+      handler,
     );
   }
 }

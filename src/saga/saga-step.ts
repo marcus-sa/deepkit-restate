@@ -1,12 +1,21 @@
-import { RestateHandlerRequest, RestateHandlerResponse, RestateSagaContext } from '../types.js';
-import { Handler, PredicateFn, SagaReplyHandler, SagaReplyHandlers } from './types.js';
+import {
+  RestateHandlerRequest,
+  RestateHandlerResponse,
+  RestateSagaContext,
+} from '../types.js';
+import {
+  Handler,
+  PredicateFn,
+  SagaReplyHandler,
+  SagaReplyHandlers,
+} from './types.js';
 
 import { SagaStepOutcome } from './step-outcome.js';
 
 export class SagaStep<Data> {
   constructor(
-    readonly invoke: Handler<Data, RestateHandlerRequest | void>,
     readonly isParticipantInvocation: boolean,
+    readonly invoke?: Handler<Data, RestateHandlerRequest | void>,
     readonly compensate?: Handler<Data>,
     readonly compensatePredicate?: PredicateFn<Data>,
     readonly actionReplyHandlers?: SagaReplyHandlers<Data>,
@@ -47,7 +56,6 @@ export class SagaStep<Data> {
       );
     } else {
       try {
-        // TODO: How do we ensure that the side effect is executed when compensating?
         await ctx.run(async () => {
           if (!compensating) {
             await this.invoke?.(data);

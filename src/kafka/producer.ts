@@ -2,12 +2,18 @@ import { Kafka, Producer, ProducerRecord, RecordMetadata } from 'kafkajs';
 import { getBSONSerializer } from '@deepkit/bson';
 import { ReceiveType, resolveReceiveType } from '@deepkit/type';
 import { eventDispatcher } from '@deepkit/event';
-import { onServerMainBootstrap, onServerMainShutdown } from '@deepkit/framework';
+import {
+  onServerMainBootstrap,
+  onServerMainShutdown,
+} from '@deepkit/framework';
 
 import { RestateKafkaConfig } from './module.js';
 import { RestateContextStorage } from '../restate-context-storage.js';
 import { RestateCustomContext, RestateKafkaTopic } from '../types.js';
-import { getRestateKafkaTopicArgsType, getRestateKafkaTopicSource } from '../utils.js';
+import {
+  getRestateKafkaTopicArgsType,
+  getRestateKafkaTopicSource,
+} from '../utils.js';
 
 export type KafkaProducerPublishOptions = Pick<
   ProducerRecord,

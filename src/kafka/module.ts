@@ -12,5 +12,4 @@ export class RestateKafkaProducerModule extends createModule({
   providers: [RestateKafkaProducer],
   listeners: [RestateKafkaProducer],
   forRoot: true,
-}) {
-}
+}) {}

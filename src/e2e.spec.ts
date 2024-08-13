@@ -120,8 +120,7 @@ describe('e2e', () => {
       class User {
         readonly id: UUID & PrimaryKey = uuid();
 
-        constructor(public readonly username: string) {
-        }
+        constructor(public readonly username: string) {}
       }
 
       interface UserService {
@@ -132,8 +131,7 @@ describe('e2e', () => {
 
       @restate.service<UserServiceApi>()
       class UserController implements UserService {
-        constructor(private readonly ctx: RestateServiceContext) {
-        }
+        constructor(private readonly ctx: RestateServiceContext) {}
 
         @restate.handler()
         async create(username: string): Promise<User> {
@@ -180,8 +178,7 @@ describe('e2e', () => {
       class User {
         readonly id: UUID & PrimaryKey = uuid();
 
-        constructor(public readonly username: string) {
-        }
+        constructor(public readonly username: string) {}
       }
 
       interface UserService {
@@ -192,8 +189,7 @@ describe('e2e', () => {
 
       @restate.service<UserServiceApi>()
       class UserController implements UserService {
-        constructor(private readonly ctx: RestateServiceContext) {
-        }
+        constructor(private readonly ctx: RestateServiceContext) {}
 
         @restate.handler()
         async create(username: string): Promise<void> {
@@ -239,19 +235,16 @@ describe('e2e', () => {
   });
 
   describe('object', () => {
-    test('rpc', async () => {
-    });
+    test('rpc', async () => {});
 
-    test('send', async () => {
-    });
+    test('send', async () => {});
   });
 
   describe('service', async () => {
     class User {
       readonly id: UUID = uuid();
 
-      constructor(public readonly username: string) {
-      }
+      constructor(public readonly username: string) {}
     }
 
     interface UserService {
@@ -262,8 +255,7 @@ describe('e2e', () => {
 
     @restate.service<UserServiceApi>()
     class UserController implements UserService {
-      constructor(private readonly ctx: RestateServiceContext) {
-      }
+      constructor(private readonly ctx: RestateServiceContext) {}
 
       @restate.handler()
       async create(username: string): Promise<User> {

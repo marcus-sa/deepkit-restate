@@ -2,9 +2,23 @@ import assert from 'node:assert';
 import { isType, uuid, UUID } from '@deepkit/type';
 
 import { Saga } from './saga/saga.js';
-import { RestateKafkaTopic, RestateObject, RestateSaga, RestateService } from './types.js';
-import { restate, RestateObjectMetadata, RestateSagaMetadata, RestateServiceMetadata } from './decorator.js';
-import { getRestateObjectMetadata, getRestateSagaMetadata, getRestateServiceMetadata } from './utils.js';
+import {
+  RestateKafkaTopic,
+  RestateObject,
+  RestateSaga,
+  RestateService,
+} from './types.js';
+import {
+  restate,
+  RestateObjectMetadata,
+  RestateSagaMetadata,
+  RestateServiceMetadata,
+} from './decorator.js';
+import {
+  getRestateObjectMetadata,
+  getRestateSagaMetadata,
+  getRestateServiceMetadata,
+} from './utils.js';
 
 test('object', () => {
   interface PaymentServiceInterface {
@@ -81,8 +95,7 @@ describe('kafka', () => {
       readonly id: UUID = uuid();
     }
 
-    interface IAccountingService {
-    }
+    interface IAccountingService {}
 
     type KafkaConsumerTopic = RestateKafkaTopic<
       'consumer',
@@ -100,8 +113,7 @@ describe('kafka', () => {
         // FIXME: options and type are somehow required
         // @ts-ignore
         @restate.kafka<KafkaConsumerTopic>().handler()
-        createAccount(consumer: Consumer, name: string): void {
-        }
+        createAccount(consumer: Consumer, name: string): void {}
       }
     }).toThrowErrorMatchingInlineSnapshot(
       `[Error: Handler "createAccount" parameters [consumer: Consumer, name: string] does not match Kafka topic "consumer" arguments [consumer: Consumer]]`,

@@ -125,8 +125,7 @@ export class RestateServer {
         ): Promise<T> {
           try {
             type = resolveReceiveType(type);
-          } catch {
-          }
+          } catch {}
           // TODO: serialize using bson instead when https://github.com/restatedev/sdk-typescript/issues/410 is implemented
           const result = await ctx.run(async () => {
             const result = await action();
@@ -232,10 +231,10 @@ export class RestateServer {
   }
 
   private createServiceHandlers({
-                                  classType,
-                                  module,
-                                  metadata,
-                                }: InjectorService<unknown>) {
+    classType,
+    module,
+    metadata,
+  }: InjectorService<unknown>) {
     return [...metadata.handlers].reduce(
       (handlers, handler) => ({
         ...handlers,
@@ -288,10 +287,10 @@ export class RestateServer {
   }
 
   private createObjectHandlers({
-                                 classType,
-                                 module,
-                                 metadata,
-                               }: InjectorObject<unknown>) {
+    classType,
+    module,
+    metadata,
+  }: InjectorObject<unknown>) {
     return [...metadata.handlers].reduce(
       (handlers, handler) => ({
         ...handlers,
