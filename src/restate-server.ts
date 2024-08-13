@@ -18,11 +18,12 @@ import { SagaManager } from './saga/saga-manager.js';
 import { SAGA_STATE_KEY } from './saga/saga-instance.js';
 import { InjectorService, InjectorServices } from './services.js';
 import { InjectorObject, InjectorObjects } from './objects.js';
-import { InjectorSagas } from './sagas.js';
+import { InjectorSaga, InjectorSagas } from './sagas.js';
 import { RestateClassMetadata, RestateHandlerMetadata } from './decorator.js';
 import { RestateConfig } from './config.js';
 import { decodeRestateServiceMethodResponse } from './utils.js';
 import { RestateAdminClient } from './restate-admin-client.js';
+import { RestateContextStorage } from './restate-context-storage';
 import {
   RestateObjectContext,
   restateObjectContextType,
@@ -49,6 +50,7 @@ export class RestateServer {
     private readonly objects: InjectorObjects,
     private readonly sagas: InjectorSagas,
     private readonly injectorContext: InjectorContext,
+    private readonly contextStorage: RestateContextStorage,
   ) {}
 
   @eventDispatcher.listen(onServerMainBootstrap)
@@ -70,39 +72,9 @@ export class RestateServer {
     }
 
     for (const saga of this.sagas) {
+      const handlers = this.createSagaHandlers(saga);
       this.endpoint.bind(
-        restate.workflow({
-          name: saga.metadata.name,
-          handlers: {
-            run: restate.handlers.workflow.workflow(
-              DEFAULT_HANDLER_OPTS,
-              async (rsCtx: restate.WorkflowContext, request: Uint8Array) => {
-                const injector = this.createScopedInjector();
-                const ctx = this.createSagaContext(rsCtx);
-                injector.set(restateSagaContextType, ctx);
-                const restateSaga = injector.get(saga.classType, saga.module);
-                const sagaManager = new SagaManager(
-                  ctx,
-                  restateSaga,
-                  saga.metadata,
-                );
-                const data = saga.metadata.deserializeData(request);
-                await sagaManager.start(data);
-                return new Uint8Array();
-              },
-            ),
-            state: restate.handlers.workflow.shared(
-              DEFAULT_HANDLER_OPTS,
-              async (ctx: restate.WorkflowSharedContext) => {
-                const value = await ctx.get<readonly uint8[]>(SAGA_STATE_KEY);
-                if (!value) {
-                  throw new Error('Missing state');
-                }
-                return new Uint8Array(value);
-              },
-            ),
-          },
-        }),
+        restate.workflow({ name: saga.metadata.name, handlers }),
       );
     }
 
@@ -276,12 +248,42 @@ export class RestateServer {
             const ctx = this.createServiceContext(rsCtx);
             injector.set(restateServiceContextType, ctx, module);
             const instance = injector.get(classType, module);
-            return await this.callHandler(instance, metadata, handler, data);
+            return await this.contextStorage.run(ctx, () =>
+              this.callHandler(instance, metadata, handler, data),
+            );
           },
         ),
       }),
       {},
     );
+  }
+
+  private createSagaHandlers({ module, classType, metadata }: InjectorSaga) {
+    return {
+      run: restate.handlers.workflow.workflow(
+        DEFAULT_HANDLER_OPTS,
+        async (rsCtx: restate.WorkflowContext, request: Uint8Array) => {
+          const injector = this.createScopedInjector();
+          const ctx = this.createSagaContext(rsCtx);
+          injector.set(restateSagaContextType, ctx, module);
+          const restateSaga = injector.get(classType, module);
+          const sagaManager = new SagaManager(ctx, restateSaga, metadata);
+          const data = metadata.deserializeData(request);
+          await this.contextStorage.run(ctx, () => sagaManager.start(data));
+          return new Uint8Array();
+        },
+      ),
+      state: restate.handlers.workflow.shared(
+        DEFAULT_HANDLER_OPTS,
+        async (ctx: restate.WorkflowSharedContext) => {
+          const value = await ctx.get<readonly uint8[]>(SAGA_STATE_KEY);
+          if (!value) {
+            throw new Error('Missing state');
+          }
+          return new Uint8Array(value);
+        },
+      ),
+    };
   }
 
   private createObjectHandlers({
@@ -305,7 +307,9 @@ export class RestateServer {
             const ctx = this.createObjectContext(rsCtx);
             injector.set(restateObjectContextType, ctx, module);
             const instance = injector.get(classType, module);
-            return await this.callHandler(instance, metadata, handler, data);
+            return await this.contextStorage.run(ctx, () =>
+              this.callHandler(instance, metadata, handler, data),
+            );
           },
         ),
       }),

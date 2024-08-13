@@ -2,7 +2,7 @@
   "compileOnSave": false,
   "compilerOptions": {
     "rootDir": ".",
-    "moduleResolution": "node",
+    "moduleResolution": "nodenext",
     "strictPropertyInitialization": false,
     "emitDecoratorMetadata": true,
     "useDefineForClassFields": true,
@@ -16,7 +16,7 @@
     "experimentalDecorators": true,
     "importHelpers": true,
     "target": "esnext",
-    "module": "esnext",
+    "module": "nodenext",
     "lib": ["esnext"],
     "skipLibCheck": true,
     "skipDefaultLibCheck": true,

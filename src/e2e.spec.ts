@@ -3,9 +3,9 @@ import { PrimaryKey, Unique, uuid, UUID } from '@deepkit/type';
 import { sleep } from '@deepkit/core';
 
 import { RestateModule } from './restate.module.js';
+import { RestateClient } from './restate-client.js';
 import { restate } from './decorator.js';
 import { RestateService, RestateServiceContext } from './types.js';
-import { RestateClient } from './restate-client.js';
 
 describe('e2e', () => {
   describe('context', () => {
@@ -39,14 +39,17 @@ describe('e2e', () => {
         }
       }
 
-      interface AccountService {
+      interface AccountServiceHandlers {
         create(user: User): Promise<Account>;
       }
 
-      type AccountServiceApi = RestateService<'account', AccountService>;
+      type AccountServiceApi = RestateService<
+        'Account',
+        AccountServiceHandlers
+      >;
 
       @restate.service<AccountServiceApi>()
-      class AccountController implements AccountService {
+      class AccountService implements AccountServiceHandlers {
         constructor(private readonly ctx: RestateServiceContext) {}
 
         @restate.handler()
@@ -282,7 +285,8 @@ describe('e2e', () => {
             ingress: {
               url: 'http://0.0.0.0:8080',
             },
-          })],
+          }),
+        ],
         controllers: [UserController],
       });
       await app.startServer();
@@ -315,7 +319,8 @@ describe('e2e', () => {
             ingress: {
               url: 'http://0.0.0.0:8080',
             },
-          })],
+          }),
+        ],
         controllers: [UserController],
       });
       await app.startServer();

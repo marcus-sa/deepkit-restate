@@ -1,4 +1,3 @@
-import type { WorkflowSubmission } from '@restatedev/restate-sdk-clients/dist/esm/src/api';
 import { BSONDeserializer, BSONSerializer } from '@deepkit/bson';
 import { ReceiveType, resolveReceiveType, Type } from '@deepkit/type';
 
@@ -19,7 +18,7 @@ import {
   RestateSendOptions,
   RestateService,
   RestateServiceHandlerRequest,
-  SendStatus,
+  RestateStatus,
 } from './types.js';
 
 interface RestateApiResponseError {
@@ -41,11 +40,6 @@ function isRestateApiResponseError(
 ): value is RestateApiResponseError {
   return 'code' in value || 'message' in value;
 }
-
-export type WorkflowStartStatus = Omit<
-  WorkflowSubmission<unknown>,
-  'attachable'
->;
 
 export class RestateIngressClientOptions {
   readonly url: string;
@@ -91,7 +85,7 @@ export class RestateSagaClient<Data> {
     };
   }
 
-  async start(id: string, data: Data): Promise<WorkflowStartStatus> {
+  async start(id: string, data: Data): Promise<RestateStatus> {
     const url = `${this.opts.url}/${this.serviceName}/${id}/run/send`;
 
     const response = await fetch(url, {
@@ -103,7 +97,7 @@ export class RestateSagaClient<Data> {
       body: this.serializeData(data),
     });
 
-    return (await response.json()) as WorkflowStartStatus;
+    return (await response.json()) as RestateStatus;
   }
 }
 
@@ -186,12 +180,12 @@ export class RestateClient implements RestateClientContext {
     key: string,
     request: RestateObjectHandlerRequest,
     options?: RestateSendOptions,
-  ): Promise<SendStatus>;
+  ): Promise<RestateStatus>;
   send(
     request: RestateServiceHandlerRequest,
     options?: RestateSendOptions,
-  ): Promise<SendStatus>;
-  async send(...args: readonly any[]): Promise<SendStatus> {
+  ): Promise<RestateStatus>;
+  async send(...args: readonly any[]): Promise<RestateStatus> {
     const [key, { service, method, data }, options] =
       args.length === 1 ? [undefined, ...args] : args;
 
@@ -218,6 +212,6 @@ export class RestateClient implements RestateClientContext {
       body: data,
     } as RequestInit);
 
-    return (await response.json()) as SendStatus;
+    return (await response.json()) as RestateStatus;
   }
 }

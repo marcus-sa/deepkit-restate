@@ -1,11 +1,14 @@
 import { ReceiveType, typeOf } from '@deepkit/type';
-import type { Send } from '@restatedev/restate-sdk-clients/dist/esm/src/api';
-import type { RunAction } from '@restatedev/restate-sdk/dist/esm/src/context';
 import { ClassType } from '@deepkit/core';
 import { Context as ServiceContext, ObjectContext, TerminalError, WorkflowContext } from '@restatedev/restate-sdk';
 import { BSONDeserializer, BSONSerializer, getBSONDeserializer, getBSONSerializer } from '@deepkit/bson';
 
-export type SendStatus = Omit<Send, 'attachable'>;
+export interface RestateStatus {
+  invocationId: string;
+  status: 'Accepted' | 'PreviouslyAccepted';
+};
+
+export type RunAction<T> = (() => Promise<T>) | (() => T);
 
 export interface RestateApiInvocation {
   readonly id: string;
@@ -100,12 +103,12 @@ export interface RestateClientContext {
     key: string,
     request: RestateObjectHandlerRequest,
     options?: RestateSendOptions,
-  ): Promise<SendStatus>;
+  ): Promise<RestateStatus>;
   // used for services
   send(
     request: RestateServiceHandlerRequest,
     options?: RestateSendOptions,
-  ): Promise<SendStatus>;
+  ): Promise<RestateStatus>;
   // used for objects
   rpc<R, A extends any[]>(
     key: string,

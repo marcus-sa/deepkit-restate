@@ -8,8 +8,9 @@ import { InjectorServices } from './services.js';
 import { InjectorObjects } from './objects.js';
 import { InjectorSagas } from './sagas.js';
 import { RestateServer } from './restate-server.js';
-import { restateObjectContextType, restateSagaContextType, restateServiceContextType, SCOPE } from './types.js';
+import { RestateContextStorage } from './restate-context-storage.js';
 import { RestateObjectMetadata, RestateSagaMetadata, RestateServiceMetadata } from './decorator.js';
+import { restateObjectContextType, restateSagaContextType, restateServiceContextType, SCOPE } from './types.js';
 import {
   createClassProxy,
   getRestateClassDeps,
@@ -44,6 +45,8 @@ export class RestateModule extends createModule({
 
     if (this.config.server) {
       this.addListener(RestateServer);
+
+      this.addProvider(RestateContextStorage);
 
       this.addProvider({
         provide: InjectorServices,

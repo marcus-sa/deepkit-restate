@@ -1,14 +1,13 @@
 import { Kafka, Producer, ProducerRecord, RecordMetadata } from 'kafkajs';
 import { getBSONSerializer } from '@deepkit/bson';
 import { ReceiveType, resolveReceiveType } from '@deepkit/type';
-import { InjectorContext } from '@deepkit/injector';
-import type { RunAction } from '@restatedev/restate-sdk/dist/esm/src/context';
 import { eventDispatcher } from '@deepkit/event';
 import { onServerMainBootstrap, onServerMainShutdown } from '@deepkit/framework';
 
-import { RestateCustomContext, RestateKafkaTopic, RestateObjectContext, RestateServiceContext } from '../types.js';
-import { getRestateKafkaTopicArgsType, getRestateKafkaTopicSource } from '../utils.js';
 import { RestateKafkaConfig } from './module.js';
+import { RestateContextStorage } from '../restate-context-storage.js';
+import { RestateCustomContext, RestateKafkaTopic, RunAction } from '../types.js';
+import { getRestateKafkaTopicArgsType, getRestateKafkaTopicSource } from '../utils.js';
 
 export type KafkaProducerPublishOptions = Pick<
   ProducerRecord,
@@ -17,9 +16,12 @@ export type KafkaProducerPublishOptions = Pick<
 
 export class RestateKafkaProducer {
   readonly #producer: Producer;
-  readonly #injectorContext: InjectorContext;
+  readonly #contextStorage: RestateContextStorage;
 
-  constructor(config: RestateKafkaConfig, injectorContext: InjectorContext) {
+  constructor(
+    config: RestateKafkaConfig,
+    contextStorage: RestateContextStorage,
+  ) {
     const kafka = new Kafka(config);
     this.#producer = kafka.producer({
       retry: {
@@ -27,21 +29,15 @@ export class RestateKafkaProducer {
         retries: 0,
       },
     });
-    this.#injectorContext = injectorContext;
+    this.#contextStorage = contextStorage;
   }
 
   get #ctx(): Pick<RestateCustomContext, 'run'> {
-    try {
-      return this.#injectorContext.get<RestateServiceContext>();
-    } catch {
-      try {
-        return this.#injectorContext.get<RestateObjectContext>();
-      } catch {
-        return {
-          run: async (action: RunAction<any>) => action(),
-        };
+    return (
+      this.#contextStorage.getStore() || {
+        run: async (action: RunAction<any>) => action(),
       }
-    }
+    );
   }
 
   @eventDispatcher.listen(onServerMainBootstrap)
