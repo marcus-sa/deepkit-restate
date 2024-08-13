@@ -8,7 +8,7 @@ import { InjectorServices } from './services.js';
 import { InjectorObjects } from './objects.js';
 import { InjectorSagas } from './sagas.js';
 import { RestateServer } from './restate-server.js';
-import { RestateContextStorage } from './restate-context-storage.js';
+import { NoopRestateContextStorage, RestateContextStorage } from './restate-context-storage.js';
 import { RestateObjectMetadata, RestateSagaMetadata, RestateServiceMetadata } from './decorator.js';
 import { restateObjectContextType, restateSagaContextType, restateServiceContextType, SCOPE } from './types.js';
 import {
@@ -44,9 +44,16 @@ export class RestateModule extends createModule({
     }
 
     if (this.config.server) {
-      this.addListener(RestateServer);
-
       this.addProvider(RestateContextStorage);
+    } else {
+      this.addProvider({
+        provide: RestateContextStorage,
+        useClass: NoopRestateContextStorage,
+      });
+    }
+
+    if (this.config.server) {
+      this.addListener(RestateServer);
 
       this.addProvider({
         provide: InjectorServices,

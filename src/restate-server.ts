@@ -26,12 +26,12 @@ import { RestateContextStorage } from './restate-context-storage.js';
 import {
   RestateObjectContext,
   restateObjectContextType,
+  RestateRunAction,
   RestateSagaContext,
   restateSagaContextType,
   RestateServiceContext,
   restateServiceContextType,
   RestateStatus,
-  RunAction,
   SCOPE,
   serializeRestateHandlerResponse,
 } from './types.js';
@@ -118,9 +118,9 @@ export class RestateServer {
         workflowSendClient: undefined,
         // TypeError: Cannot read properties of undefined (reading 'kind')
         //   at ReflectionTransformer.getArrowFunctionΩPropertyAccessIdentifier
-        // run: async <T>(action: RunAction<T>, type?: ReceiveType<T>): Promise<T> => {
+        // run: async <T>(action: RestateRunAction<T>, type?: ReceiveType<T>): Promise<T> => {
         async run<T = void>(
-          action: RunAction<T>,
+          action: RestateRunAction<T>,
           type?: ReceiveType<T>,
         ): Promise<T> {
           try {

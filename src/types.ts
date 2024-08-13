@@ -6,9 +6,9 @@ import { BSONDeserializer, BSONSerializer, getBSONDeserializer, getBSONSerialize
 export interface RestateStatus {
   invocationId: string;
   status: 'Accepted' | 'PreviouslyAccepted';
-};
+}
 
-export type RunAction<T> = (() => Promise<T>) | (() => T);
+export type RestateRunAction<T> = () => Promise<T> | T;
 
 export interface RestateApiInvocation {
   readonly id: string;
@@ -120,8 +120,9 @@ export interface RestateClientContext {
 
 export interface RestateCustomContext extends RestateClientContext {
   // run should only return a value if a generic is provided
-  run(action: RunAction<unknown>): Promise<void>;
-  run<T>(action: RunAction<T>, type?: ReceiveType<T>): Promise<T>;
+  run(action: RestateRunAction<unknown>): Promise<void>;
+
+  run<T>(action: RestateRunAction<T>, type?: ReceiveType<T>): Promise<T>;
 }
 
 type ContextWithoutClients<T> = Omit<

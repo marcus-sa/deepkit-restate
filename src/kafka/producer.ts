@@ -6,7 +6,7 @@ import { onServerMainBootstrap, onServerMainShutdown } from '@deepkit/framework'
 
 import { RestateKafkaConfig } from './module.js';
 import { RestateContextStorage } from '../restate-context-storage.js';
-import { RestateCustomContext, RestateKafkaTopic, RunAction } from '../types.js';
+import { RestateCustomContext, RestateKafkaTopic } from '../types.js';
 import { getRestateKafkaTopicArgsType, getRestateKafkaTopicSource } from '../utils.js';
 
 export type KafkaProducerPublishOptions = Pick<
@@ -33,11 +33,7 @@ export class RestateKafkaProducer {
   }
 
   get #ctx(): Pick<RestateCustomContext, 'run'> {
-    return (
-      this.#contextStorage.getStore() || {
-        run: async (action: RunAction<any>) => action(),
-      }
-    );
+    return this.#contextStorage.getStore()!;
   }
 
   @eventDispatcher.listen(onServerMainBootstrap)

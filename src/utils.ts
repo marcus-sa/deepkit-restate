@@ -1,5 +1,6 @@
 import { ClassType } from '@deepkit/core';
 import { TerminalError } from '@restatedev/restate-sdk';
+import { FactoryProvider } from '@deepkit/injector';
 import {
   bsonBinarySerializer,
   BSONDeserializer,
@@ -24,6 +25,7 @@ import {
   TypeTupleMember,
 } from '@deepkit/type';
 
+import { RestateClient } from './restate-client.js';
 import {
   deserializeRestateHandlerResponse,
   Entities,
@@ -220,17 +222,11 @@ export function createClassProxy<
           const reflectionMethod = reflectionClass.getMethod(method);
 
           const argsType = getReflectionFunctionArgsType(reflectionMethod);
-          const serializeArgs = getBSONSerializer(
-            bsonBinarySerializer,
-            argsType,
-          );
+          const serializeArgs = getBSONSerializer(undefined, argsType);
 
           const returnType =
             getUnwrappedReflectionFunctionReturnType(reflectionMethod);
-          const deserializeReturn = getBSONDeserializer(
-            bsonBinarySerializer,
-            returnType,
-          );
+          const deserializeReturn = getBSONDeserializer(undefined, returnType);
 
           methods[method] = { serializeArgs, deserializeReturn };
         }
@@ -249,6 +245,50 @@ export function createClassProxy<
       },
     },
   );
+}
+
+// TODO: wrap client send/rpc calls with ctx.run
+// export function provideRestateServiceProxy<T extends RestateService<string, any, any[]>>(type?: ReceiveType<T>): FactoryProvider<T> {
+//   type = resolveReceiveType(type);
+//
+//   const classType = getTypeArgument(type, 1);
+//   const reflectionClass = ReflectionClass.from(classType);
+//
+//   const proxy = createClassProxy<T>(type);
+//
+//   return {
+//     provide: type,
+//     useFactory: (contextStorage: RestateContextStorage) => {
+//       return new Proxy(proxy, {
+//         get(target: T, method: string) {
+//           return async (...args: readonly any[]) => {
+//             const ctx = contextStorage.getStore()!;
+//             return target[method].apply(args);
+//           }
+//         }
+//       });
+//     },
+//   };
+// }
+
+export function provideRestateServiceProxy<
+  T extends RestateService<string, any, any[]>,
+>(type?: ReceiveType<T>): FactoryProvider<T> {
+  type = resolveReceiveType(type);
+  return {
+    provide: type,
+    useFactory: (client: RestateClient) => client.service<T>(type),
+  };
+}
+
+export function provideRestateObjectProxy<
+  T extends RestateObject<string, any, any[]>,
+>(type?: ReceiveType<T>): FactoryProvider<T> {
+  type = resolveReceiveType(type);
+  return {
+    provide: type,
+    useFactory: (client: RestateClient) => client.object<T>(type),
+  };
 }
 
 export function decodeRestateServiceMethodResponse<T>(
