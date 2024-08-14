@@ -315,19 +315,22 @@ export function decodeRestateServiceMethodResponse<T>(
 export function getRestateServiceMetadata(
   classType: ClassType,
 ): RestateServiceMetadata | undefined {
-  return restateServiceDecorator._fetch(classType);
+  const metadata = restateServiceDecorator._fetch(classType);
+  return metadata?.name ? metadata : undefined;
 }
 
 export function getRestateObjectMetadata(
   classType: ClassType,
 ): RestateObjectMetadata | undefined {
-  return restateObjectDecorator._fetch(classType);
+  const metadata = restateObjectDecorator._fetch(classType);
+  return metadata?.name ? metadata : undefined;
 }
 
 export function getRestateSagaMetadata(
   classType: ClassType,
 ): RestateSagaMetadata | undefined {
-  return restateSagaDecorator._fetch(classType);
+  const metadata = restateSagaDecorator._fetch(classType);
+  return metadata?.name ? metadata : undefined;
 }
 
 export function assertValidKafkaTopicName(topicName: string): void {

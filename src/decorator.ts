@@ -137,12 +137,12 @@ export class RestateSagaDecorator {
   }
 }
 
-export type RestateHandlerKafkaOptions = Record<string, string>;
+export type RestateKafkaHandlerOptions = Record<string, string>;
 
-export interface RestateHandlerKafkaMetadata {
+export interface RestateKafkaHandlerMetadata {
   readonly topic: string;
   readonly argsType: TypeTuple;
-  readonly options?: RestateHandlerKafkaOptions;
+  readonly options?: RestateKafkaHandlerOptions;
 }
 
 export interface RestateEventHandlerMetadata {
@@ -158,7 +158,7 @@ export class RestateHandlerMetadata<T = readonly unknown[]> {
   readonly deserializeArgs: BSONDeserializer<T>;
   readonly shared?: boolean;
   readonly exclusive?: boolean;
-  readonly kafka?: RestateHandlerKafkaMetadata;
+  readonly kafka?: RestateKafkaHandlerMetadata;
   readonly event?: RestateEventHandlerMetadata;
 }
 
@@ -192,9 +192,9 @@ export class RestateHandlerDecorator {
     restateSagaDecorator.addHandler(this.t)(classType);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
   handler() {}
 
+  // FIXME: options and type are somehow required
   event<T>(type?: ReceiveType<T>) {
     type = resolveReceiveType(type);
     Object.assign(this.t, {
@@ -209,7 +209,6 @@ export class RestateHandlerDecorator {
     options?: Record<string, string>,
     type?: ReceiveType<T>,
   ) {
-    // TODO: assert that handler args match kafka topic args
     type = resolveReceiveType(type);
 
     const topic = getRestateKafkaTopicSource(type);
@@ -224,7 +223,7 @@ export class RestateHandlerDecorator {
 
     options = { 'allow.auto.create.topics': 'true', ...options };
     Object.assign(this.t, {
-      kafka: { topic, argsType, options } satisfies RestateHandlerKafkaMetadata,
+      kafka: { topic, argsType, options } satisfies RestateKafkaHandlerMetadata,
     });
   }
 
