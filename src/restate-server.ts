@@ -15,12 +15,14 @@ import {
 
 import { SagaManager } from './saga/saga-manager.js';
 import { SAGA_STATE_KEY } from './saga/saga-instance.js';
+import { RestateEventSubscriber } from './event/subscriber.js';
+import { Subscriptions } from './event/types.js';
 import { InjectorService, InjectorServices } from './services.js';
 import { InjectorObject, InjectorObjects } from './objects.js';
 import { InjectorSaga, InjectorSagas } from './sagas.js';
 import { RestateClassMetadata, RestateHandlerMetadata } from './decorator.js';
 import { RestateConfig } from './config.js';
-import { decodeRestateServiceMethodResponse } from './utils.js';
+import { decodeRestateServiceMethodResponse, invokeOneWay } from './utils.js';
 import { RestateAdminClient } from './restate-admin-client.js';
 import { RestateContextStorage } from './restate-context-storage.js';
 import {
@@ -91,9 +93,36 @@ export class RestateServer {
       }
       // TODO: filter out handlers by existing subscriptions
       await Promise.all([
-        this.addHandlerKafkaSubscriptions('object', [...this.objects]),
-        this.addHandlerKafkaSubscriptions('service', [...this.services]),
+        this.addKafkaHandlerSubscriptions('object', [...this.objects]),
+        this.addKafkaHandlerSubscriptions('service', [...this.services]),
       ]);
+    }
+
+    if (this.config.event) {
+      await this.addEventHandlerSubscriptions();
+    }
+  }
+
+  private async addEventHandlerSubscriptions() {
+    const events = this.injectorContext.get(RestateEventSubscriber);
+    let subscriptions: Subscriptions = [];
+    for (const { metadata } of [...this.services, ...this.objects]) {
+      for (const handler of metadata.handlers) {
+        if (handler.event) {
+          subscriptions = [
+            ...subscriptions,
+            {
+              service: metadata.name,
+              method: handler.name,
+              type: handler.event.type,
+            },
+          ];
+        }
+      }
+    }
+    if (subscriptions.length) {
+      // TODO: call this as part of cli
+      await events.subscribe(subscriptions);
     }
   }
 
@@ -110,6 +139,7 @@ export class RestateServer {
     return Object.assign(
       { ...ctx },
       {
+        original: ctx,
         serviceClient: undefined,
         serviceSendClient: undefined,
         objectSendClient: undefined,
@@ -152,14 +182,12 @@ export class RestateServer {
           const [key, { service, method, data }, options] =
             args.length === 1 ? [undefined, ...args] : args;
 
-          return (ctx as any).invokeOneWay(
+          return invokeOneWay(ctx, {
             service,
             method,
             data,
-            options?.delay,
+            delay: options?.delay,
             key,
-          ).catch((e: Error) => {
-            (ctx as any).stateMachine.handleDanglingPromiseError(e);
           });
         },
         rpc: <T>(...args: readonly any[]): restate.CombineablePromise<T> => {
@@ -202,7 +230,7 @@ export class RestateServer {
     });
   }
 
-  private async addHandlerKafkaSubscriptions(
+  private async addKafkaHandlerSubscriptions(
     protocol: 'object' | 'service',
     classes: InjectorObject<unknown>[] | InjectorService<unknown>[],
   ) {

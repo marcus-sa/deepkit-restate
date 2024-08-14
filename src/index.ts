@@ -8,5 +8,6 @@ export {
   provideRestateServiceProxy,
   provideRestateObjectProxy,
 } from './utils.js';
+export * from './event/index.js';
 export * from './types.js';
 export * from './saga/index.js';

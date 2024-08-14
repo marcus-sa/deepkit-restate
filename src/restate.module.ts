@@ -8,6 +8,7 @@ import { InjectorServices } from './services.js';
 import { InjectorObjects } from './objects.js';
 import { InjectorSagas } from './sagas.js';
 import { RestateServer } from './restate-server.js';
+import { RestateEventModule } from './event/module.js';
 import {
   NoopRestateContextStorage,
   RestateContextStorage,
@@ -49,6 +50,10 @@ export class RestateModule extends createModule({
           throw new Error('Restate ingress config is missing');
         },
       });
+    }
+
+    if (this.config.event) {
+      this.addImport(new RestateEventModule(this.config.event));
     }
 
     if (this.config.admin) {

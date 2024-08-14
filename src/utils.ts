@@ -1,5 +1,5 @@
 import { ClassType } from '@deepkit/core';
-import { TerminalError } from '@restatedev/restate-sdk';
+import { CombineablePromise, TerminalError } from '@restatedev/restate-sdk';
 import { FactoryProvider } from '@deepkit/injector';
 import {
   bsonBinarySerializer,
@@ -25,7 +25,14 @@ import {
   TypeTupleMember,
 } from '@deepkit/type';
 
-import { RestateClient } from './restate-client.js';
+import {
+  restateObjectDecorator,
+  RestateObjectMetadata,
+  restateSagaDecorator,
+  RestateSagaMetadata,
+  restateServiceDecorator,
+  RestateServiceMetadata,
+} from './decorator.js';
 import {
   deserializeRestateHandlerResponse,
   Entities,
@@ -36,14 +43,6 @@ import {
   RestateService,
   restateServiceType,
 } from './types.js';
-import {
-  restateObjectDecorator,
-  RestateObjectMetadata,
-  restateSagaDecorator,
-  RestateSagaMetadata,
-  restateServiceDecorator,
-  RestateServiceMetadata,
-} from './decorator.js';
 
 export function getRestateClassDeps(classType: ClassType): readonly Type[] {
   const serviceType = reflect(classType);
@@ -277,7 +276,7 @@ export function provideRestateServiceProxy<
   type = resolveReceiveType(type);
   return {
     provide: type,
-    useFactory: (client: RestateClient) => client.service<T>(type),
+    useFactory: () => createClassProxy<T>(type),
   };
 }
 
@@ -287,7 +286,7 @@ export function provideRestateObjectProxy<
   type = resolveReceiveType(type);
   return {
     provide: type,
-    useFactory: (client: RestateClient) => client.object<T>(type),
+    useFactory: () => createClassProxy<T>(type),
   };
 }
 
@@ -352,4 +351,23 @@ export function getRestateKafkaTopicArgsType(type: Type): TypeTuple {
   const typeArgument = getTypeArgument(type, 1);
   assertType(typeArgument, ReflectionKind.tuple);
   return typeArgument;
+}
+
+export interface InvokeOneWayOptions {
+  readonly service: string;
+  readonly method: string;
+  readonly data: Uint8Array;
+  readonly delay?: number;
+  readonly key?: string;
+}
+
+export function invokeOneWay<T>(
+  ctx: any,
+  { service, method, data, delay, key }: InvokeOneWayOptions,
+): CombineablePromise<T> {
+  return ctx
+    .invokeOneWay(service, method, data, delay, key)
+    .catch((e: Error) => {
+      ctx.stateMachine.handleDanglingPromiseError(e);
+    });
 }

@@ -108,7 +108,10 @@ export interface RestateSaga<Name extends string, Data> {
   readonly data: Data;
 }
 
-export interface RestateClientContext {
+export interface RestateCustomContext {
+  // run should only return a value if a generic is provided
+  run(action: RestateRunAction<unknown>): Promise<void>;
+  run<T>(action: RestateRunAction<T>, type?: ReceiveType<T>): Promise<T>;
   // used for objects
   send(
     key: string,
@@ -126,22 +129,19 @@ export interface RestateClientContext {
     request: RestateObjectHandlerRequest<R, A>,
   ): CombineablePromise<R>;
   // used for services
-  rpc<R, A extends any[]>(call: RestateServiceHandlerRequest<R, A>): CombineablePromise<R>;
-}
-
-export interface RestateCustomContext extends RestateClientContext {
-  // run should only return a value if a generic is provided
-  run(action: RestateRunAction<unknown>): Promise<void>;
-
-  run<T>(action: RestateRunAction<T>, type?: ReceiveType<T>): Promise<T>;
+  rpc<R, A extends any[]>(
+    call: RestateServiceHandlerRequest<R, A>,
+  ): CombineablePromise<R>;
 }
 
 type ContextWithoutClients<T> = Omit<
   T,
+  | 'workflowClient'
+  | 'workflowSendClient'
   | 'serviceClient'
   | 'serviceSendClient'
-  | 'objectSendClient'
   | 'objectClient'
+  | 'objectSendClient'
   | 'run'
 >;
 

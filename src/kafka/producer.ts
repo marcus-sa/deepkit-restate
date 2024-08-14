@@ -63,7 +63,6 @@ export class RestateKafkaProducer {
     const topic = getRestateKafkaTopicSource(type);
     const argsType = getRestateKafkaTopicArgsType(type);
 
-    // TODO: cache serializer
     const serialize = getBSONSerializer(undefined, argsType);
     const value = Buffer.from(serialize(args));
 

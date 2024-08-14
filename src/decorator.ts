@@ -20,6 +20,8 @@ import {
   ReceiveType,
   ReflectionClass,
   resolveReceiveType,
+  SerializedType,
+  serializeType,
   stringifyType,
   Type,
   TypeClass,
@@ -143,6 +145,10 @@ export interface RestateHandlerKafkaMetadata {
   readonly options?: RestateHandlerKafkaOptions;
 }
 
+export interface RestateEventHandlerMetadata {
+  readonly type: SerializedType;
+}
+
 export class RestateHandlerMetadata<T = readonly unknown[]> {
   readonly name: string;
   readonly classType: ClassType;
@@ -153,6 +159,7 @@ export class RestateHandlerMetadata<T = readonly unknown[]> {
   readonly shared?: boolean;
   readonly exclusive?: boolean;
   readonly kafka?: RestateHandlerKafkaMetadata;
+  readonly event?: RestateEventHandlerMetadata;
 }
 
 export class RestateHandlerDecorator {
@@ -187,6 +194,15 @@ export class RestateHandlerDecorator {
 
   // eslint-disable-next-line @typescript-eslint/no-empty-function
   handler() {}
+
+  event<T>(type?: ReceiveType<T>) {
+    type = resolveReceiveType(type);
+    Object.assign(this.t, {
+      event: {
+        type: serializeType(type)[0],
+      } satisfies RestateEventHandlerMetadata,
+    });
+  }
 
   // FIXME: options and type are somehow required
   kafka<T extends RestateKafkaTopic<string, any[]>>(
@@ -230,7 +246,7 @@ export class RestateHandlerDecorator {
 }
 
 type RestateClassFluidDecorator<T, D extends Function> = {
-  [K in keyof T]: K extends 'service'
+  [K in keyof T]: K extends 'service' | 'object'
     ? <
         For extends
           | RestateService<string, any, any[]>
@@ -279,7 +295,7 @@ export const restateSagaDecorator = createClassDecoratorContext(
 ) as RestateSagaDecoratorResult;
 
 type RestateMerge<U> = {
-  [K in keyof U]: K extends 'service'
+  [K in keyof U]: K extends 'service' | 'object'
     ? <
         For extends
           | RestateService<string, any, any[]>

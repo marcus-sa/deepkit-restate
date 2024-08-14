@@ -10,7 +10,6 @@ import {
   getSagaDataSerializer,
 } from './utils.js';
 import {
-  RestateClientContext,
   RestateObject,
   RestateObjectHandlerRequest,
   RestateRpcOptions,

@@ -1,6 +1,6 @@
 {
   "name": "deepkit-restate",
-  "version": "0.0.41",
+  "version": "0.0.43",
   "license": "MIT",
   "repository": "https://github.com/marcus-sa/deepkit-restate",
   "author": "Marcus S. Abildskov <root@marcus-sa.dev>",
@@ -18,6 +18,11 @@
       "require": "./lib/cjs/src/kafka/index.js",
       "import": "./lib/esm/src/kafka/index.js",
       "types": "./lib/types/src/kafka/index.d.ts"
+    },
+    "./event-server": {
+      "require": "./lib/cjs/src/event/server/index.js",
+      "import": "./lib/esm/src/event/server/index.js",
+      "types": "./lib/types/src/event/server/index.d.ts"
     }
   },
   "files": [
