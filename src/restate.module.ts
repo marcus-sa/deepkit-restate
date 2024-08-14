@@ -35,7 +35,7 @@ import {
 export class RestateModule extends createModule({
   config: RestateConfig,
   forRoot: true,
-}) {
+}, 'restate') {
   readonly services = new InjectorServices();
   readonly objects = new InjectorObjects();
   readonly sagas = new InjectorSagas();
