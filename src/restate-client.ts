@@ -101,7 +101,7 @@ export class RestateSagaClient<Data> {
   }
 }
 
-export class RestateClient implements RestateClientContext {
+export class RestateClient {
   constructor(private readonly opts: RestateIngressClientOptions) {}
 
   service<T extends RestateService<string, any, any[]>>(

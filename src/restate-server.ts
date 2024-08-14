@@ -148,28 +148,25 @@ export class RestateServer {
             type,
           );
         },
-        send: async (...args: readonly any[]): Promise<RestateStatus> => {
+        send: (...args: readonly any[]): restate.CombineablePromise<void> => {
           const [key, { service, method, data }, options] =
             args.length === 1 ? [undefined, ...args] : args;
 
-          try {
-            return await (ctx as any).invokeOneWay(
-              service,
-              method,
-              data,
-              options?.delay,
-              key,
-            );
-          } catch (e) {
+          return (ctx as any).invokeOneWay(
+            service,
+            method,
+            data,
+            options?.delay,
+            key,
+          ).catch((e: Error) => {
             (ctx as any).stateMachine.handleDanglingPromiseError(e);
-            throw e;
-          }
+          });
         },
-        rpc: async <T>(...args: readonly any[]): Promise<T> => {
+        rpc: <T>(...args: readonly any[]): restate.CombineablePromise<T> => {
           const [key, { service, method, data, deserializeReturn, entities }] =
             args.length === 1 ? [undefined, ...args] : args;
 
-          return await (ctx as any).invoke(
+          return (ctx as any).invoke(
             service,
             method,
             data,

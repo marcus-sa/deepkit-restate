@@ -1,6 +1,7 @@
 import { ReceiveType, typeOf } from '@deepkit/type';
 import { ClassType } from '@deepkit/core';
 import {
+  CombineablePromise,
   Context as ServiceContext,
   ObjectContext,
   TerminalError,
@@ -113,19 +114,19 @@ export interface RestateClientContext {
     key: string,
     request: RestateObjectHandlerRequest,
     options?: RestateSendOptions,
-  ): Promise<RestateStatus>;
+  ): CombineablePromise<RestateStatus>;
   // used for services
   send(
     request: RestateServiceHandlerRequest,
     options?: RestateSendOptions,
-  ): Promise<RestateStatus>;
+  ): CombineablePromise<RestateStatus>;
   // used for objects
   rpc<R, A extends any[]>(
     key: string,
     request: RestateObjectHandlerRequest<R, A>,
-  ): Promise<R>;
+  ): CombineablePromise<R>;
   // used for services
-  rpc<R, A extends any[]>(call: RestateServiceHandlerRequest<R, A>): Promise<R>;
+  rpc<R, A extends any[]>(call: RestateServiceHandlerRequest<R, A>): CombineablePromise<R>;
 }
 
 export interface RestateCustomContext extends RestateClientContext {
