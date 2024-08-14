@@ -4,5 +4,4 @@ import { RestateEventServer } from './event-server.js';
 
 export class RestateEventServerModule extends createModule({
   controllers: [RestateEventServer],
-  providers: [RestateEventServer],
 }) {}
