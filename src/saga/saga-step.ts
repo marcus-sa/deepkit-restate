@@ -15,11 +15,12 @@ import { SagaStepOutcome } from './step-outcome.js';
 export class SagaStep<Data> {
   constructor(
     readonly isParticipantInvocation: boolean,
+    readonly actionReplyHandlers: SagaReplyHandlers<Data>,
+    readonly compensationReplyHandlers: SagaReplyHandlers<Data>,
+    // readonly awakeables: SagaStepAwakeable,
     readonly invoke?: Handler<Data, RestateHandlerRequest | void>,
     readonly compensate?: Handler<Data>,
     readonly compensatePredicate?: PredicateFn<Data>,
-    readonly actionReplyHandlers?: SagaReplyHandlers<Data>,
-    readonly compensationReplyHandlers?: SagaReplyHandlers<Data>,
   ) {}
 
   async hasAction(data: Data): Promise<boolean> {
@@ -40,7 +41,7 @@ export class SagaStep<Data> {
       ? this.compensationReplyHandlers
       : this.actionReplyHandlers;
 
-    return replyHandlers?.get(response.typeName!);
+    return replyHandlers.get(response.typeName!);
   }
 
   async createStepOutcome(
@@ -56,13 +57,18 @@ export class SagaStep<Data> {
       );
     } else {
       try {
-        await ctx.run(async () => {
-          if (!compensating) {
-            await this.invoke?.(data);
-          } else {
-            await this.compensate?.(data);
-          }
-        });
+        // await ctx.run(async () => {
+        //   if (!compensating) {
+        //     await this.invoke?.(data);
+        //   } else {
+        //     await this.compensate?.(data);
+        //   }
+        // });
+        if (!compensating) {
+          await this.invoke?.(data);
+        } else {
+          await this.compensate?.(data);
+        }
         return SagaStepOutcome.forLocal();
       } catch (err) {
         return SagaStepOutcome.forLocalWithError(err);

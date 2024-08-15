@@ -1,4 +1,4 @@
-import { TypeClass, TypeObjectLiteral } from '@deepkit/type';
+import { Type, TypeClass, TypeObjectLiteral } from '@deepkit/type';
 
 export type Handler<T, R = any, A extends unknown[] = unknown[]> = AsyncLikeFn<
   [data: T, ...args: A],
@@ -24,3 +24,5 @@ export interface SagaReplyHandler<Data, Reply> {
 }
 
 export type SagaReplyHandlers<Data> = Map<string, SagaReplyHandler<Data, any>>;
+
+export type SagaStepAwakeable = Set<{ readonly id?: string; readonly type?: Type; }>

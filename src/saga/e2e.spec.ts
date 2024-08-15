@@ -61,6 +61,7 @@ test('e2e', async () => {
       .compensate(this.reject)
       .step()
       .invoke(this.create)
+      // .awakeable('test')
       .step()
       .invoke(this.reserveCustomerCredit)
       // .onReply<TerminalError>(this.handleTerminalError)
@@ -69,6 +70,8 @@ test('e2e', async () => {
         this.handleCustomerCreditLimitExceeded,
       )
       .step()
+      // .waitForAwakeable('test')
+      // .step()
       .invoke(this.approve)
       .build();
 

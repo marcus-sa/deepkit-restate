@@ -5,6 +5,7 @@ import { SagaExecutionState } from './saga-execution-state.js';
 import { StepToExecute } from './step-to-execute.js';
 import { SagaInstance } from './saga-instance.js';
 import { SagaActions } from './saga-actions.js';
+import { Saga } from './saga.js';
 import {
   deserializeRestateTerminalErrorType,
   Entity,
@@ -15,7 +16,10 @@ import {
 } from '../types.js';
 
 export class SagaDefinition<Data> {
-  constructor(private readonly steps: readonly SagaStep<Data>[]) {}
+  constructor(
+    private readonly saga: Saga<Data>,
+    private readonly steps: readonly SagaStep<Data>[],
+  ) {}
 
   private async nextStepToExecute(
     { compensating, currentlyExecuting }: SagaExecutionState,
@@ -56,10 +60,21 @@ export class SagaDefinition<Data> {
       : await stepToExecute.executeStep(ctx, sagaData, currentState);
   }
 
+  // private createAwakeables(ctx: RestateSagaContext) {
+  //   for (const step of this.steps) {
+  //     for (const { id, type } of step.awakeables) {
+  //       const awakeable = ctx.awakeable(type);
+  //       const idOrTypeName = type.typeName || id;
+  //       this.saga._awakeables.add({ idOrTypeName, awakeable });
+  //     }
+  //   }
+  // }
+
   async start(
     ctx: RestateSagaContext,
     instance: SagaInstance<Data>,
   ): Promise<SagaActions<Data>> {
+    // this.createAwakeables(ctx);
     return this.executeNextStep(ctx, instance.sagaData, instance.currentState);
   }
 

@@ -13,6 +13,8 @@ import {
 
 export interface BaseStepBuilder<Data> {
   step(): StepBuilder<Data>;
+  // awakeable<T extends string | boolean | number | symbol>(id: string, type?: ReceiveType<T>): this;
+  // awakeable<T>(id?: string, type?: ReceiveType<T>): this;
   build(): SagaDefinition<Data>;
 }
 
@@ -38,6 +40,7 @@ class InvokedStepBuilder<Data>
   private readonly actionReplyHandlers: SagaReplyHandlers<Data> = new Map();
   private readonly compensationReplyHandlers: SagaReplyHandlers<Data> =
     new Map();
+  // private readonly awakeables: SagaStepAwakeable = new Set();
   private compensator?: Handler<Data>;
   private compensationPredictor?: Handler<Data>;
 
@@ -51,11 +54,12 @@ class InvokedStepBuilder<Data>
     this.builder.addStep(
       new SagaStep<Data>(
         this.isParticipantInvocation,
+        this.actionReplyHandlers,
+        this.compensationReplyHandlers,
+        // this.awakeables,
         this.handler?.bind(this.builder.saga),
         this.compensator,
         this.compensationPredictor,
-        this.actionReplyHandlers,
-        this.compensationReplyHandlers,
       ),
     );
   }
@@ -100,10 +104,49 @@ class InvokedStepBuilder<Data>
     this.addStep();
     return this.builder.build();
   }
+
+  // awakeable<T extends string | boolean | number | symbol>(id: string, type?: ReceiveType<T>): this;
+  // awakeable<T>(id?: string, type?: ReceiveType<T>): this {
+  //   type = resolveReceiveType(type);
+  //   this.awakeables.add({ id, type });
+  //   return this;
+  // }
 }
 
 const RETURN_REGEX =
   /(?:function[^{]+|[\w$]+\s*\(.*?\))\s*{[^}]*\breturn\b[^}]*}/;
+
+// export class WaitForAwaitableStepBuilder<Data> {
+//   constructor(
+//     private readonly builder: SagaDefinitionBuilder<Data>,
+//     private readonly id?: string,
+//     private readonly type?: Type,
+//   ) {}
+//
+//   private addStep(): void {
+//     this.builder.addStep(
+//       new SagaStep<Data>(
+//         false,
+//         this.actionReplyHandlers,
+//         this.compensationReplyHandlers,
+//         this.awakeables,
+//         this.handler?.bind(this.builder.saga),
+//         this.compensator,
+//         this.compensationPredictor,
+//       ),
+//     );
+//   }
+//
+//   step(): StepBuilder<Data> {
+//     this.addStep();
+//     return new StepBuilder<Data>(this.builder);
+//   }
+//
+//   build(): SagaDefinition<Data> {
+//     this.addStep();
+//     return this.builder.build();
+//   }
+// }
 
 export class StepBuilder<Data> {
   constructor(private readonly builder: SagaDefinitionBuilder<Data>) {}
@@ -150,4 +193,14 @@ export class StepBuilder<Data> {
       handler,
     );
   }
+
+  // waitForAwakeable<T extends string | boolean | number | symbol>(id: string, type?: ReceiveType<T>): WaitForAwaitableStepBuilder<Data>;
+  // waitForAwakeable<T>(id?: string, type?: ReceiveType<T>): WaitForAwaitableStepBuilder<Data> {
+  //   type = resolveReceiveType(type);
+  //   return new WaitForAwaitableStepBuilder<Data>(
+  //     this.builder,
+  //     id,
+  //     type,
+  //   );
+  // }
 }
