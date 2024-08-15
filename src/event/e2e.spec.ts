@@ -5,8 +5,8 @@ import { RestateModule } from '../restate.module.js';
 import { RestateService } from '../types.js';
 import { restate } from '../decorator.js';
 import { RestateClient } from '../restate-client.js';
-import { RestateEventPublisher } from './publisher.js';
-import { RestateEventServerModule } from './server/module.js';
+import { RestateEventsPublisher } from './publisher.js';
+import { RestateEventsServerModule } from './server/module.js';
 
 test('e2e', async () => {
   class Customer {
@@ -30,7 +30,7 @@ test('e2e', async () => {
 
   @restate.service<CustomerServiceProxy>()
   class CustomerService implements CustomerServiceHandlers {
-    constructor(private readonly events: RestateEventPublisher) {}
+    constructor(private readonly events: RestateEventsPublisher) {}
 
     @restate.handler()
     async create(name: string): Promise<Customer> {
@@ -70,7 +70,7 @@ test('e2e', async () => {
           cluster: 'e2e',
         },
       }),
-      new RestateEventServerModule(),
+      new RestateEventsServerModule(),
     ],
     controllers: [CustomerService, AccountService],
   });

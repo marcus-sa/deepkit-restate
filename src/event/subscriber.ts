@@ -1,11 +1,8 @@
-import { ReceiveType, resolveReceiveType, serializeType } from '@deepkit/type';
-
-import { RestateContextStorage } from '../restate-context-storage.js';
 import { RestateClient } from '../restate-client.js';
-import { EventServerApi, Subscription, Subscriptions } from './types.js';
+import { EventServerApi, Subscriptions } from './types.js';
 import { RestateEventConfig } from './config.js';
 
-export class RestateEventSubscriber {
+export class RestateEventsSubscriber {
   constructor(
     private readonly config: RestateEventConfig,
     private readonly client: RestateClient,

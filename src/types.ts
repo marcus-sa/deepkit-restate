@@ -108,7 +108,14 @@ export interface RestateSaga<Name extends string, Data> {
   readonly data: Data;
 }
 
+export interface RestateAwakeable<T> {
+  readonly id: string;
+  readonly promise: CombineablePromise<T>;
+}
+
 export interface RestateCustomContext {
+  awakeable<T>(type?: ReceiveType<T>): RestateAwakeable<T>;
+  resolveAwakeable<T>(id: string, payload: T, type?: ReceiveType<T>): void;
   // run should only return a value if a generic is provided
   run(action: RestateRunAction<unknown>): Promise<void>;
   run<T>(action: RestateRunAction<T>, type?: ReceiveType<T>): Promise<T>;
@@ -143,6 +150,8 @@ type ContextWithoutClients<T> = Omit<
   | 'objectClient'
   | 'objectSendClient'
   | 'run'
+  | 'resolveAwakeable'
+  | 'awakeable'
 >;
 
 export interface RestateServiceContext

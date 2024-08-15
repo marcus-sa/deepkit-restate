@@ -13,7 +13,7 @@ import { EventServerApi, PublishEvent, PublishOptions } from './types.js';
 import { RestateEventConfig } from './config.js';
 import { MissingTypeName } from './errors.js';
 
-export class RestateEventPublisher {
+export class RestateEventsPublisher {
   constructor(
     private readonly config: RestateEventConfig,
     private readonly contextStorage: RestateContextStorage,

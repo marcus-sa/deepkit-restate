@@ -15,7 +15,7 @@ import {
 const SUBSCRIPTIONS_STATE_KEY = 'subscriptions';
 
 @restate.object<EventServerApi>()
-export class RestateEventServer implements EventServerHandlers {
+export class RestateEventsServer implements EventServerHandlers {
   constructor(private readonly ctx: RestateObjectContext) {}
 
   async #getSubscriptions(): Promise<Subscriptions> {

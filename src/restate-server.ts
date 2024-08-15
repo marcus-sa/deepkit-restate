@@ -2,6 +2,7 @@ import { eventDispatcher } from '@deepkit/event';
 import { onServerMainBootstrap } from '@deepkit/framework';
 import { InjectorContext } from '@deepkit/injector';
 import * as restate from '@restatedev/restate-sdk';
+import { getBSONDeserializer, getBSONSerializer } from '@deepkit/bson';
 import {
   deserialize,
   hasTypeInformation,
@@ -15,7 +16,7 @@ import {
 
 import { SagaManager } from './saga/saga-manager.js';
 import { SAGA_STATE_KEY } from './saga/saga-instance.js';
-import { RestateEventSubscriber } from './event/subscriber.js';
+import { RestateEventsSubscriber } from './event/subscriber.js';
 import { Subscriptions } from './event/types.js';
 import { InjectorService, InjectorServices } from './services.js';
 import { InjectorObject, InjectorObjects } from './objects.js';
@@ -26,6 +27,7 @@ import { decodeRestateServiceMethodResponse, invokeOneWay } from './utils.js';
 import { RestateAdminClient } from './restate-admin-client.js';
 import { RestateContextStorage } from './restate-context-storage.js';
 import {
+  RestateAwakeable,
   RestateObjectContext,
   restateObjectContextType,
   RestateRunAction,
@@ -104,7 +106,7 @@ export class RestateServer {
   }
 
   private async addEventHandlerSubscriptions() {
-    const events = this.injectorContext.get(RestateEventSubscriber);
+    const events = this.injectorContext.get(RestateEventsSubscriber);
     let subscriptions: Subscriptions = [];
     for (const { metadata } of [...this.services, ...this.objects]) {
       for (const handler of metadata.handlers) {
@@ -146,6 +148,23 @@ export class RestateServer {
         objectClient: undefined,
         workflowClient: undefined,
         workflowSendClient: undefined,
+        resolveAwakeable<T>(id: string, payload?: T, type?: ReceiveType<T>) {
+          type = resolveReceiveType(type);
+          const serialize = getBSONSerializer(undefined, type);
+          ctx.resolveAwakeable(id, Array.from(serialize(payload)));
+        },
+        awakeable<T>(type?: ReceiveType<T>): RestateAwakeable<T> {
+          type = resolveReceiveType(type);
+          const awakeable = ctx.awakeable<readonly uint8[]>();
+          const deserialize = getBSONDeserializer<T>(undefined, type);
+          const promise = awakeable.promise.then(bytes =>
+            deserialize(new Uint8Array(bytes)),
+          );
+          return {
+            id: awakeable.id,
+            promise,
+          } as RestateAwakeable<T>;
+        },
         // TypeError: Cannot read properties of undefined (reading 'kind')
         //   at ReflectionTransformer.getArrowFunctionΩPropertyAccessIdentifier
         // run: async <T>(action: RestateRunAction<T>, type?: ReceiveType<T>): Promise<T> => {
@@ -156,27 +175,15 @@ export class RestateServer {
           try {
             type = resolveReceiveType(type);
           } catch {}
-          // TODO: serialize using bson instead when https://github.com/restatedev/sdk-typescript/issues/410 is implemented
+          // TODO: https://github.com/restatedev/sdk-typescript/issues/410
           const result = await ctx.run(async () => {
             const result = await action();
-            if (!type) return void 0;
-            return serialize(
-              result,
-              { loosely: false },
-              undefined,
-              undefined,
-              type,
-            );
+            if (!type || !result) return;
+            return getBSONSerializer(undefined, type)(result);
           });
           // @ts-ignore
-          if (!type) return void 0;
-          return deserialize(
-            result,
-            { loosely: false },
-            undefined,
-            undefined,
-            type,
-          );
+          if (!type || !result) return;
+          return getBSONDeserializer(undefined, type)(result);
         },
         send: (...args: readonly any[]): restate.CombineablePromise<void> => {
           const [key, { service, method, data }, options] =
