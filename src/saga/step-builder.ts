@@ -114,7 +114,7 @@ class InvokedStepBuilder<Data>
 }
 
 const RETURN_REGEX =
-  /(?:function[^{]+|[\w$]+\s*\(.*?\))\s*{[^}]*\breturn\b[^}]*}/;
+  /(?:function\s*[^(]*\([^)]*\)|[\w$]+\s*\([^)]*\))\s*{(?:[^{}]*{[^{}]*})*[^{}]*\breturn\b[\s\S]*?}/;
 
 // export class WaitForAwaitableStepBuilder<Data> {
 //   constructor(

@@ -84,6 +84,7 @@ export class SagaDefinition<Data> {
     sagaData: Data,
     request: RestateHandlerRequest,
     response: RestateHandlerResponse,
+    afterHandler?: () => void,
   ): Promise<SagaActions<Data>> {
     const currentStep = this.steps[state.currentlyExecuting];
     if (!currentStep) {
@@ -95,6 +96,7 @@ export class SagaDefinition<Data> {
     if (reply) {
       const replyData = this.deserializeReply(request, response);
       await reply.handler(sagaData, replyData);
+      afterHandler?.();
     }
 
     return await this.handleActions(ctx, state, sagaData, response.success);
@@ -126,11 +128,11 @@ export class SagaDefinition<Data> {
     success: boolean,
   ): Promise<SagaActions<Data>> {
     if (success) {
-      return this.executeNextStep(ctx, sagaData, state);
+      return await this.executeNextStep(ctx, sagaData, state);
     } else if (state.compensating) {
       throw new TerminalError('Failure when compensating');
     } else {
-      return this.executeNextStep(ctx, sagaData, state.startCompensating());
+      return await this.executeNextStep(ctx, sagaData, state.startCompensating());
     }
   }
 }
