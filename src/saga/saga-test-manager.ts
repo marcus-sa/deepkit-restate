@@ -83,7 +83,9 @@ export class SagaTestManager<D, S extends Saga<D>> extends SagaManager<D> {
     const handler= instance.currentState.compensating
       ? this.compensators[instance.currentState.currentlyExecuting]
       : this.invokers[instance.currentState.currentlyExecuting];
-    if (!handler) return success();
+    if (!handler) {
+      throw new Error(`Missing mock for step at index ${instance.currentState.currentlyExecuting}`);
+    }
     try {
       return handler.mock(instance.sagaData);
     } finally {
