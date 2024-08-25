@@ -133,7 +133,7 @@ export class SagaManager<Data> {
 
     const actions = await this.saga.definition.start(this.ctx, instance);
 
-    await this.processActions(instance, actions);
+    void this.processActions(instance, actions);
 
     return instance;
   }
