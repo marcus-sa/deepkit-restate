@@ -15,7 +15,7 @@ export class SagaStepOutcome {
     return new SagaStepOutcome(true, undefined, error);
   }
 
-  static forParticipant(request: RestateHandlerRequest): SagaStepOutcome {
+  static forParticipant(request?: RestateHandlerRequest): SagaStepOutcome {
     return new SagaStepOutcome(false, request);
   }
 }

@@ -94,9 +94,7 @@ export class SagaDefinition<Data> {
     const reply = currentStep.getReply(response, state.compensating);
     if (reply) {
       const replyData = this.deserializeReply(request, response);
-      await ctx.run(async () => {
-        await reply.handler(sagaData, replyData);
-      });
+      await reply.handler(sagaData, replyData);
     }
 
     return await this.handleActions(ctx, state, sagaData, response.success);
