@@ -140,9 +140,14 @@ export function getSagaDataSerializer(sagaType: Type): BSONSerializer {
   return getBSONSerializer(bsonBinarySerializer, dataType);
 }
 
-export function getSagaDataType(sagaType: Type): TypeObjectLiteral {
+export function getSagaDataType(sagaType: Type): TypeObjectLiteral | TypeClass {
   const typeArgument = getTypeArgument(sagaType, 1);
-  assertType(typeArgument, ReflectionKind.objectLiteral);
+  if (
+    typeArgument?.kind !== ReflectionKind.objectLiteral &&
+    typeArgument?.kind !== ReflectionKind.class
+  ) {
+    throw new Error('Invalid saga data type');
+  }
   return typeArgument;
 }
 
