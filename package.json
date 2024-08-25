@@ -36,8 +36,8 @@
     "prepublish": "pnpm build"
   },
   "dependencies": {
-    "@restatedev/restate-sdk": "1.2.0",
-    "@restatedev/restate-sdk-clients": "1.2.0",
+    "@restatedev/restate-sdk": "1.2.1",
+    "@restatedev/restate-sdk-clients": "1.2.1",
     "tslib": "^2.6.3"
   },
   "peerDependencies": {

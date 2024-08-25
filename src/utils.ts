@@ -6,7 +6,7 @@ import {
   BSONDeserializer,
   BSONSerializer,
   getBSONDeserializer,
-  getBSONSerializer,
+  getBSONSerializer, serializeBSON,
 } from '@deepkit/bson';
 import {
   assertType,
@@ -41,7 +41,7 @@ import {
   restateObjectType,
   restateSagaType,
   RestateService,
-  restateServiceType,
+  restateServiceType, serializeRestateHandlerResponse,
 } from './types.js';
 
 export function getRestateClassDeps(classType: ClassType): readonly Type[] {
@@ -373,4 +373,36 @@ export function invokeOneWay<T>(
     .catch((e: Error) => {
       ctx.stateMachine.handleDanglingPromiseError(e);
     });
+}
+
+export function success<T>(reply?: T, type?: ReceiveType<T>) {
+  if (reply) {
+    type = resolveReceiveType(type);
+    return serializeRestateHandlerResponse({
+      success: true,
+      data: serializeBSON(reply, undefined, type),
+      typeName: type.typeName,
+    });
+  }
+
+  return serializeRestateHandlerResponse({
+    success: true,
+    data: new Uint8Array([]),
+  });
+}
+
+export function failure<T>(reply?: T, type?: ReceiveType<T>) {
+  if (reply) {
+    type = resolveReceiveType(type);
+    return serializeRestateHandlerResponse({
+      success: false,
+      data: serializeBSON(reply, undefined, type),
+      typeName: type.typeName,
+    });
+  }
+
+  return serializeRestateHandlerResponse({
+    success: false,
+    data: new Uint8Array([]),
+  });
 }

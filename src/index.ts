@@ -5,6 +5,12 @@ export { RestateClient } from './restate-client.js';
 export { RestateConfig } from './config.js';
 export { RestateContextStorage } from './restate-context-storage.js';
 export {
+  success,
+  failure,
+  createClassProxy,
+  getRestateSagaMetadata,
+  getRestateServiceMetadata,
+  getRestateObjectMetadata,
   provideRestateServiceProxy,
   provideRestateObjectProxy,
 } from './utils.js';

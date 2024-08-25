@@ -41,11 +41,11 @@ importers:
         specifier: ^1.0.1-alpha.153
         version: 1.0.1-alpha.153(@deepkit/core@1.0.1-alpha.147)
       '@restatedev/restate-sdk':
-        specifier: 1.2.0
-        version: 1.2.0
+        specifier: 1.2.1
+        version: 1.2.1
       '@restatedev/restate-sdk-clients':
-        specifier: 1.2.0
-        version: 1.2.0
+        specifier: 1.2.1
+        version: 1.2.1
       kafkajs:
         specifier: ^2.2.4
         version: 2.2.4
@@ -645,16 +645,16 @@ packages:
     resolution: {integrity: sha512-oGB+UxlgWcgQkgwo8GcEGwemoTFt3FIO9ababBmaGwXIoBKZ+GTy0pP185beGg7Llih/NSHSV2XAs1lnznocSg==}
     engines: {node: '>= 8'}
 
-  '@restatedev/restate-sdk-clients@1.2.0':
-    resolution: {integrity: sha512-lP1HNJZ4YPuGiOtImr4b+hBCvCSNZerNIL/8kykYRTmBZgjYjNl5JQWtzk/yHHR2kA8EdULZ9VwPums66NFb5Q==}
+  '@restatedev/restate-sdk-clients@1.2.1':
+    resolution: {integrity: sha512-PSp46afYBsrMDiarQLsIzDLdjGkr7WyJTY+lvyJeAibrM9okxtzUAhiH/IsEelYeRg2GqMtHytsfsR2iGIKnEg==}
     engines: {node: '>= 18'}
 
-  '@restatedev/restate-sdk-core@1.2.0':
-    resolution: {integrity: sha512-mKiX8iQWHqY+B+rAJIvhniIIND3p33LKSLfiF12NsDgsxnIjc6wUOj4oja9v+p9E7SuXkH/M6L2qKpKntT/bmw==}
+  '@restatedev/restate-sdk-core@1.2.1':
+    resolution: {integrity: sha512-aLPtiUXd4slGcEtSiVHS39ygg7bd8xdumUw9BO0gYbpRwTmcWpVwm/gVQBKnETdb8c/76ndwRx4BLE8tpXae6Q==}
     engines: {node: '>= 18'}
 
-  '@restatedev/restate-sdk@1.2.0':
-    resolution: {integrity: sha512-NCfp5qg7hNzS4jSUHCii1wq8UaiBr50rhfFXh86SX1acQYSb3rCZLZOVx/FMOelLjqTzPdoaY5h5RP8H35918g==}
+  '@restatedev/restate-sdk@1.2.1':
+    resolution: {integrity: sha512-fR9L9Fk8Ji8MW98kr9kQt/HMWUqWkzSrZugLrUAi3jUMI/2CZHB9fDzOGRMqaRqqn8Ue4DkkasSJrWI4ITFNFA==}
     engines: {node: '>= 18'}
 
   '@rollup/pluginutils@5.1.0':
@@ -2496,16 +2496,16 @@ snapshots:
       '@nodelib/fs.scandir': 2.1.5
       fastq: 1.17.1
 
-  '@restatedev/restate-sdk-clients@1.2.0':
+  '@restatedev/restate-sdk-clients@1.2.1':
     dependencies:
-      '@restatedev/restate-sdk-core': 1.2.0
+      '@restatedev/restate-sdk-core': 1.2.1
 
-  '@restatedev/restate-sdk-core@1.2.0': {}
+  '@restatedev/restate-sdk-core@1.2.1': {}
 
-  '@restatedev/restate-sdk@1.2.0':
+  '@restatedev/restate-sdk@1.2.1':
     dependencies:
       '@bufbuild/protobuf': 1.10.0
-      '@restatedev/restate-sdk-core': 1.2.0
+      '@restatedev/restate-sdk-core': 1.2.1
 
   '@rollup/pluginutils@5.1.0(rollup@4.20.0)':
     dependencies:
