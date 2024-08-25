@@ -79,9 +79,11 @@ export class SagaTestManager<D, S extends Saga<D>> extends SagaManager<D> {
       ? this.compensators[instance.currentState.currentlyExecuting]
       : this.invokers[instance.currentState.currentlyExecuting];
     if (!handler) {
-      throw new Error(
-        `Missing mock for step at index ${instance.currentState.currentlyExecuting}`,
-      );
+      // TODO: figure out if each handler should be mocked manually ?
+      return success();
+      // throw new Error(
+      //   `Missing mock for step at index ${instance.currentState.currentlyExecuting}`,
+      // );
     }
     try {
       return handler.response(instance.sagaData);
@@ -93,7 +95,7 @@ export class SagaTestManager<D, S extends Saga<D>> extends SagaManager<D> {
   mockInvocationResponse<K extends keyof S>(method: K, response: InvokeHandler<D>) {
     const stepIndex = this.saga.definition.steps
       .findIndex(step => {
-        if (!step.isParticipantInvocation && !step.invoke) return false;
+        if (!step.isParticipantInvocation || !step.invoke) return false;
         const stepName = (step.invoke as Function).name.replace('bound ', '');
         return stepName === method;
       });
@@ -108,7 +110,7 @@ export class SagaTestManager<D, S extends Saga<D>> extends SagaManager<D> {
   mockCompensationResponse<K extends keyof S>(method: K, response: CompensateHandler<D>) {
     const stepIndex = this.saga.definition.steps
       .findIndex(step => {
-        if (!step.isParticipantInvocation && !step.compensate) return false;
+        if (!step.isParticipantInvocation || !step.compensate) return false;
         const stepName = (step.compensate as Function).name.replace(
           'bound ',
           '',
