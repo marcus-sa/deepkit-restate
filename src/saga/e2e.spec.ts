@@ -1,12 +1,37 @@
 import { float, UUID, uuid } from '@deepkit/type';
 import { sleep } from '@deepkit/core';
 import { createTestingApp } from '@deepkit/framework';
+import { Mock, vi, test, expect } from 'vitest';
 
-import { Saga } from './saga.js';
 import { restate } from '../decorator.js';
-import { RestateSaga, RestateService } from '../types.js';
+import { getRestateSagaMetadata } from '../utils.js';
+import {
+  RestateRunAction,
+  RestateSaga,
+  RestateSagaContext,
+  RestateService,
+} from '../types.js';
 import { RestateModule } from '../restate.module.js';
 import { RestateClient } from '../restate-client.js';
+import { Saga } from './saga.js';
+import { SagaManager } from './saga-manager.js';
+
+interface RestateTestContext extends RestateSagaContext {
+  invoke: Mock<(...args: any[]) => any>;
+  run: (action: RestateRunAction<any>) => Promise<any>;
+}
+
+function createTestContext(): RestateTestContext {
+  const store = new Map();
+
+  return {
+    store,
+    invoke: vi.fn(),
+    set: async (key, value) => store.set(key, value),
+    get: async key => store.get(key),
+    run: async (action: RestateRunAction<any>) => action(),
+  } as RestateTestContext;
+}
 
 test('e2e', async () => {
   class CustomerNotFound {}
@@ -155,4 +180,112 @@ test('e2e', async () => {
 
   // const endStatus = await createOrderSaga.status(orderId);
   // console.log({ endStatus });
+});
+
+test('compensation', async () => {
+  interface WithCompensationSagaData {}
+
+  type WithCompensationSagaApi = RestateSaga<
+    'WithCompensation',
+    WithCompensationSagaData
+  >;
+
+  const compensate1 = vi.fn();
+
+  @restate.saga<WithCompensationSagaApi>()
+  class WithCompensationSaga extends Saga<WithCompensationSagaData> {
+    readonly definition = this.step()
+      .invoke(this.invoke1)
+      .compensate(compensate1)
+      .step()
+      .invoke(this.invoke2)
+      .build();
+
+    invoke1() {}
+
+    invoke2() {
+      throw new Error();
+    }
+  }
+
+  const saga = new WithCompensationSaga();
+
+  const metadata = getRestateSagaMetadata(WithCompensationSaga)!;
+
+  const ctx = createTestContext();
+
+  const manager = new SagaManager(ctx, saga, metadata);
+
+  await manager.start({});
+
+  expect(compensate1).toHaveBeenCalled();
+});
+
+test('compensation 2', async () => {
+  interface WithCompensationSagaData {}
+
+  type WithCompensationSagaApi = RestateSaga<
+    'WithCompensation',
+    WithCompensationSagaData
+  >;
+
+  const compensate1 = vi.fn();
+
+  @restate.saga<WithCompensationSagaApi>()
+  class WithCompensationSaga extends Saga<WithCompensationSagaData> {
+    readonly definition = this.step()
+      .invoke(this.invoke1)
+      .compensate(compensate1)
+      .build();
+
+    invoke1() {
+      throw new Error();
+    }
+  }
+
+  const saga = new WithCompensationSaga();
+
+  const metadata = getRestateSagaMetadata(WithCompensationSaga)!;
+
+  const ctx = createTestContext();
+
+  const manager = new SagaManager(ctx, saga, metadata);
+
+  await manager.start({});
+
+  expect(compensate1).not.toHaveBeenCalled();
+});
+
+test('reply', async () => {
+  interface WithReplySagaData {}
+
+  type WithReplySagaApi = RestateSaga<'WithReply', WithReplySagaData>;
+
+  const invoke = vi.fn();
+
+  const reply1 = vi.fn();
+
+  class Reply {
+    constructor(public readonly id: UUID) {}
+  }
+
+  @restate.saga<WithReplySagaApi>()
+  class WithReplySaga extends Saga<WithReplySagaData> {
+    readonly definition = this.step()
+      .invoke(invoke)
+      .onReply<Reply>(reply1)
+      .build();
+  }
+
+  const saga = new WithReplySaga();
+
+  const metadata = getRestateSagaMetadata(WithReplySaga)!;
+
+  const ctx = createTestContext();
+
+  const manager = new SagaManager(ctx, saga, metadata);
+
+  ctx.invoke.mockImplementationOnce(() => success<Reply>(new Reply(uuid())));
+
+  expect(reply1).toHaveBeenCalled();
 });

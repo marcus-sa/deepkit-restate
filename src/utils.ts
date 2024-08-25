@@ -332,11 +332,11 @@ export function getRestateObjectMetadata(
   return metadata?.name ? metadata : undefined;
 }
 
-export function getRestateSagaMetadata(
+export function getRestateSagaMetadata<T>(
   classType: ClassType,
-): RestateSagaMetadata | undefined {
+): RestateSagaMetadata<T> | undefined {
   const metadata = restateSagaDecorator._fetch(classType);
-  return metadata?.name ? metadata : undefined;
+  return metadata?.name ? metadata as RestateSagaMetadata<T> : undefined;
 }
 
 export function assertValidKafkaTopicName(topicName: string): void {

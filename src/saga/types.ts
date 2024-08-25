@@ -25,4 +25,7 @@ export interface SagaReplyHandler<Data, Reply> {
 
 export type SagaReplyHandlers<Data> = Map<string, SagaReplyHandler<Data, any>>;
 
-export type SagaStepAwakeable = Set<{ readonly id?: string; readonly type?: Type; }>
+export type SagaStepAwakeable = Set<{
+  readonly id?: string;
+  readonly type?: Type;
+}>;

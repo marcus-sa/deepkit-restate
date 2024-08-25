@@ -16,11 +16,12 @@ import {
 export class SagaManager<Data> {
   constructor(
     private readonly ctx: RestateSagaContext,
-    private readonly saga: Saga<Data>,
+    readonly saga: Saga<Data>,
     private readonly metadata: RestateSagaMetadata<Data>,
   ) {}
 
-  private async invokeParticipant(
+  protected async invokeParticipant(
+    instance: SagaInstance<Data>,
     { service, method, data }: RestateHandlerRequest,
     // TODO: this has not yet been implemented
     key?: string,
@@ -35,6 +36,7 @@ export class SagaManager<Data> {
         (response: Uint8Array) => deserializeRestateHandlerResponse(response),
       );
     } catch (err: unknown) {
+      // TODO: should terminal errors stop execution?
       if (err instanceof TerminalError) {
         return {
           success: false,
@@ -47,22 +49,20 @@ export class SagaManager<Data> {
     }
   }
 
-  private async performEndStateActions(
+  protected async performEndStateActions(
     compensating: boolean,
     sagaData: Data,
   ): Promise<void> {
-    if (compensating) {
-      await this.ctx.run(async () => {
+    await this.ctx.run(async () => {
+      if (compensating) {
         await this.saga.onSagaRolledBack?.(this.ctx.key, sagaData);
-      });
-    } else {
-      await this.ctx.run(async () => {
+      } else {
         await this.saga.onSagaCompletedSuccessfully?.(this.ctx.key, sagaData);
-      });
-    }
+      }
+    });
   }
 
-  private async processActions(
+  protected async processActions(
     instance: SagaInstance<Data>,
     actions: SagaActions<Data>,
   ): Promise<void> {
@@ -94,6 +94,7 @@ export class SagaManager<Data> {
 
         if (actions.stepOutcome?.request) {
           const response = await this.invokeParticipant(
+            instance,
             actions.stepOutcome.request,
           );
           actions = await this.saga.definition.handleReply(

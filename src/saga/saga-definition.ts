@@ -18,7 +18,7 @@ import {
 export class SagaDefinition<Data> {
   constructor(
     private readonly saga: Saga<Data>,
-    private readonly steps: readonly SagaStep<Data>[],
+    readonly steps: readonly SagaStep<Data>[],
   ) {}
 
   private async nextStepToExecute(
