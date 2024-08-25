@@ -37,11 +37,12 @@ import {
   deserializeRestateHandlerResponse,
   Entities,
   RestateHandlerRequest,
+  RestateHandlerResponse,
   RestateObject,
   restateObjectType,
   restateSagaType,
   RestateService,
-  restateServiceType, serializeRestateHandlerResponse,
+  restateServiceType,
 } from './types.js';
 
 export function getRestateClassDeps(classType: ClassType): readonly Type[] {
@@ -380,34 +381,34 @@ export function invokeOneWay<T>(
     });
 }
 
-export function success<T>(reply?: T, type?: ReceiveType<T>) {
+export function success<T>(reply?: T, type?: ReceiveType<T>): RestateHandlerResponse {
   if (reply) {
     type = resolveReceiveType(type);
-    return serializeRestateHandlerResponse({
+    return {
       success: true,
       data: serializeBSON(reply, undefined, type),
       typeName: type.typeName,
-    });
+    };
   }
 
-  return serializeRestateHandlerResponse({
+  return {
     success: true,
     data: new Uint8Array([]),
-  });
+  };
 }
 
-export function failure<T>(reply?: T, type?: ReceiveType<T>) {
+export function failure<T>(reply?: T, type?: ReceiveType<T>): RestateHandlerResponse {
   if (reply) {
     type = resolveReceiveType(type);
-    return serializeRestateHandlerResponse({
+    return {
       success: false,
       data: serializeBSON(reply, undefined, type),
       typeName: type.typeName,
-    });
+    };
   }
 
-  return serializeRestateHandlerResponse({
+  return {
     success: false,
     data: new Uint8Array([]),
-  });
+  };
 }
