@@ -139,7 +139,53 @@ export class SagaTestManager<D, S extends Saga<D>> extends SagaManager<D> {
     }
   }
 
-  assertHandlersHaveBeenCalled() {
+  waitForInvocationToHaveBeenCalled<K extends keyof S>(method: K, timeout: number = 1000): Promise<void> {
+     return new Promise((resolve, reject) => {
+       let wait = true;
+
+       setTimeout(() => {
+         wait = false;
+         reject();
+       }, timeout);
+
+       const invoker = this.invokers.find(invoker => invoker.name === method);
+       if (!invoker) {
+         throw new Error(`Unable to find invoke method ${method as string}`);
+       }
+
+       while (wait) {
+         if (invoker?.called) {
+           wait = false;
+           resolve();
+         }
+       }
+     });
+  }
+
+  waitForCompensationToHaveBeenCalled<K extends keyof S>(method: K, timeout: number = 1000): Promise<void> {
+    return new Promise((resolve, reject) => {
+      let wait = true;
+
+      setTimeout(() => {
+        wait = false;
+        reject();
+      }, timeout);
+
+      const compensator = this.compensators.find(compensator => compensator.name === method);
+      if (!compensator) {
+        throw new Error(`Unable to find compensate method ${method as string}`);
+      }
+
+      while (wait) {
+        if (compensator?.called) {
+          wait = false;
+          resolve();
+        }
+      }
+    });
+  }
+
+  assertMocksHaveBeenCalled() {
     for (const handler of this.invokers) {
       if (!handler.called) {
         throw new Error(`Invoke handler ${handler.name} wasn't called`);
