@@ -1,6 +1,6 @@
 import { ClassType } from '@deepkit/core';
 
-import { getRestateSagaMetadata, success } from '../utils.js';
+import { getRestateSagaMetadata, waitUntil } from '../utils.js';
 import { SagaExecutionState } from './saga-execution-state.js';
 import { SagaManager } from './saga-manager.js';
 import { Saga } from './saga.js';
@@ -10,7 +10,6 @@ import {
   RestateHandlerResponse,
   RestateSagaContext,
 } from '../types.js';
-import { RestateSagaMetadata } from '../decorator.js';
 
 type ReplyHandler<Data> = (data: Data, state: SagaExecutionState) => void;
 
@@ -40,37 +39,34 @@ export class SagaTestManager<D, S extends Saga<D>> extends SagaManager<D> {
 
     const origHandleReply = saga.definition.handleReply.bind(saga.definition);
 
-    const definition = Object.assign(
-      saga.definition,
-      {
-        handleReply: async (
-          ctx: RestateSagaContext,
-          state: SagaExecutionState,
-          data: D,
-          request: RestateHandlerRequest,
-          response: RestateHandlerResponse,
-        ) => {
-          const actions = await origHandleReply(
-            ctx,
-            state,
-            data,
-            request,
-            response,
-          );
-          if (response.typeName) {
-            const reply = this.replies.get(response.typeName);
-            if (reply) {
-              try {
-                reply.assert(data, state);
-              } finally {
-                reply.called = true;
-              }
+    const definition = Object.assign(saga.definition, {
+      handleReply: async (
+        ctx: RestateSagaContext,
+        state: SagaExecutionState,
+        data: D,
+        request: RestateHandlerRequest,
+        response: RestateHandlerResponse,
+      ) => {
+        const actions = await origHandleReply(
+          ctx,
+          state,
+          data,
+          request,
+          response,
+        );
+        if (response.typeName) {
+          const reply = this.replies.get(response.typeName);
+          if (reply) {
+            try {
+              reply.assert(data, state);
+            } finally {
+              reply.called = true;
             }
           }
-          return actions;
-        },
+        }
+        return actions;
       },
-    );
+    });
     Object.assign(saga, { definition });
 
     super(ctx, saga, metadata);
@@ -80,11 +76,13 @@ export class SagaTestManager<D, S extends Saga<D>> extends SagaManager<D> {
     instance: SagaInstance<D>,
     { service, method, data }: RestateHandlerRequest,
   ): Promise<RestateHandlerResponse> {
-    const handler= instance.currentState.compensating
+    const handler = instance.currentState.compensating
       ? this.compensators[instance.currentState.currentlyExecuting]
       : this.invokers[instance.currentState.currentlyExecuting];
     if (!handler) {
-      throw new Error(`Missing mock for step at index ${instance.currentState.currentlyExecuting}`);
+      throw new Error(
+        `Missing mock for step at index ${instance.currentState.currentlyExecuting}`,
+      );
     }
     try {
       return handler.mock(instance.sagaData);
@@ -108,14 +106,14 @@ export class SagaTestManager<D, S extends Saga<D>> extends SagaManager<D> {
     this.invokers[stepIndex] = { mock, name: method as string, called: false };
   }
 
-  mockCompensation<K extends keyof S>(
-    method: K,
-    mock: CompensateHandler<D>,
-  ) {
+  mockCompensation<K extends keyof S>(method: K, mock: CompensateHandler<D>) {
     const stepIndex = this.saga.definition.steps
       .filter(step => step.isParticipantInvocation && step.compensate)
       .findIndex(step => {
-        const stepName = (step.compensate as Function).name.replace('bound ', '');
+        const stepName = (step.compensate as Function).name.replace(
+          'bound ',
+          '',
+        );
         return stepName === method;
       });
 
@@ -123,12 +121,19 @@ export class SagaTestManager<D, S extends Saga<D>> extends SagaManager<D> {
       throw new Error(`Unable to find compensate step ${method as string}`);
     }
 
-    this.compensators[stepIndex] = { mock, name: method as string, called: false };
+    this.compensators[stepIndex] = {
+      mock,
+      name: method as string,
+      called: false,
+    };
   }
 
   assertReply<K extends keyof S>(method: K, assert: ReplyHandler<D>) {
     for (const step of this.saga.definition.steps) {
-      const handlers = [...step.actionReplyHandlers.values(), ...step.compensationReplyHandlers.values()];
+      const handlers = [
+        ...step.actionReplyHandlers.values(),
+        ...step.compensationReplyHandlers.values(),
+      ];
 
       const handler = handlers.find(handler => {
         const handlerName = handler.handler.name.replace('bound ', '');
@@ -136,55 +141,37 @@ export class SagaTestManager<D, S extends Saga<D>> extends SagaManager<D> {
       });
 
       if (handler) {
-        this.replies.set(handler.type.typeName!, { name: method as string, called: false, assert });
+        this.replies.set(handler.type.typeName!, {
+          name: method as string,
+          called: false,
+          assert,
+        });
       }
     }
   }
 
-  waitForInvocationToHaveBeenCalled<K extends keyof S>(method: K, timeout: number = 1000): Promise<void> {
-     return new Promise((resolve, reject) => {
-       let wait = true;
-
-       setTimeout(() => {
-         wait = false;
-         reject();
-       }, timeout);
-
-       const invoker = this.invokers.find(invoker => invoker.name === method);
-       if (!invoker) {
-         throw new Error(`Unable to find invoke method ${method as string}`);
-       }
-
-       while (wait) {
-         if (invoker?.called) {
-           wait = false;
-           resolve();
-         }
-       }
-     });
+  async waitForInvocationToHaveBeenCalled<K extends keyof S>(
+    method: K,
+    timeout: number = 1000,
+  ): Promise<void> {
+    const invoker = this.invokers.find(invoker => invoker.name === method);
+    if (!invoker) {
+      throw new Error(`Unable to find invoke method ${method as string}`);
+    }
+    await waitUntil(() => !!invoker?.called, timeout);
   }
 
-  waitForCompensationToHaveBeenCalled<K extends keyof S>(method: K, timeout: number = 1000): Promise<void> {
-    return new Promise((resolve, reject) => {
-      let wait = true;
-
-      setTimeout(() => {
-        wait = false;
-        reject();
-      }, timeout);
-
-      const compensator = this.compensators.find(compensator => compensator.name === method);
-      if (!compensator) {
-        throw new Error(`Unable to find compensate method ${method as string}`);
-      }
-
-      while (wait) {
-        if (compensator?.called) {
-          wait = false;
-          resolve();
-        }
-      }
-    });
+  async waitForCompensationToHaveBeenCalled<K extends keyof S>(
+    method: K,
+    timeout: number = 1000,
+  ): Promise<void> {
+    const compensator = this.compensators.find(
+      compensator => compensator.name === method,
+    );
+    if (!compensator) {
+      throw new Error(`Unable to find compensate method ${method as string}`);
+    }
+    await waitUntil(() => !!compensator?.called, timeout);
   }
 
   assertMocksHaveBeenCalled() {
@@ -205,4 +192,3 @@ export class SagaTestManager<D, S extends Saga<D>> extends SagaManager<D> {
     }
   }
 }
-

@@ -1,4 +1,4 @@
-import { ClassType } from '@deepkit/core';
+import { ClassType, sleep } from '@deepkit/core';
 import { CombineablePromise, TerminalError } from '@restatedev/restate-sdk';
 import { FactoryProvider } from '@deepkit/injector';
 import {
@@ -411,4 +411,23 @@ export function failure<T>(reply?: T, type?: ReceiveType<T>): RestateHandlerResp
     success: false,
     data: new Uint8Array([]),
   };
+}
+
+export function waitUntil(predicate: () => boolean, timeout: number = 1000): Promise<void> {
+  return new Promise(async (resolve, reject) => {
+    let wait = true;
+
+    setTimeout(() => {
+      wait = false;
+      reject(new Error(`Timeout ${timeout}ms exceeded`));
+    }, timeout);
+
+    while (wait) {
+      if (predicate()) {
+        wait = false;
+        resolve();
+      }
+      await sleep(0);
+    }
+  });
 }
