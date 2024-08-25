@@ -149,6 +149,12 @@ export class SagaTestManager<D, S extends Saga<D>> extends SagaManager<D> {
     }
   }
 
+  // TODO
+  // runAfterCompensation() {}
+
+  // TODO
+  // runAfterInvocation() {}
+
   async waitForInvocationToHaveBeenCalled<K extends keyof S>(
     method: K,
     timeout: number = 1000,

@@ -3,7 +3,7 @@ export { RestateModule } from './restate.module.js';
 export { RestateAdminClient } from './restate-admin-client.js';
 export { RestateClient } from './restate-client.js';
 export { RestateConfig } from './config.js';
-export { RestateContextStorage } from './restate-context-storage.js';
+export { RestateContextStorage, RestateInMemoryContext } from './restate-context-storage.js';
 export {
   success,
   failure,

@@ -116,6 +116,7 @@ export interface RestateAwakeable<T> {
 export interface RestateCustomContext {
   awakeable<T>(type?: ReceiveType<T>): RestateAwakeable<T>;
   resolveAwakeable<T>(id: string, payload: T, type?: ReceiveType<T>): void;
+  rejectAwakeable(id: string, reason: string): void;
   // run should only return a value if a generic is provided
   run(action: RestateRunAction<unknown>): Promise<void>;
   run<T>(action: RestateRunAction<T>, type?: ReceiveType<T>): Promise<T>;

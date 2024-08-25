@@ -10,7 +10,7 @@ import { InjectorSagas } from './sagas.js';
 import { RestateServer } from './restate-server.js';
 import { RestateEventModule } from './event/module.js';
 import {
-  NoopRestateContextStorage,
+  RestateInMemoryContextStorage,
   RestateContextStorage,
 } from './restate-context-storage.js';
 import {
@@ -68,7 +68,7 @@ export class RestateModule extends createModule(
     } else {
       this.addProvider({
         provide: RestateContextStorage,
-        useClass: NoopRestateContextStorage,
+        useClass: RestateInMemoryContextStorage,
       });
     }
 
