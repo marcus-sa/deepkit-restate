@@ -21,7 +21,7 @@ interface InMemoryAwakeable<T> {
 
 export class RestateInMemoryContext implements Omit<RestateCustomContext, 'rpc' | 'send'> {
   readonly #awakeables = new Map<string, InMemoryAwakeable<unknown>>();
-  readonly #store = new Map();
+  readonly #store = new Map<string, any>();
 
   async run(action: RestateRunAction<any>): Promise<void> {
     await action();
@@ -31,7 +31,7 @@ export class RestateInMemoryContext implements Omit<RestateCustomContext, 'rpc' 
     return this.#store.get(key);
   }
 
-  async set(key: string, value: unknown): Promise<void> {
+  set(key: string, value: unknown): void {
     this.#store.set(key, value);
   }
 

@@ -47,7 +47,7 @@ test('e2e', async () => {
   @restate.service<AccountServiceProxy>()
   class AccountService implements AccountServiceHandlers {
     // @ts-ignore
-    @restate.event<CustomerCreated>().handler()
+    @(restate.event<CustomerCreated>().handler())
     async create(event: CustomerCreated) {
       expect(event).toBeInstanceOf(CustomerCreated);
     }

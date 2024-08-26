@@ -45,25 +45,21 @@ export class SagaStep<Data> {
   }
 
   async createStepOutcome(
-    ctx: RestateSagaContext,
     data: Data,
     compensating: boolean,
   ): Promise<SagaStepOutcome> {
     if (this.isParticipantInvocation) {
-      return SagaStepOutcome.forParticipant(
-        !compensating
+      try {
+        const request = !compensating
           ? await this.invoke?.(data)
-          : await this.compensate?.(data),
-      );
+          : await this.compensate?.(data);
+
+        return SagaStepOutcome.forParticipant(request);
+      } catch (err) {
+        return SagaStepOutcome.forParticipantWithError(err);
+      }
     } else {
       try {
-        // await ctx.run(async () => {
-        //   if (!compensating) {
-        //     await this.invoke?.(data);
-        //   } else {
-        //     await this.compensate?.(data);
-        //   }
-        // });
         if (!compensating) {
           await this.invoke?.(data);
         } else {

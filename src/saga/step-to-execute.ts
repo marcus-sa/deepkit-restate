@@ -19,14 +19,12 @@ export class StepToExecute<Data> {
   }
 
   async executeStep(
-    ctx: RestateSagaContext,
     data: Data,
     currentState: SagaExecutionState,
   ): Promise<SagaActions<Data>> {
     const newState = currentState.nextState(this.size());
 
     const stepOutcome = await this.step?.createStepOutcome(
-      ctx,
       data,
       this.compensating,
     );

@@ -34,12 +34,6 @@ export class RestateApiError extends Error {
   }
 }
 
-function isRestateApiResponseError(
-  value: any,
-): value is RestateApiResponseError {
-  return 'code' in value || 'message' in value;
-}
-
 export class RestateIngressClientOptions {
   readonly url: string;
   readonly headers?: Record<string, string>;
@@ -155,17 +149,15 @@ export class RestateClient {
     const response = await fetch(url, {
       method: 'POST',
       headers,
-      body: data, // TODO: uint8arrays
+      body: data,
     } as RequestInit);
 
-    const result = new Uint8Array(await response.arrayBuffer());
+    if (!response.ok) {
+      const { code, message } = await response.json() as RestateApiResponseError;
+      throw new RestateApiError(code, message);
+    }
 
-    // const result = (await response.json()) as
-    //   | RestateApiResponseError
-    //   | RestateRpcResponse;
-    // if (isRestateApiResponseError(result)) {
-    //   throw new RestateApiError(result.code, result.message);
-    // }
+    const result = new Uint8Array(await response.arrayBuffer());
 
     return decodeRestateServiceMethodResponse(
       result,

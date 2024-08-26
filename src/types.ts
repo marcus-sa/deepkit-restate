@@ -196,6 +196,8 @@ export const restateServiceContextType = typeOf<RestateServiceContext>();
 
 export const restateObjectContextType = typeOf<RestateObjectContext>();
 
+export const restateSagaContextType = typeOf<RestateSagaContext>();
+
 export const restateTerminalErrorType = typeOf<TerminalError>();
 
 export const serializeRestateTerminalErrorType = getBSONSerializer(
@@ -205,7 +207,5 @@ export const serializeRestateTerminalErrorType = getBSONSerializer(
 
 export const deserializeRestateTerminalErrorType =
   getBSONDeserializer<TerminalError>(undefined, restateTerminalErrorType);
-
-export const restateSagaContextType = typeOf<RestateSagaContext>();
 
 export const SCOPE = 'restate';

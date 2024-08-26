@@ -5,21 +5,16 @@ import { SagaExecutionState } from './saga-execution-state.js';
 import { StepToExecute } from './step-to-execute.js';
 import { SagaInstance } from './saga-instance.js';
 import { SagaActions } from './saga-actions.js';
-import { Saga } from './saga.js';
 import {
   deserializeRestateTerminalErrorType,
   Entity,
   RestateHandlerRequest,
   RestateHandlerResponse,
-  RestateSagaContext,
   restateTerminalErrorType,
 } from '../types.js';
 
 export class SagaDefinition<Data> {
-  constructor(
-    private readonly saga: Saga<Data>,
-    readonly steps: readonly SagaStep<Data>[],
-  ) {}
+  constructor(readonly steps: readonly SagaStep<Data>[]) {}
 
   private async nextStepToExecute(
     { compensating, currentlyExecuting }: SagaExecutionState,
@@ -49,7 +44,6 @@ export class SagaDefinition<Data> {
   }
 
   private async executeNextStep(
-    ctx: RestateSagaContext,
     sagaData: Data,
     currentState: SagaExecutionState,
   ): Promise<SagaActions<Data>> {
@@ -57,29 +51,14 @@ export class SagaDefinition<Data> {
 
     return stepToExecute.isEmpty()
       ? SagaActions.makeEndState(currentState)
-      : await stepToExecute.executeStep(ctx, sagaData, currentState);
+      : await stepToExecute.executeStep(sagaData, currentState);
   }
 
-  // private createAwakeables(ctx: RestateSagaContext) {
-  //   for (const step of this.steps) {
-  //     for (const { id, type } of step.awakeables) {
-  //       const awakeable = ctx.awakeable(type);
-  //       const idOrTypeName = type.typeName || id;
-  //       this.saga._awakeables.add({ idOrTypeName, awakeable });
-  //     }
-  //   }
-  // }
-
-  async start(
-    ctx: RestateSagaContext,
-    instance: SagaInstance<Data>,
-  ): Promise<SagaActions<Data>> {
-    // this.createAwakeables(ctx);
-    return this.executeNextStep(ctx, instance.sagaData, instance.currentState);
+  async start(instance: SagaInstance<Data>): Promise<SagaActions<Data>> {
+    return this.executeNextStep(instance.sagaData, instance.currentState);
   }
 
   async handleReply(
-    ctx: RestateSagaContext,
     state: SagaExecutionState,
     sagaData: Data,
     request: RestateHandlerRequest,
@@ -99,7 +78,7 @@ export class SagaDefinition<Data> {
       afterHandler?.();
     }
 
-    return await this.handleActions(ctx, state, sagaData, response.success);
+    return await this.handleActions(state, sagaData, response.success);
   }
 
   private deserializeReply<T>(
@@ -122,18 +101,16 @@ export class SagaDefinition<Data> {
   }
 
   async handleActions(
-    ctx: RestateSagaContext,
     state: SagaExecutionState,
     sagaData: Data,
     success: boolean,
   ): Promise<SagaActions<Data>> {
     if (success) {
-      return await this.executeNextStep(ctx, sagaData, state);
+      return await this.executeNextStep(sagaData, state);
     } else if (state.compensating) {
       throw new TerminalError('Failure when compensating');
     } else {
       return await this.executeNextStep(
-        ctx,
         sagaData,
         state.startCompensating(),
       );

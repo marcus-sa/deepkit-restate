@@ -15,8 +15,8 @@ import {
 
 export class SagaManager<Data> {
   constructor(
-    private readonly ctx: RestateSagaContext,
-    readonly saga: Saga<Data>,
+    protected readonly ctx: RestateSagaContext,
+    protected readonly saga: Saga<Data>,
     private readonly metadata: RestateSagaMetadata<Data>,
   ) {}
 
@@ -53,13 +53,11 @@ export class SagaManager<Data> {
     compensating: boolean,
     sagaData: Data,
   ): Promise<void> {
-    await this.ctx.run(async () => {
-      if (compensating) {
-        await this.saga.onSagaRolledBack?.(this.ctx.key, sagaData);
-      } else {
-        await this.saga.onSagaCompletedSuccessfully?.(this.ctx.key, sagaData);
-      }
-    });
+    if (compensating) {
+      await this.saga.onSagaRolledBack?.(sagaData);
+    } else {
+      await this.saga.onSagaCompletedSuccessfully?.(sagaData);
+    }
   }
 
   protected async processActions(
@@ -69,7 +67,6 @@ export class SagaManager<Data> {
     while (true) {
       if (actions.stepOutcome?.error) {
         actions = await this.saga.definition.handleActions(
-          this.ctx,
           actions.updatedState!,
           actions.updatedData!,
           false,
@@ -98,7 +95,6 @@ export class SagaManager<Data> {
             actions.stepOutcome.request,
           );
           actions = await this.saga.definition.handleReply(
-            this.ctx,
             instance.currentState,
             instance.sagaData,
             actions.stepOutcome.request,
@@ -108,7 +104,6 @@ export class SagaManager<Data> {
           if (!actions.stepOutcome?.local) break;
 
           actions = await this.saga.definition.handleActions(
-            this.ctx,
             actions.updatedState!,
             actions.updatedData!,
             true,
@@ -127,11 +122,9 @@ export class SagaManager<Data> {
     // );
     const instance = new SagaInstance(data);
 
-    await this.ctx.run(async () => {
-      await this.saga.onStarting?.(this.ctx.key, instance.sagaData);
-    });
+    await this.saga.onStarting?.(instance.sagaData);
 
-    const actions = await this.saga.definition.start(this.ctx, instance);
+    const actions = await this.saga.definition.start(instance);
 
     void this.processActions(instance, actions);
 

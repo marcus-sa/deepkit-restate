@@ -12,6 +12,6 @@ export class SagaDefinitionBuilder<Data> {
   }
 
   build(): SagaDefinition<Data> {
-    return new SagaDefinition<Data>(this.saga, this.steps);
+    return new SagaDefinition<Data>(this.steps);
   }
 }

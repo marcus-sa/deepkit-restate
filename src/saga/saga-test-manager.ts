@@ -1,4 +1,5 @@
 import { ClassType } from '@deepkit/core';
+import { integer } from '@deepkit/type';
 
 import { getRestateSagaMetadata, success, waitUntil } from '../utils.js';
 import { SagaExecutionState } from './saga-execution-state.js';
@@ -41,14 +42,12 @@ export class SagaTestManager<D, S extends Saga<D>> extends SagaManager<D> {
 
     const definition = Object.assign(saga.definition, {
       handleReply: async (
-        ctx: RestateSagaContext,
         state: SagaExecutionState,
         data: D,
         request: RestateHandlerRequest,
         response: RestateHandlerResponse,
       ) => {
         return await origHandleReply(
-          ctx,
           state,
           data,
           request,
@@ -96,16 +95,7 @@ export class SagaTestManager<D, S extends Saga<D>> extends SagaManager<D> {
     method: K,
     response: InvokeHandler<D>,
   ) {
-    const stepIndex = this.saga.definition.steps.findIndex(step => {
-      if (!step.isParticipantInvocation || !step.invoke) return false;
-      const stepName = (step.invoke as Function).name.replace('bound ', '');
-      return stepName === method;
-    });
-
-    if (stepIndex < 0) {
-      throw new Error(`Unable to find invoke step ${String(method)}`);
-    }
-
+    const stepIndex = this.getInvocationStepIndex(method);
     this.invokers[stepIndex] = { response, name: method, called: false };
   }
 
@@ -113,16 +103,7 @@ export class SagaTestManager<D, S extends Saga<D>> extends SagaManager<D> {
     method: K,
     response: CompensateHandler<D>,
   ) {
-    const stepIndex = this.saga.definition.steps.findIndex(step => {
-      if (!step.isParticipantInvocation || !step.compensate) return false;
-      const stepName = (step.compensate as Function).name.replace('bound ', '');
-      return stepName === method;
-    });
-
-    if (stepIndex < 0) {
-      throw new Error(`Unable to find compensate step ${String(method)}`);
-    }
-
+    const stepIndex = this.getCompensationStepIndex(method);
     this.compensators[stepIndex] = {
       response,
       name: method,
@@ -155,8 +136,39 @@ export class SagaTestManager<D, S extends Saga<D>> extends SagaManager<D> {
   // TODO
   // runAfterCompensation() {}
 
-  // TODO
-  // runAfterInvocation() {}
+  private getCompensationStepIndex<K extends keyof S>(method: K): integer {
+    const stepIndex = this.saga.definition.steps.findIndex(step => {
+      if (!step.isParticipantInvocation || !step.compensate) return false;
+      const stepName = (step.compensate as Function).name.replace('bound ', '');
+      return stepName === method;
+    });
+
+    if (stepIndex < 0) {
+      throw new Error(`Unable to find compensate step ${String(method)}`);
+    }
+
+    return stepIndex;
+  }
+
+  private getInvocationStepIndex<K extends keyof S>(method: K): integer {
+    const stepIndex = this.saga.definition.steps.findIndex(step => {
+      if (!step.isParticipantInvocation || !step.invoke) return false;
+      const stepName = (step.invoke as Function).name.replace('bound ', '');
+      return stepName === method;
+    });
+
+    if (stepIndex < 0) {
+      throw new Error(`Unable to find invoke step ${String(method)}`);
+    }
+
+    return stepIndex;
+  }
+
+  // TODO: needs to also be able to run after local invocations
+  // runAfterInvocation<K extends keyof S>(method: K, fn: (data: D) => void) {
+  //   const stepIndex = this.getInvocationStepIndex(method);
+  //   this.invokers[stepIndex] = { response, name: method, called: false };
+  // }
 
   async waitForInvocationToHaveBeenCalled<K extends keyof S>(
     method: K,
