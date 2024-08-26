@@ -214,7 +214,7 @@ export class RestateServer {
             ),
         );
       },
-    } as T;
+    } as unknown as T;
   }
 
   private createObjectContext(
