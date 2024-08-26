@@ -118,7 +118,7 @@ export class RestateServer {
             {
               service: metadata.name,
               method: handler.name,
-              type: handler.event.type,
+              typeName: handler.event.type.typeName!,
             },
           ];
         }

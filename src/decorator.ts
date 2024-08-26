@@ -150,7 +150,7 @@ export interface RestateKafkaHandlerMetadata {
 }
 
 export interface RestateEventHandlerMetadata {
-  readonly type: SerializedType;
+  readonly type: TypeClass | TypeObjectLiteral;
 }
 
 export class RestateHandlerMetadata<T = readonly unknown[]> {
@@ -202,9 +202,7 @@ export class RestateHandlerDecorator {
   event<T>(type?: ReceiveType<T>) {
     type = resolveReceiveType(type);
     Object.assign(this.t, {
-      event: {
-        type: serializeType(type)[0],
-      } satisfies RestateEventHandlerMetadata,
+      event: { type },
     });
   }
 

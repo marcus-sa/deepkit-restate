@@ -1,12 +1,10 @@
-import { SerializedType } from '@deepkit/type';
-
 import { RestateObject } from '../types.js';
 import { SubscriptionNotFound, SubscriptionTypeNoMatch } from './errors.js';
 
 export interface Subscription {
   readonly service: string;
   readonly method: string;
-  readonly type: SerializedType;
+  readonly typeName: string;
 }
 
 export type Subscriptions = readonly Subscription[];
@@ -16,7 +14,7 @@ export interface Event {
   readonly processed: boolean;
   readonly success: boolean;
   readonly data: Uint8Array;
-  readonly type: SerializedType;
+  readonly typeName: string;
 }
 
 export type Events = readonly Event[];

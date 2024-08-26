@@ -36,7 +36,7 @@ export class RestateEventsServer implements EventServerHandlers {
     await CombineablePromise.all(
       events.flatMap(({ data, name }) => {
         const eventSubscriptions = allSubscriptions.filter(
-          ({ type }) => type.typeName === name,
+          ({ typeName }) => typeName === name,
         );
 
         return eventSubscriptions.map(subscription =>
