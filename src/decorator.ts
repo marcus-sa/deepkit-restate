@@ -3,7 +3,6 @@ import {
   BSONDeserializer,
   BSONSerializer,
   getBSONDeserializer,
-  getBSONSerializer,
 } from '@deepkit/bson';
 import {
   ClassDecoratorFn,
@@ -31,6 +30,11 @@ import {
 } from '@deepkit/type';
 
 import {
+  getReturnValueSerializer,
+  getSagaDataDeserializer,
+  getSagaDataSerializer,
+} from './serializer.js';
+import {
   Entities,
   RestateKafkaTopic,
   RestateObject,
@@ -40,14 +44,14 @@ import {
 import {
   assertValidKafkaTopicName,
   getReflectionFunctionArgsType,
+  getUnwrappedReflectionFunctionReturnType,
+} from './utils.js';
+import {
   getRestateClassEntities,
   getRestateClassName,
   getRestateKafkaTopicArgsType,
   getRestateKafkaTopicSource,
-  getSagaDataDeserializer,
-  getSagaDataSerializer,
-  getUnwrappedReflectionFunctionReturnType,
-} from './utils.js';
+} from './metadata.js';
 
 export class RestateClassMetadata {
   readonly name: string;
@@ -173,7 +177,7 @@ export class RestateHandlerDecorator {
 
     const returnType =
       getUnwrappedReflectionFunctionReturnType(reflectionMethod);
-    const serializeReturn = getBSONSerializer(undefined, returnType);
+    const serializeReturn = getReturnValueSerializer(returnType);
 
     const argsType = getReflectionFunctionArgsType(reflectionMethod);
     const deserializeArgs = getBSONDeserializer(undefined, argsType);

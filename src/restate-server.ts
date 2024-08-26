@@ -2,7 +2,12 @@ import { eventDispatcher } from '@deepkit/event';
 import { onServerMainBootstrap } from '@deepkit/framework';
 import { InjectorContext } from '@deepkit/injector';
 import * as restate from '@restatedev/restate-sdk';
-import { getBSONDeserializer, getBSONSerializer } from '@deepkit/bson';
+import {
+  deserializeBSON,
+  getBSONDeserializer,
+  getBSONSerializer,
+  serializeBSON,
+} from '@deepkit/bson';
 import {
   deserialize,
   hasTypeInformation,
@@ -37,8 +42,8 @@ import {
   restateServiceContextType,
   RestateStatus,
   SCOPE,
-  serializeRestateHandlerResponse,
 } from './types.js';
+import { serializeRestateHandlerResponse } from './serializer.js';
 
 const DEFAULT_HANDLER_OPTS = {
   contentType: 'application/octet-stream',
@@ -179,11 +184,11 @@ export class RestateServer {
           const result = await ctx.run(async () => {
             const result = await action();
             if (!type || !result) return;
-            return getBSONSerializer(undefined, type)(result);
+            return serializeBSON(result, undefined, type);
           });
           // @ts-ignore
           if (!type || !result) return;
-          return getBSONDeserializer(undefined, type)(result);
+          return deserializeBSON(result, undefined, undefined, type);
         },
         send: (...args: readonly any[]): restate.CombineablePromise<void> => {
           const [key, { service, method, data }, options] =

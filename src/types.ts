@@ -1,5 +1,6 @@
 import { ReceiveType, typeOf } from '@deepkit/type';
 import { ClassType } from '@deepkit/core';
+import { BSONDeserializer, BSONSerializer } from '@deepkit/bson';
 import {
   CombineablePromise,
   Context as ServiceContext,
@@ -7,12 +8,6 @@ import {
   TerminalError,
   WorkflowContext,
 } from '@restatedev/restate-sdk';
-import {
-  BSONDeserializer,
-  BSONSerializer,
-  getBSONDeserializer,
-  getBSONSerializer,
-} from '@deepkit/bson';
 
 export interface RestateStatus {
   invocationId: string;
@@ -177,17 +172,6 @@ export const restateServiceType = typeOf<RestateService<string, any, any[]>>();
 
 export const restateHandlerResponseType = typeOf<RestateHandlerResponse>();
 
-export const deserializeRestateHandlerResponse =
-  getBSONDeserializer<RestateHandlerResponse>(
-    undefined,
-    restateHandlerResponseType,
-  );
-
-export const serializeRestateHandlerResponse = getBSONSerializer(
-  undefined,
-  restateHandlerResponseType,
-);
-
 export const restateObjectType = typeOf<RestateObject<string, any, any[]>>();
 
 export const restateSagaType = typeOf<RestateSaga<string, any>>();
@@ -199,13 +183,5 @@ export const restateObjectContextType = typeOf<RestateObjectContext>();
 export const restateSagaContextType = typeOf<RestateSagaContext>();
 
 export const restateTerminalErrorType = typeOf<TerminalError>();
-
-export const serializeRestateTerminalErrorType = getBSONSerializer(
-  undefined,
-  restateTerminalErrorType,
-);
-
-export const deserializeRestateTerminalErrorType =
-  getBSONDeserializer<TerminalError>(undefined, restateTerminalErrorType);
 
 export const SCOPE = 'restate';

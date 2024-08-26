@@ -5,9 +5,6 @@ import { deserializeSagaState, SagaState } from './saga/saga-instance.js';
 import {
   createClassProxy,
   decodeRestateServiceMethodResponse,
-  getRestateClassName,
-  getSagaDataDeserializer,
-  getSagaDataSerializer,
 } from './utils.js';
 import {
   RestateObject,
@@ -19,6 +16,11 @@ import {
   RestateServiceHandlerRequest,
   RestateStatus,
 } from './types.js';
+import {
+  getSagaDataDeserializer,
+  getSagaDataSerializer,
+} from './serializer.js';
+import { getRestateClassName } from './metadata.js';
 
 interface RestateApiResponseError {
   readonly code: string;
@@ -153,7 +155,8 @@ export class RestateClient {
     } as RequestInit);
 
     if (!response.ok) {
-      const { code, message } = await response.json() as RestateApiResponseError;
+      const { code, message } =
+        (await response.json()) as RestateApiResponseError;
       throw new RestateApiError(code, message);
     }
 

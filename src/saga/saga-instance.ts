@@ -1,7 +1,6 @@
 import { typeOf, uint8 } from '@deepkit/type';
 import { WorkflowContext } from '@restatedev/restate-sdk';
 import {
-  bsonBinarySerializer,
   getBSONDeserializer,
   getBSONSerializer,
 } from '@deepkit/bson';
@@ -54,11 +53,11 @@ export const sagaStateType = typeOf<SagaState>();
 export const SAGA_STATE_KEY = '__instance__';
 
 export const serializeSagaState = getBSONSerializer<SagaState>(
-  bsonBinarySerializer,
+  undefined,
   sagaStateType,
 );
 
 export const deserializeSagaState = getBSONDeserializer<SagaState>(
-  bsonBinarySerializer,
+  undefined,
   sagaStateType,
 );

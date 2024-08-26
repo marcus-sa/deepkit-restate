@@ -6,12 +6,12 @@ import { StepToExecute } from './step-to-execute.js';
 import { SagaInstance } from './saga-instance.js';
 import { SagaActions } from './saga-actions.js';
 import {
-  deserializeRestateTerminalErrorType,
   Entity,
   RestateHandlerRequest,
   RestateHandlerResponse,
   restateTerminalErrorType,
 } from '../types.js';
+import { deserializeRestateTerminalErrorType } from '../serializer.js';
 
 export class SagaDefinition<Data> {
   constructor(readonly steps: readonly SagaStep<Data>[]) {}

@@ -1,7 +1,7 @@
 import { ClassType } from '@deepkit/core';
 import { integer } from '@deepkit/type';
 
-import { getRestateSagaMetadata, success, waitUntil } from '../utils.js';
+import { success, waitUntil } from '../utils.js';
 import { SagaExecutionState } from './saga-execution-state.js';
 import { SagaManager } from './saga-manager.js';
 import { Saga } from './saga.js';
@@ -11,6 +11,7 @@ import {
   RestateHandlerResponse,
   RestateSagaContext,
 } from '../types.js';
+import { getRestateSagaMetadata } from '../metadata.js';
 
 type ReplyHandler<Data> = (data: Data, state: SagaExecutionState) => void;
 

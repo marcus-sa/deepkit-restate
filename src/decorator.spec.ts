@@ -18,7 +18,7 @@ import {
   getRestateObjectMetadata,
   getRestateSagaMetadata,
   getRestateServiceMetadata,
-} from './utils.js';
+} from './metadata.js';
 
 test('object', () => {
   interface PaymentServiceInterface {

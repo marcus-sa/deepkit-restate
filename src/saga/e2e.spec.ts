@@ -4,7 +4,6 @@ import { createTestingApp } from '@deepkit/framework';
 import { Mock, vi, test, expect } from 'vitest';
 
 import { restate } from '../decorator.js';
-import { getRestateSagaMetadata } from '../utils.js';
 import {
   RestateRunAction,
   RestateSaga,
@@ -15,6 +14,7 @@ import { RestateModule } from '../restate.module.js';
 import { RestateClient } from '../restate-client.js';
 import { Saga } from './saga.js';
 import { SagaManager } from './saga-manager.js';
+import { getRestateSagaMetadata } from '../metadata.js';
 
 interface RestateTestContext extends RestateSagaContext {
   invoke: Mock<(...args: any[]) => any>;

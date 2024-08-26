@@ -13,12 +13,11 @@ import {
   getClassConstructorParameters,
   getReflectionFunctionArgsType,
   getRestateClassDeps,
-  getRestateClassEntities,
-  getRestateClassName,
   getTypeArgument,
   getUnwrappedReflectionFunctionReturnType,
   isRestateServiceType,
 } from './utils.js';
+import { getRestateClassEntities, getRestateClassName } from './metadata.js';
 
 describe('isRestateServiceType', () => {
   test('returns true', () => {

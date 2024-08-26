@@ -2,11 +2,10 @@ import { ClassType, sleep } from '@deepkit/core';
 import { CombineablePromise, TerminalError } from '@restatedev/restate-sdk';
 import { FactoryProvider } from '@deepkit/injector';
 import {
-  bsonBinarySerializer,
   BSONDeserializer,
   BSONSerializer,
-  getBSONDeserializer,
-  getBSONSerializer, serializeBSON,
+  getBSONSerializer,
+  serializeBSON,
 } from '@deepkit/bson';
 import {
   assertType,
@@ -25,16 +24,8 @@ import {
   TypeTupleMember,
 } from '@deepkit/type';
 
+import { getRestateClassEntities, getRestateClassName } from './metadata.js';
 import {
-  restateObjectDecorator,
-  RestateObjectMetadata,
-  restateSagaDecorator,
-  RestateSagaMetadata,
-  restateServiceDecorator,
-  RestateServiceMetadata,
-} from './decorator.js';
-import {
-  deserializeRestateHandlerResponse,
   Entities,
   RestateHandlerRequest,
   RestateHandlerResponse,
@@ -44,6 +35,11 @@ import {
   RestateService,
   restateServiceType,
 } from './types.js';
+import {
+  deserializeRestateHandlerResponse,
+  getReturnValueDeserializer,
+  ReturnValueDeserializer,
+} from './serializer.js';
 
 export function getRestateClassDeps(classType: ClassType): readonly Type[] {
   const serviceType = reflect(classType);
@@ -123,58 +119,9 @@ export function getTypeArgument(type: Type, index: number): Type | undefined {
   );
 }
 
-export function getRestateClassName(serviceType: Type): string {
-  const typeArgument = getTypeArgument(serviceType, 0);
-  assertType(typeArgument, ReflectionKind.literal);
-  return typeArgument.literal as string;
-}
-
-export function getSagaDataDeserializer<T>(
-  sagaType: Type,
-): BSONDeserializer<T> {
-  const dataType = getSagaDataType(sagaType);
-  return getBSONDeserializer(bsonBinarySerializer, dataType);
-}
-
-export function getSagaDataSerializer(sagaType: Type): BSONSerializer {
-  const dataType = getSagaDataType(sagaType);
-  return getBSONSerializer(bsonBinarySerializer, dataType);
-}
-
-export function getSagaDataType(sagaType: Type): TypeObjectLiteral | TypeClass {
-  const typeArgument = getTypeArgument(sagaType, 1);
-  if (
-    typeArgument?.kind !== ReflectionKind.objectLiteral &&
-    typeArgument?.kind !== ReflectionKind.class
-  ) {
-    throw new Error('Invalid saga data type');
-  }
-  return typeArgument;
-}
-
-export function getRestateClassEntities(serviceType: Type): Entities {
-  const typeArgument = getTypeArgument(serviceType, 2);
-  if (!typeArgument) return new Map();
-  assertType(typeArgument, ReflectionKind.tuple);
-
-  return new Map(
-    typeArgument.types
-      .map(type => type.type)
-      .filter((type): type is TypeClass => type.kind === ReflectionKind.class)
-      .map(type => {
-        const deserialize = getBSONDeserializer(bsonBinarySerializer, type);
-        const serialize = getBSONSerializer(bsonBinarySerializer, type);
-        return [
-          type.typeName!,
-          { deserialize, serialize, classType: type.classType },
-        ];
-      }),
-  );
-}
-
 interface ClassProxyMethod<T> {
   readonly serializeArgs: BSONSerializer;
-  readonly deserializeReturn: BSONDeserializer<T>;
+  readonly deserializeReturn: ReturnValueDeserializer<T>;
 }
 
 export function getReflectionFunctionArgsType(
@@ -231,7 +178,7 @@ export function createClassProxy<
 
           const returnType =
             getUnwrappedReflectionFunctionReturnType(reflectionMethod);
-          const deserializeReturn = getBSONDeserializer(undefined, returnType);
+          const deserializeReturn = getReturnValueDeserializer(returnType);
 
           methods[method] = { serializeArgs, deserializeReturn };
         }
@@ -318,48 +265,12 @@ export function decodeRestateServiceMethodResponse<T>(
   throw entity.deserialize(internalResponse.data);
 }
 
-export function getRestateServiceMetadata(
-  classType: ClassType,
-): RestateServiceMetadata | undefined {
-  const metadata = restateServiceDecorator._fetch(classType);
-  return metadata?.name ? metadata : undefined;
-}
-
-export function getRestateObjectMetadata(
-  classType: ClassType,
-): RestateObjectMetadata | undefined {
-  const metadata = restateObjectDecorator._fetch(classType);
-  return metadata?.name ? metadata : undefined;
-}
-
-export function getRestateSagaMetadata<T>(
-  classType: ClassType,
-): RestateSagaMetadata<T> | undefined {
-  const metadata = restateSagaDecorator._fetch(classType);
-  return metadata?.name ? metadata as RestateSagaMetadata<T> : undefined;
-}
-
 export function assertValidKafkaTopicName(topicName: string): void {
   if (!/^[a-zA-Z0-9._-]+$/.test(topicName)) {
     throw new Error(
       `Invalid topic name validation pattern ^[a-zA-Z0-9._-]+$ failed for ${topicName}`,
     );
   }
-}
-
-export function getRestateKafkaTopicSource(type: Type): string {
-  const typeArgument = getTypeArgument(type, 0);
-  assertType(typeArgument, ReflectionKind.literal);
-  if (!(typeof typeArgument.literal === 'string')) {
-    throw new Error('Value must be a string');
-  }
-  return typeArgument.literal;
-}
-
-export function getRestateKafkaTopicArgsType(type: Type): TypeTuple {
-  const typeArgument = getTypeArgument(type, 1);
-  assertType(typeArgument, ReflectionKind.tuple);
-  return typeArgument;
 }
 
 export interface InvokeOneWayOptions {
@@ -381,7 +292,10 @@ export function invokeOneWay<T>(
     });
 }
 
-export function success<T>(reply?: T, type?: ReceiveType<T>): RestateHandlerResponse {
+export function success<T>(
+  reply?: T,
+  type?: ReceiveType<T>,
+): RestateHandlerResponse {
   if (reply) {
     type = resolveReceiveType(type);
     return {
@@ -397,7 +311,10 @@ export function success<T>(reply?: T, type?: ReceiveType<T>): RestateHandlerResp
   };
 }
 
-export function failure<T>(reply?: T, type?: ReceiveType<T>): RestateHandlerResponse {
+export function failure<T>(
+  reply?: T,
+  type?: ReceiveType<T>,
+): RestateHandlerResponse {
   if (reply) {
     type = resolveReceiveType(type);
     return {
@@ -413,7 +330,10 @@ export function failure<T>(reply?: T, type?: ReceiveType<T>): RestateHandlerResp
   };
 }
 
-export function waitUntil(predicate: () => boolean, timeout: number = 1000): Promise<void> {
+export function waitUntil(
+  predicate: () => boolean,
+  timeout: number = 1000,
+): Promise<void> {
   return new Promise(async (resolve, reject) => {
     let wait = true;
 

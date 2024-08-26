@@ -10,10 +10,7 @@ import {
 import { RestateKafkaConfig } from './module.js';
 import { RestateContextStorage } from '../restate-context-storage.js';
 import { RestateCustomContext, RestateKafkaTopic } from '../types.js';
-import {
-  getRestateKafkaTopicArgsType,
-  getRestateKafkaTopicSource,
-} from '../utils.js';
+import { getRestateKafkaTopicArgsType, getRestateKafkaTopicSource } from '../metadata.js';
 
 export type KafkaProducerPublishOptions = Pick<
   ProducerRecord,

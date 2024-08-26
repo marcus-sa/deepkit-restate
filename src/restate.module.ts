@@ -24,13 +24,12 @@ import {
   restateServiceContextType,
   SCOPE,
 } from './types.js';
+import { createClassProxy, getRestateClassDeps } from './utils.js';
 import {
-  createClassProxy,
-  getRestateClassDeps,
   getRestateObjectMetadata,
   getRestateSagaMetadata,
   getRestateServiceMetadata,
-} from './utils.js';
+} from './metadata.js';
 
 export class RestateModule extends createModule(
   {

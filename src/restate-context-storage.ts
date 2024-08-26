@@ -19,7 +19,9 @@ interface InMemoryAwakeable<T> {
   readonly reject: (error: Error) => void;
 }
 
-export class RestateInMemoryContext implements Omit<RestateCustomContext, 'rpc' | 'send'> {
+export class RestateInMemoryContext
+  implements Omit<RestateCustomContext, 'rpc' | 'send'>
+{
   readonly #awakeables = new Map<string, InMemoryAwakeable<unknown>>();
   readonly #store = new Map<string, any>();
 

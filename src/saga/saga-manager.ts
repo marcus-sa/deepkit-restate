@@ -5,13 +5,13 @@ import { SagaInstance } from './saga-instance.js';
 import { SagaActions } from './saga-actions.js';
 import { RestateSagaMetadata } from '../decorator.js';
 import {
-  deserializeRestateHandlerResponse,
   RestateHandlerRequest,
   RestateHandlerResponse,
   RestateSagaContext,
   restateTerminalErrorType,
-  serializeRestateTerminalErrorType,
+
 } from '../types.js';
+import { deserializeRestateHandlerResponse, serializeRestateTerminalErrorType } from '../serializer.js';
 
 export class SagaManager<Data> {
   constructor(
