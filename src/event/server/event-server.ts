@@ -1,5 +1,3 @@
-import { CombineablePromise } from '@restatedev/restate-sdk';
-
 import { restate } from '../../decorator.js';
 import { RestateObjectContext } from '../../types.js';
 import { invokeOneWay } from '../../utils.js';
@@ -34,7 +32,7 @@ export class RestateEventsServer implements EventServerHandlers {
   ): Promise<void> {
     const allSubscriptions = await this.#getSubscriptions();
 
-    await CombineablePromise.all(
+    await Promise.all(
       events.flatMap(({ data, name }) => {
         const eventSubscriptions = allSubscriptions.filter(
           ({ typeName }) => typeName === name,
