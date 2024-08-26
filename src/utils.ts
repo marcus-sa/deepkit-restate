@@ -38,7 +38,6 @@ import {
 import {
   deserializeRestateHandlerResponse,
   getReturnValueDeserializer,
-  ReturnValueDeserializer,
 } from './serializer.js';
 
 export function getRestateClassDeps(classType: ClassType): readonly Type[] {
@@ -121,7 +120,7 @@ export function getTypeArgument(type: Type, index: number): Type | undefined {
 
 interface ClassProxyMethod<T> {
   readonly serializeArgs: BSONSerializer;
-  readonly deserializeReturn: ReturnValueDeserializer<T>;
+  readonly deserializeReturn: BSONDeserializer<T>;
 }
 
 export function getReflectionFunctionArgsType(

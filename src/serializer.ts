@@ -19,8 +19,6 @@ import {
   restateTerminalErrorType,
 } from './types.js';
 
-export type ReturnValueDeserializer<T> = BSONDeserializer<{ readonly v: T }>;
-
 function toSerializableDataType(type: Type): TypeObjectLiteral {
   const parent: TypeObjectLiteral = {
     kind: ReflectionKind.objectLiteral,
@@ -39,16 +37,19 @@ function toSerializableDataType(type: Type): TypeObjectLiteral {
   return parent;
 }
 
-export function getReturnValueSerializer(type: Type): BSONSerializer {
+export function getReturnValueSerializer<T>(type: Type): BSONSerializer {
   const serializableType = toSerializableDataType(type);
-  return getBSONSerializer(undefined, serializableType);
+  const serialize = getBSONSerializer(undefined, serializableType);
+  return (value: T) => serialize({ v: value });
 }
 
-export function getReturnValueDeserializer<T>(
-  type: Type,
-): ReturnValueDeserializer<T> {
+export function getReturnValueDeserializer<T>(type: Type): BSONDeserializer<T> {
   const serializableType = toSerializableDataType(type);
-  return getBSONDeserializer(undefined, serializableType);
+  const deserialize = getBSONDeserializer<{ readonly v: T }>(
+    undefined,
+    serializableType,
+  );
+  return (bson: Uint8Array) => deserialize(bson).v;
 }
 
 export function getSagaDataDeserializer<T>(
