@@ -285,7 +285,7 @@ export function invokeOneWay<T>(
   { service, method, data, delay, key }: InvokeOneWayOptions,
 ): CombineablePromise<T> {
   return ctx
-    .invokeOneWay(service, method, data, delay, key)
+    .invokeOneWay(service, method, data, undefined, delay, key)
     .catch((e: Error) => {
       ctx.stateMachine.handleDanglingPromiseError(e);
     });

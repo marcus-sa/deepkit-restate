@@ -27,7 +27,7 @@ export class RestateEventsServer implements EventServerHandlers {
     return await this.#getSubscriptions();
   }
 
-  @restate.handler()
+  @(restate.shared().handler())
   async publish(
     events: readonly PublishEvent[],
     options?: PublishOptions,
@@ -70,6 +70,6 @@ export class RestateEventsServer implements EventServerHandlers {
       allSubscriptions.set(key, sub);
     });
 
-    await this.ctx.set(SUBSCRIPTIONS_STATE_KEY, [...allSubscriptions.values()]);
+    this.ctx.set(SUBSCRIPTIONS_STATE_KEY, [...allSubscriptions.values()]);
   }
 }

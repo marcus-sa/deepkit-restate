@@ -138,15 +138,7 @@ export class RestateServer {
     T extends RestateObjectContext | RestateSagaContext | RestateServiceContext,
   >(ctx: restate.ObjectContext | restate.WorkflowContext | restate.Context): T {
     return {
-      serviceClient: undefined,
-      serviceSendClient: undefined,
-      objectSendClient: undefined,
-      objectClient: undefined,
-      workflowClient: undefined,
-      workflowSendClient: undefined,
       original: ctx,
-      set: 'set' in ctx ? ctx.set.bind(ctx) : undefined,
-      get: 'get' in ctx ? ctx.get.bind(ctx) : undefined,
       resolveAwakeable<T>(id: string, payload?: T, type?: ReceiveType<T>) {
         type = resolveReceiveType(type);
         const serialize = getBSONSerializer(undefined, type);
@@ -214,6 +206,17 @@ export class RestateServer {
             ),
         );
       },
+      serviceClient: undefined,
+      serviceSendClient: undefined,
+      objectSendClient: undefined,
+      objectClient: undefined,
+      workflowClient: undefined,
+      workflowSendClient: undefined,
+      clearAll: 'clearAll' in ctx ? ctx.clearAll.bind(ctx) : undefined,
+      clear: 'clear' in ctx ? ctx.clear.bind(ctx) : undefined,
+      stateKeys: 'stateKeys' in ctx ? ctx.stateKeys.bind(ctx) : undefined,
+      set: 'set' in ctx ? ctx.set.bind(ctx) : undefined,
+      get: 'get' in ctx ? ctx.get.bind(ctx) : undefined,
     } as unknown as T;
   }
 
