@@ -3,7 +3,6 @@ import { CombineablePromise } from '@restatedev/restate-sdk';
 import { restate } from '../../decorator.js';
 import { RestateObjectContext } from '../../types.js';
 import { invokeOneWay } from '../../utils.js';
-import { SubscriptionNotFound } from '../errors.js';
 import {
   EventServerApi,
   EventServerHandlers,
@@ -32,23 +31,23 @@ export class RestateEventsServer implements EventServerHandlers {
     events: readonly PublishEvent[],
     options?: PublishOptions,
   ): Promise<void> {
-    const subscriptions = await this.#getSubscriptions();
+    const allSubscriptions = await this.#getSubscriptions();
+
     await CombineablePromise.all(
-      events.map(({ data, name }) => {
-        const subscription = subscriptions.find(
+      events.flatMap(({ data, name }) => {
+        const eventSubscriptions = allSubscriptions.filter(
           ({ type }) => type.typeName === name,
         );
-        if (!subscription) {
-          throw new SubscriptionNotFound();
-        }
 
-        return invokeOneWay((this.ctx as any).original, {
-          service: subscription.service,
-          method: subscription.method,
-          data,
-          ...options,
-          // key,
-        });
+        return eventSubscriptions.map(subscription =>
+          invokeOneWay((this.ctx as any).original, {
+            service: subscription.service,
+            method: subscription.method,
+            data,
+            ...options,
+            // key,
+          }),
+        );
       }),
     );
   }

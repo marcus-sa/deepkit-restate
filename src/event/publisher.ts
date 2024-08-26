@@ -1,4 +1,4 @@
-import { getBSONSerializer } from '@deepkit/bson';
+import { serializeBSON } from '@deepkit/bson';
 import {
   assertType,
   ReceiveType,
@@ -35,11 +35,9 @@ export class RestateEventsPublisher {
         throw new MissingTypeName(eventType);
       }
 
-      const serialize = getBSONSerializer(undefined, eventType);
-
       return {
         name: eventType.typeName,
-        data: serialize(event),
+        data: serializeBSON(event, undefined, eventType),
       };
     });
 
