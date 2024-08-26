@@ -9,13 +9,11 @@ import {
   serializeBSON,
 } from '@deepkit/bson';
 import {
-  deserialize,
   hasTypeInformation,
   ReceiveType,
   reflect,
   ReflectionKind,
   resolveReceiveType,
-  serialize,
   uint8,
 } from '@deepkit/type';
 
@@ -31,6 +29,7 @@ import { RestateConfig } from './config.js';
 import { decodeRestateServiceMethodResponse, invokeOneWay } from './utils.js';
 import { RestateAdminClient } from './restate-admin-client.js';
 import { RestateContextStorage } from './restate-context-storage.js';
+import { serializeRestateHandlerResponse } from './serializer.js';
 import {
   RestateAwakeable,
   RestateObjectContext,
@@ -40,10 +39,8 @@ import {
   restateSagaContextType,
   RestateServiceContext,
   restateServiceContextType,
-  RestateStatus,
   SCOPE,
 } from './types.js';
-import { serializeRestateHandlerResponse } from './serializer.js';
 
 const DEFAULT_HANDLER_OPTS = {
   contentType: 'application/octet-stream',
@@ -139,90 +136,85 @@ export class RestateServer {
 
   private createContext<
     T extends RestateObjectContext | RestateSagaContext | RestateServiceContext,
-  >(
-    ctx: restate.ObjectContext | restate.WorkflowContext | restate.Context,
-    extra?: Partial<T>,
-  ): T {
-    return Object.assign(
-      { ...ctx },
-      {
-        original: ctx,
-        serviceClient: undefined,
-        serviceSendClient: undefined,
-        objectSendClient: undefined,
-        objectClient: undefined,
-        workflowClient: undefined,
-        workflowSendClient: undefined,
-        resolveAwakeable<T>(id: string, payload?: T, type?: ReceiveType<T>) {
-          type = resolveReceiveType(type);
-          const serialize = getBSONSerializer(undefined, type);
-          ctx.resolveAwakeable(id, Array.from(serialize(payload)));
-        },
-        awakeable<T>(type?: ReceiveType<T>): RestateAwakeable<T> {
-          type = resolveReceiveType(type);
-          const awakeable = ctx.awakeable<readonly uint8[]>();
-          const deserialize = getBSONDeserializer<T>(undefined, type);
-          const promise = awakeable.promise.then(bytes =>
-            deserialize(new Uint8Array(bytes)),
-          );
-          return {
-            id: awakeable.id,
-            promise,
-          } as RestateAwakeable<T>;
-        },
-        // TypeError: Cannot read properties of undefined (reading 'kind')
-        //   at ReflectionTransformer.getArrowFunctionΩPropertyAccessIdentifier
-        // run: async <T>(action: RestateRunAction<T>, type?: ReceiveType<T>): Promise<T> => {
-        async run<T = void>(
-          action: RestateRunAction<T>,
-          type?: ReceiveType<T>,
-        ): Promise<T> {
-          try {
-            type = resolveReceiveType(type);
-          } catch {}
-          // TODO: https://github.com/restatedev/sdk-typescript/issues/410
-          const result = await ctx.run(async () => {
-            const result = await action();
-            if (!type || !result) return;
-            return serializeBSON(result, undefined, type);
-          });
-          // @ts-ignore
-          if (!type || !result) return;
-          return deserializeBSON(result, undefined, undefined, type);
-        },
-        send: (...args: readonly any[]): restate.CombineablePromise<void> => {
-          const [key, { service, method, data }, options] =
-            args.length === 1 ? [undefined, ...args] : args;
-
-          return invokeOneWay(ctx, {
-            service,
-            method,
-            data,
-            delay: options?.delay,
-            key,
-          });
-        },
-        rpc: <T>(...args: readonly any[]): restate.CombineablePromise<T> => {
-          const [key, { service, method, data, deserializeReturn, entities }] =
-            args.length === 1 ? [undefined, ...args] : args;
-
-          return (ctx as any).invoke(
-            service,
-            method,
-            data,
-            key,
-            undefined,
-            (response: Uint8Array) =>
-              decodeRestateServiceMethodResponse(
-                response,
-                deserializeReturn,
-                entities,
-              ),
-          );
-        },
-        ...extra,
+  >(ctx: restate.ObjectContext | restate.WorkflowContext | restate.Context): T {
+    return {
+      serviceClient: undefined,
+      serviceSendClient: undefined,
+      objectSendClient: undefined,
+      objectClient: undefined,
+      workflowClient: undefined,
+      workflowSendClient: undefined,
+      original: ctx,
+      set: 'set' in ctx ? ctx.set.bind(ctx) : undefined,
+      get: 'get' in ctx ? ctx.get.bind(ctx) : undefined,
+      resolveAwakeable<T>(id: string, payload?: T, type?: ReceiveType<T>) {
+        type = resolveReceiveType(type);
+        const serialize = getBSONSerializer(undefined, type);
+        ctx.resolveAwakeable(id, Array.from(serialize(payload)));
       },
-    );
+      awakeable<T>(type?: ReceiveType<T>): RestateAwakeable<T> {
+        type = resolveReceiveType(type);
+        const awakeable = ctx.awakeable<readonly uint8[]>();
+        const deserialize = getBSONDeserializer<T>(undefined, type);
+        const promise = awakeable.promise.then(bytes =>
+          deserialize(new Uint8Array(bytes)),
+        );
+        return {
+          id: awakeable.id,
+          promise,
+        } as RestateAwakeable<T>;
+      },
+      // TypeError: Cannot read properties of undefined (reading 'kind')
+      //   at ReflectionTransformer.getArrowFunctionΩPropertyAccessIdentifier
+      // run: async <T>(action: RestateRunAction<T>, type?: ReceiveType<T>): Promise<T> => {
+      async run<T = void>(
+        action: RestateRunAction<T>,
+        type?: ReceiveType<T>,
+      ): Promise<T> {
+        try {
+          type = resolveReceiveType(type);
+        } catch {}
+        // TODO: https://github.com/restatedev/sdk-typescript/issues/410
+        const result = await ctx.run(async () => {
+          const result = await action();
+          if (!type || !result) return;
+          return serializeBSON(result, undefined, type);
+        });
+        // @ts-ignore
+        if (!type || !result) return;
+        return deserializeBSON(result, undefined, undefined, type);
+      },
+      send: (...args: readonly any[]): restate.CombineablePromise<void> => {
+        const [key, { service, method, data }, options] =
+          args.length === 1 ? [undefined, ...args] : args;
+
+        return invokeOneWay(ctx, {
+          service,
+          method,
+          data,
+          delay: options?.delay,
+          key,
+        });
+      },
+      rpc: <T>(...args: readonly any[]): restate.CombineablePromise<T> => {
+        const [key, { service, method, data, deserializeReturn, entities }] =
+          args.length === 1 ? [undefined, ...args] : args;
+
+        return (ctx as any).invoke(
+          service,
+          method,
+          data,
+          key,
+          undefined,
+          (response: Uint8Array) =>
+            decodeRestateServiceMethodResponse(
+              response,
+              deserializeReturn,
+              entities,
+            ),
+        );
+      },
+    } as T;
   }
 
   private createObjectContext(
@@ -283,7 +275,7 @@ export class RestateServer {
           ): Promise<Uint8Array> => {
             const injector = this.createScopedInjector();
             const ctx = this.createServiceContext(rsCtx);
-            injector.set(restateServiceContextType, ctx, module);
+            injector.set(restateServiceContextType, ctx);
             const instance = injector.get(classType, module);
             return await this.contextStorage.run(ctx, () =>
               this.callHandler(instance, metadata, handler, data),
@@ -302,7 +294,7 @@ export class RestateServer {
         async (rsCtx: restate.WorkflowContext, request: Uint8Array) => {
           const injector = this.createScopedInjector();
           const ctx = this.createSagaContext(rsCtx);
-          injector.set(restateSagaContextType, ctx, module);
+          injector.set(restateSagaContextType, ctx);
           const restateSaga = injector.get(classType, module);
           const sagaManager = new SagaManager(ctx, restateSaga, metadata);
           const data = metadata.deserializeData(request);
@@ -342,7 +334,7 @@ export class RestateServer {
           ): Promise<Uint8Array> => {
             const injector = this.createScopedInjector();
             const ctx = this.createObjectContext(rsCtx);
-            injector.set(restateObjectContextType, ctx, module);
+            injector.set(restateObjectContextType, ctx);
             const instance = injector.get(classType, module);
             return await this.contextStorage.run(ctx, () =>
               this.callHandler(instance, metadata, handler, data),
