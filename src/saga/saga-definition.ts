@@ -132,7 +132,11 @@ export class SagaDefinition<Data> {
     } else if (state.compensating) {
       throw new TerminalError('Failure when compensating');
     } else {
-      return await this.executeNextStep(ctx, sagaData, state.startCompensating());
+      return await this.executeNextStep(
+        ctx,
+        sagaData,
+        state.startCompensating(),
+      );
     }
   }
 }

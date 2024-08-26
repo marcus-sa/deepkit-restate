@@ -17,22 +17,22 @@ type InvokeHandler<D> = (data: D) => RestateHandlerResponse;
 
 type CompensateHandler<D> = (data: D) => RestateHandlerResponse;
 
-interface MockResponseHandler<D> {
+interface MockResponseHandler<D, S> {
   readonly response: InvokeHandler<D>;
-  readonly name: string;
+  readonly name: keyof S;
   called: boolean;
 }
 
-interface RunAfterReplyHandler<D> {
+interface RunAfterReplyHandler<D, S> {
   readonly handle: ReplyHandler<D>;
-  readonly name: string;
+  readonly name: keyof S;
   called: boolean;
 }
 
 export class SagaTestManager<D, S extends Saga<D>> extends SagaManager<D> {
-  readonly invokers: (MockResponseHandler<D> | undefined)[] = [];
-  readonly compensators: (MockResponseHandler<D> | undefined)[] = [];
-  readonly replies = new Map<string, RunAfterReplyHandler<D>>();
+  readonly invokers: (MockResponseHandler<D, S> | undefined)[] = [];
+  readonly compensators: (MockResponseHandler<D, S> | undefined)[] = [];
+  readonly replies = new Map<string, RunAfterReplyHandler<D, S>>();
 
   constructor(ctx: RestateSagaContext, saga: S) {
     const metadata = getRestateSagaMetadata<D>(saga.constructor as ClassType)!;
@@ -92,39 +92,40 @@ export class SagaTestManager<D, S extends Saga<D>> extends SagaManager<D> {
     }
   }
 
-  mockInvocationResponse<K extends keyof S>(method: K, response: InvokeHandler<D>) {
-    const stepIndex = this.saga.definition.steps
-      .findIndex(step => {
-        if (!step.isParticipantInvocation || !step.invoke) return false;
-        const stepName = (step.invoke as Function).name.replace('bound ', '');
-        return stepName === method;
-      });
+  mockInvocationResponse<K extends keyof S>(
+    method: K,
+    response: InvokeHandler<D>,
+  ) {
+    const stepIndex = this.saga.definition.steps.findIndex(step => {
+      if (!step.isParticipantInvocation || !step.invoke) return false;
+      const stepName = (step.invoke as Function).name.replace('bound ', '');
+      return stepName === method;
+    });
 
     if (stepIndex < 0) {
-      throw new Error(`Unable to find invoke step ${method as string}`);
+      throw new Error(`Unable to find invoke step ${String(method)}`);
     }
 
-    this.invokers[stepIndex] = { response, name: method as string, called: false };
+    this.invokers[stepIndex] = { response, name: method, called: false };
   }
 
-  mockCompensationResponse<K extends keyof S>(method: K, response: CompensateHandler<D>) {
-    const stepIndex = this.saga.definition.steps
-      .findIndex(step => {
-        if (!step.isParticipantInvocation || !step.compensate) return false;
-        const stepName = (step.compensate as Function).name.replace(
-          'bound ',
-          '',
-        );
-        return stepName === method;
-      });
+  mockCompensationResponse<K extends keyof S>(
+    method: K,
+    response: CompensateHandler<D>,
+  ) {
+    const stepIndex = this.saga.definition.steps.findIndex(step => {
+      if (!step.isParticipantInvocation || !step.compensate) return false;
+      const stepName = (step.compensate as Function).name.replace('bound ', '');
+      return stepName === method;
+    });
 
     if (stepIndex < 0) {
-      throw new Error(`Unable to find compensate step ${method as string}`);
+      throw new Error(`Unable to find compensate step ${String(method)}`);
     }
 
     this.compensators[stepIndex] = {
       response,
-      name: method as string,
+      name: method,
       called: false,
     };
   }
@@ -141,13 +142,13 @@ export class SagaTestManager<D, S extends Saga<D>> extends SagaManager<D> {
         return handlerName === method;
       });
 
-      if (handler) {
-        this.replies.set(handler.type.typeName!, {
-          name: method as string,
-          called: false,
-          handle: fn,
-        });
-      }
+      if (!handler) continue;
+
+      this.replies.set(handler.type.typeName!, {
+        name: method,
+        called: false,
+        handle: fn,
+      });
     }
   }
 
@@ -163,9 +164,9 @@ export class SagaTestManager<D, S extends Saga<D>> extends SagaManager<D> {
   ): Promise<void> {
     const invoker = this.invokers.find(invoker => invoker?.name === method);
     if (!invoker) {
-      throw new Error(`Unable to find invoke method ${method as string}`);
+      throw new Error(`Unable to find invoke method ${String(method)}`);
     }
-    await waitUntil(() => !!invoker?.called, timeout);
+    await waitUntil(() => invoker.called, timeout);
   }
 
   async waitForCompensationToHaveBeenCalled<K extends keyof S>(
@@ -176,26 +177,42 @@ export class SagaTestManager<D, S extends Saga<D>> extends SagaManager<D> {
       compensator => compensator?.name === method,
     );
     if (!compensator) {
-      throw new Error(`Unable to find compensate method ${method as string}`);
+      throw new Error(`Unable to find compensate method ${String(method)}`);
     }
-    await waitUntil(() => !!compensator?.called, timeout);
+    await waitUntil(() => compensator.called, timeout);
   }
 
-  assertMocksHaveBeenCalled() {
+  assertHandlersHaveBeenCalled() {
     for (const handler of this.invokers) {
       if (handler && !handler.called) {
-        throw new Error(`Invoke handler ${handler.name} wasn't called`);
+        throw new Error(`Invoke handler ${String(handler.name)} wasn't called`);
       }
     }
     for (const handler of this.compensators) {
       if (handler && !handler.called) {
-        throw new Error(`Compensate handler ${handler.name} wasn't called`);
+        throw new Error(`Compensate handler ${String(handler.name)} wasn't called`);
       }
     }
     for (const handler of this.replies.values()) {
       if (!handler.called) {
-        throw new Error(`Reply handler ${handler.name} wasn't called`);
+        throw new Error(`Reply handler ${String(handler.name)} wasn't called`);
       }
     }
+  }
+
+  async waitForHandlersToHaveBeenCalled(timeout: number = 1000): Promise<void> {
+    await Promise.all([
+      ...this.invokers
+        .filter(invoker => !!invoker)
+        .map(invoker =>
+          this.waitForInvocationToHaveBeenCalled(invoker!.name, timeout),
+        ),
+      ...this.compensators
+        .filter(compensator => !!compensator)
+        .map(compensator =>
+          this.waitForCompensationToHaveBeenCalled(compensator!.name, timeout),
+        ),
+    ]);
+    this.assertHandlersHaveBeenCalled();
   }
 }
