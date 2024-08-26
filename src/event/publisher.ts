@@ -30,7 +30,7 @@ export class RestateEventsPublisher {
     assertType(type, ReflectionKind.tuple);
 
     const eventsToPublish = events.map<PublishEvent>((event, i) => {
-      const eventType = (type as TypeTuple).types[i];
+      const { type: eventType } = (type as TypeTuple).types[i];
       if (!eventType.typeName) {
         throw new MissingTypeName(eventType);
       }
