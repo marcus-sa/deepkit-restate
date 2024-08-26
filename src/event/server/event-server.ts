@@ -8,6 +8,7 @@ import {
   EventServerHandlers,
   PublishEvent,
   PublishOptions,
+  Subscription,
   Subscriptions,
 } from '../types.js';
 
@@ -55,15 +56,20 @@ export class RestateEventsServer implements EventServerHandlers {
   @restate.handler()
   async subscribe(newSubscriptions: Subscriptions): Promise<void> {
     const currentSubscriptions = await this.#getSubscriptions();
+    const allSubscriptions = new Map<string, Subscription>();
 
-    const allSubscriptions = currentSubscriptions.filter(currentSub =>
-      newSubscriptions.some(
-        newSub =>
-          newSub.service === currentSub.service &&
-          newSub.method === currentSub.method,
-      ),
-    );
+    const generateKey = (sub: Subscription) => `${sub.service}-${sub.method}-${sub.typeName}`;
 
-    await this.ctx.set(SUBSCRIPTIONS_STATE_KEY, allSubscriptions);
+    currentSubscriptions.forEach(sub => {
+      const key = generateKey(sub);
+      allSubscriptions.set(key, sub);
+    });
+
+    newSubscriptions.forEach(sub => {
+      const key = generateKey(sub);
+      allSubscriptions.set(key, sub);
+    });
+
+    await this.ctx.set(SUBSCRIPTIONS_STATE_KEY, [...allSubscriptions.values()]);
   }
 }
