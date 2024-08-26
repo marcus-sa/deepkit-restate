@@ -180,7 +180,7 @@ export class RestateHandlerDecorator {
     const serializeReturn = getReturnValueSerializer(returnType);
 
     const argsType = getReflectionFunctionArgsType(reflectionMethod);
-    const deserializeArgs = getBSONDeserializer(undefined, argsType);
+    const deserializeArgs = this.t.deserializeArgs || getBSONDeserializer(undefined, argsType);
 
     Object.assign(this.t, {
       name: property,
@@ -201,8 +201,10 @@ export class RestateHandlerDecorator {
   // FIXME: options and type are somehow required
   event<T>(type?: ReceiveType<T>) {
     type = resolveReceiveType(type);
+    const deserialize = getBSONDeserializer(undefined, type);
     Object.assign(this.t, {
       event: { type },
+      deserializeArgs: (bson: Uint8Array) => [deserialize(bson)],
     });
   }
 
