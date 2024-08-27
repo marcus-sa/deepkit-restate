@@ -37,9 +37,10 @@ import {
   restateServiceType,
 } from './types.js';
 import {
+  deserializeResponseData,
   deserializeRestateHandlerResponse,
   getResponseDataDeserializer,
-  getResponseDataSerializer,
+  serializeResponseData,
 } from './serializer.js';
 
 export function getRestateClassDeps(classType: ClassType): readonly Type[] {
@@ -244,9 +245,7 @@ export function provideRestateObjectProxy<
   };
 }
 
-export function getRegisteredEntity(
-  className: string,
-): ClassType | undefined {
+export function getRegisteredEntity(className: string): ClassType | undefined {
   return Object.values(typeSettings.registeredEntities).find(
     classType => classType.name === className,
   );
@@ -285,7 +284,7 @@ export function decodeRestateServiceMethodResponse<T>(
       },
     );
   }
-  throw deserializeBSON(internalResponse.data, undefined, undefined, entity);
+  throw deserializeResponseData(internalResponse.data, entity);
 }
 
 export function assertValidKafkaTopicName(topicName: string): void {
@@ -321,10 +320,9 @@ export function success<T>(
 ): RestateHandlerResponse {
   if (reply) {
     type = resolveReceiveType(type);
-    const serialize = getResponseDataSerializer(type);
     return {
       success: true,
-      data: serialize(reply),
+      data: serializeResponseData(reply, type),
       typeName: type.typeName,
     };
   }
@@ -341,10 +339,9 @@ export function failure<T>(
 ): RestateHandlerResponse {
   if (reply) {
     type = resolveReceiveType(type);
-    const serialize = getResponseDataSerializer(type);
     return {
       success: false,
-      data: serialize(reply),
+      data: serializeResponseData(reply, type),
       typeName: type.typeName,
     };
   }

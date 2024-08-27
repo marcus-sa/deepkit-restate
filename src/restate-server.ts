@@ -29,7 +29,10 @@ import { RestateConfig } from './config.js';
 import { decodeRestateServiceMethodResponse, invokeOneWay } from './utils.js';
 import { RestateAdminClient } from './restate-admin-client.js';
 import { RestateContextStorage } from './restate-context-storage.js';
-import { serializeRestateHandlerResponse } from './serializer.js';
+import {
+  serializeResponseData,
+  serializeRestateHandlerResponse,
+} from './serializer.js';
 import {
   RestateAwakeable,
   RestateObjectContext,
@@ -372,7 +375,7 @@ export class RestateServer {
       if (hasTypeInformation(error.constructor)) {
         return serializeRestateHandlerResponse({
           success: false,
-          data: serializeBSON(error, undefined, error.constructor),
+          data: serializeResponseData(error, error.constructor),
           typeName: error.constructor.name,
         });
       }

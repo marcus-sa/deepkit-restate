@@ -7,7 +7,7 @@ import { SagaExecutionState } from './saga-execution-state.js';
 import { StepToExecute } from './step-to-execute.js';
 import { SagaInstance } from './saga-instance.js';
 import { SagaActions } from './saga-actions.js';
-import { deserializeRestateTerminalErrorType } from '../serializer.js';
+import { deserializeResponseData, deserializeRestateTerminalErrorType } from '../serializer.js';
 import { getRegisteredEntity } from '../utils.js';
 import {
   RestateHandlerRequest,
@@ -111,7 +111,7 @@ export class SagaDefinition<Data> {
         errorCode: 500,
       });
     }
-    return deserializeBSON<T>(response.data, undefined, undefined, entity);
+    return deserializeResponseData<T>(response.data, entity);
   }
 
   async handleActions(

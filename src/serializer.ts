@@ -1,6 +1,8 @@
 import { TerminalError } from '@restatedev/restate-sdk';
 import {
+  ReceiveType,
   ReflectionKind,
+  resolveReceiveType,
   Type,
   TypeObjectLiteral,
   TypePropertySignature,
@@ -39,19 +41,41 @@ function toSerializableDataType(type: Type): TypeObjectLiteral {
   return parent;
 }
 
-export function getResponseDataSerializer<T>(type: Type): BSONSerializer {
+export function getResponseDataSerializer<T>(
+  type?: ReceiveType<T>,
+): BSONSerializer {
+  type = resolveReceiveType(type);
   const serializableType = toSerializableDataType(type);
   const serialize = getBSONSerializer(undefined, serializableType);
   return (value: T) => serialize({ [VALUE_KEY]: value });
 }
 
-export function getResponseDataDeserializer<T>(type: Type): BSONDeserializer<T> {
+export function serializeResponseData<T>(
+  data: unknown,
+  type?: ReceiveType<T>,
+): Uint8Array {
+  const serialize = getResponseDataSerializer(type);
+  return serialize(data);
+}
+
+export function getResponseDataDeserializer<T>(
+  type?: ReceiveType<T>,
+): BSONDeserializer<T> {
+  type = resolveReceiveType(type);
   const serializableType = toSerializableDataType(type);
   const deserialize = getBSONDeserializer<{ readonly [VALUE_KEY]: T }>(
     undefined,
     serializableType,
   );
   return (bson: Uint8Array) => deserialize(bson)[VALUE_KEY];
+}
+
+export function deserializeResponseData<T>(
+  data: Uint8Array,
+  type?: ReceiveType<T>,
+): T {
+  const deserialize = getResponseDataDeserializer<T>(type);
+  return deserialize(data);
 }
 
 export function getSagaDataDeserializer<T>(
