@@ -19,6 +19,8 @@ import {
   restateTerminalErrorType,
 } from './types.js';
 
+const VALUE_KEY = 'v' as const;
+
 function toSerializableDataType(type: Type): TypeObjectLiteral {
   const parent: TypeObjectLiteral = {
     kind: ReflectionKind.objectLiteral,
@@ -27,7 +29,7 @@ function toSerializableDataType(type: Type): TypeObjectLiteral {
 
   const newType: TypePropertySignature = {
     kind: ReflectionKind.propertySignature,
-    name: 'v',
+    name: VALUE_KEY,
     parent,
     type,
   };
@@ -37,19 +39,19 @@ function toSerializableDataType(type: Type): TypeObjectLiteral {
   return parent;
 }
 
-export function getReturnValueSerializer<T>(type: Type): BSONSerializer {
+export function getResponseDataSerializer<T>(type: Type): BSONSerializer {
   const serializableType = toSerializableDataType(type);
   const serialize = getBSONSerializer(undefined, serializableType);
-  return (value: T) => serialize({ v: value });
+  return (value: T) => serialize({ [VALUE_KEY]: value });
 }
 
-export function getReturnValueDeserializer<T>(type: Type): BSONDeserializer<T> {
+export function getResponseDataDeserializer<T>(type: Type): BSONDeserializer<T> {
   const serializableType = toSerializableDataType(type);
-  const deserialize = getBSONDeserializer<{ readonly v: T }>(
+  const deserialize = getBSONDeserializer<{ readonly [VALUE_KEY]: T }>(
     undefined,
     serializableType,
   );
-  return (bson: Uint8Array) => deserialize(bson).v;
+  return (bson: Uint8Array) => deserialize(bson)[VALUE_KEY];
 }
 
 export function getSagaDataDeserializer<T>(

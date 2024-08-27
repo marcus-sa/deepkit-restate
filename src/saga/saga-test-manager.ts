@@ -39,7 +39,7 @@ export class SagaTestManager<D, S extends Saga<D>> extends SagaManager<D> {
   constructor(ctx: RestateSagaContext, saga: S) {
     const metadata = getRestateSagaMetadata<D>(saga.constructor as ClassType)!;
 
-    const origHandleReply = saga.definition.handleReply.bind(saga.definition);
+    const handleReply = saga.definition.handleReply.bind(saga.definition);
 
     const definition = Object.assign(saga.definition, {
       handleReply: async (
@@ -48,7 +48,7 @@ export class SagaTestManager<D, S extends Saga<D>> extends SagaManager<D> {
         request: RestateHandlerRequest,
         response: RestateHandlerResponse,
       ) => {
-        return await origHandleReply(state, data, request, response, () => {
+        return await handleReply(state, data, request, response, () => {
           const reply = this.replies.get(response.typeName!);
           if (reply) {
             try {

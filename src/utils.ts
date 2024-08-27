@@ -39,7 +39,8 @@ import {
 } from './types.js';
 import {
   deserializeRestateHandlerResponse,
-  getReturnValueDeserializer,
+  getResponseDataDeserializer,
+  getResponseDataSerializer,
 } from './serializer.js';
 
 export function getRestateClassDeps(classType: ClassType): readonly Type[] {
@@ -179,7 +180,7 @@ export function createClassProxy<
 
           const returnType =
             getUnwrappedReflectionFunctionReturnType(reflectionMethod);
-          const deserializeReturn = getReturnValueDeserializer(returnType);
+          const deserializeReturn = getResponseDataDeserializer(returnType);
 
           methods[method] = { serializeArgs, deserializeReturn };
         }
@@ -313,9 +314,10 @@ export function success<T>(
 ): RestateHandlerResponse {
   if (reply) {
     type = resolveReceiveType(type);
+    const serialize = getResponseDataSerializer(type);
     return {
       success: true,
-      data: serializeBSON(reply, undefined, type),
+      data: serialize(reply),
       typeName: type.typeName,
     };
   }
@@ -332,9 +334,10 @@ export function failure<T>(
 ): RestateHandlerResponse {
   if (reply) {
     type = resolveReceiveType(type);
+    const serialize = getResponseDataSerializer(type);
     return {
       success: false,
-      data: serializeBSON(reply, undefined, type),
+      data: serialize(reply),
       typeName: type.typeName,
     };
   }

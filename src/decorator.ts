@@ -30,7 +30,7 @@ import {
 } from '@deepkit/type';
 
 import {
-  getReturnValueSerializer,
+  getResponseDataSerializer,
   getSagaDataDeserializer,
   getSagaDataSerializer,
 } from './serializer.js';
@@ -177,7 +177,7 @@ export class RestateHandlerDecorator {
 
     const returnType =
       getUnwrappedReflectionFunctionReturnType(reflectionMethod);
-    const serializeReturn = getReturnValueSerializer(returnType);
+    const serializeReturn = getResponseDataSerializer(returnType);
 
     const argsType = getReflectionFunctionArgsType(reflectionMethod);
     const deserializeArgs =

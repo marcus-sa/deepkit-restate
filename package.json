@@ -1,8 +1,9 @@
 {
   "name": "deepkit-restate",
-  "version": "0.0.71",
+  "version": "0.0.72",
   "license": "MIT",
-  "repository": "https://github.com/marcus-sa/deepkit-restate",
+  "repository": "https://github.com/marcus-sa/deepstate.git",
+  "homepage": "https://deepstate.js.org",
   "author": "Marcus S. Abildskov <root@marcus-sa.dev>",
   "type": "module",
   "main": "./lib/cjs/src/index.js",
