@@ -8,6 +8,7 @@ import { StepToExecute } from './step-to-execute.js';
 import { SagaInstance } from './saga-instance.js';
 import { SagaActions } from './saga-actions.js';
 import { deserializeRestateTerminalErrorType } from '../serializer.js';
+import { getRegisteredEntity } from '../utils.js';
 import {
   RestateHandlerRequest,
   RestateHandlerResponse,
@@ -101,7 +102,7 @@ export class SagaDefinition<Data> {
     }
     const entity =
       request.entities.get(response.typeName) ||
-      typeSettings.registeredEntities[response.typeName];
+      getRegisteredEntity(response.typeName);
     if (!entity) {
       if (response.typeName === restateTerminalErrorType.typeName) {
         return deserializeRestateTerminalErrorType(response.data);

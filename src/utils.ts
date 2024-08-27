@@ -6,7 +6,6 @@ import {
   BSONSerializer,
   deserializeBSON,
   getBSONSerializer,
-  serializeBSON,
 } from '@deepkit/bson';
 import {
   assertType,
@@ -245,6 +244,14 @@ export function provideRestateObjectProxy<
   };
 }
 
+export function getRegisteredEntity(
+  className: string,
+): ClassType | undefined {
+  return Object.values(typeSettings.registeredEntities).find(
+    classType => classType.name === className,
+  );
+}
+
 export function decodeRestateServiceMethodResponse<T>(
   response: Uint8Array,
   deserialize: BSONDeserializer<T>,
@@ -261,7 +268,7 @@ export function decodeRestateServiceMethodResponse<T>(
   }
   const entity =
     entities.get(internalResponse.typeName) ||
-    typeSettings.registeredEntities[internalResponse.typeName];
+    getRegisteredEntity(internalResponse.typeName);
   if (!entity) {
     // if (internalResponse.typeName === restateTerminalErrorType.typeName) {
     //   throw deserializeRestateTerminalErrorType(internalResponse.data);
