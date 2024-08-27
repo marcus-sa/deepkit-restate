@@ -1,17 +1,18 @@
 import { TerminalError } from '@restatedev/restate-sdk';
+import { typeSettings } from '@deepkit/type';
+import { deserializeBSON } from '@deepkit/bson';
 
 import { SagaStep } from './saga-step.js';
 import { SagaExecutionState } from './saga-execution-state.js';
 import { StepToExecute } from './step-to-execute.js';
 import { SagaInstance } from './saga-instance.js';
 import { SagaActions } from './saga-actions.js';
+import { deserializeRestateTerminalErrorType } from '../serializer.js';
 import {
-  Entity,
   RestateHandlerRequest,
   RestateHandlerResponse,
   restateTerminalErrorType,
 } from '../types.js';
-import { deserializeRestateTerminalErrorType } from '../serializer.js';
 
 export class SagaDefinition<Data> {
   constructor(readonly steps: readonly SagaStep<Data>[]) {}
@@ -85,19 +86,31 @@ export class SagaDefinition<Data> {
     request: RestateHandlerRequest,
     response: RestateHandlerResponse,
   ): T | TerminalError {
+    if (!response.typeName) {
+      throw new TerminalError('Missing type name', {
+        errorCode: 400,
+      });
+    }
+    if (!response.data) {
+      throw new TerminalError(`Missing reply data for ${response.typeName}`, {
+        errorCode: 400,
+      });
+    }
     if (response.success) {
       return request.deserializeReturn(response.data);
     }
-    const entity = request.entities.get(response.typeName!) as Entity<T> | null;
+    const entity =
+      request.entities.get(response.typeName) ||
+      typeSettings.registeredEntities[response.typeName];
     if (!entity) {
       if (response.typeName === restateTerminalErrorType.typeName) {
         return deserializeRestateTerminalErrorType(response.data);
       }
-      throw new TerminalError(`Missing entity for type ${response.typeName}`, {
-        // errorCode: RestateErrorCodes.INTERNAL,
+      throw new TerminalError(`Missing entity for reply ${response.typeName}`, {
+        errorCode: 500,
       });
     }
-    return entity.deserialize(response.data);
+    return deserializeBSON<T>(response.data, undefined, undefined, entity);
   }
 
   async handleActions(
@@ -110,10 +123,7 @@ export class SagaDefinition<Data> {
     } else if (state.compensating) {
       throw new TerminalError('Failure when compensating');
     } else {
-      return await this.executeNextStep(
-        sagaData,
-        state.startCompensating(),
-      );
+      return await this.executeNextStep(sagaData, state.startCompensating());
     }
   }
 }

@@ -1,4 +1,4 @@
-import { ReceiveType, typeOf } from '@deepkit/type';
+import { ReceiveType, ReflectionKind, typeOf } from '@deepkit/type';
 import { ClassType } from '@deepkit/core';
 import { BSONDeserializer, BSONSerializer } from '@deepkit/bson';
 import {
@@ -29,13 +29,7 @@ export interface RestateRpcOptions {
   readonly idempotencyKey?: string;
 }
 
-export interface Entity<T> {
-  readonly classType: ClassType<T>;
-  readonly serialize: BSONSerializer;
-  readonly deserialize: BSONDeserializer<T>;
-}
-
-export type Entities = Map<string, Entity<unknown>>;
+export type Entities = Map<string, ClassType<unknown>>;
 
 type RestateHandlerType = 'object' | 'service';
 
@@ -160,7 +154,7 @@ export interface RestateObjectContext
 
 export interface RestateHandlerResponse {
   readonly success: boolean;
-  readonly data: Uint8Array;
+  readonly data?: Uint8Array;
   readonly typeName?: string;
 }
 

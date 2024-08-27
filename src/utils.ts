@@ -4,6 +4,7 @@ import { FactoryProvider } from '@deepkit/injector';
 import {
   BSONDeserializer,
   BSONSerializer,
+  deserializeBSON,
   getBSONSerializer,
   serializeBSON,
 } from '@deepkit/bson';
@@ -20,6 +21,7 @@ import {
   TypeClass,
   TypeObjectLiteral,
   TypeParameter,
+  typeSettings,
   TypeTuple,
   TypeTupleMember,
 } from '@deepkit/type';
@@ -249,19 +251,33 @@ export function decodeRestateServiceMethodResponse<T>(
 ): T {
   const internalResponse = deserializeRestateHandlerResponse(response);
   if (internalResponse.success) {
-    return deserialize(internalResponse.data);
+    return internalResponse.data
+      ? deserialize(internalResponse.data)
+      : (undefined as T);
   }
   if (!internalResponse.typeName) {
     throw new TerminalError('Missing typeName');
   }
-  const entity = entities.get(internalResponse.typeName);
+  const entity =
+    entities.get(internalResponse.typeName) ||
+    typeSettings.registeredEntities[internalResponse.typeName];
   if (!entity) {
     // if (internalResponse.typeName === restateTerminalErrorType.typeName) {
     //   throw deserializeRestateTerminalErrorType(internalResponse.data);
     // }
-    throw new TerminalError('Unknown entity');
+    throw new TerminalError(`Unknown type ${internalResponse.typeName}`, {
+      errorCode: 500,
+    });
   }
-  throw entity.deserialize(internalResponse.data);
+  if (!internalResponse.data) {
+    throw new TerminalError(
+      `Missing response data for error ${internalResponse.typeName}`,
+      {
+        errorCode: 500,
+      },
+    );
+  }
+  throw deserializeBSON(internalResponse.data, undefined, undefined, entity);
 }
 
 export function assertValidKafkaTopicName(topicName: string): void {

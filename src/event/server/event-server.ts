@@ -39,7 +39,7 @@ export class RestateEventsServer implements EventServerHandlers {
         );
 
         return eventSubscriptions.map(subscription =>
-          invokeOneWay((this.ctx as any).original, {
+          invokeOneWay(this.ctx, {
             service: subscription.service,
             method: subscription.method,
             data,

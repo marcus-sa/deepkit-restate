@@ -5,15 +5,18 @@ import { SagaInstance } from './saga-instance.js';
 import { SagaActions } from './saga-actions.js';
 import { RestateSagaMetadata } from '../decorator.js';
 import {
+  deserializeRestateHandlerResponse,
+  serializeRestateTerminalErrorType,
+} from '../serializer.js';
+import {
   RestateHandlerRequest,
   RestateHandlerResponse,
   RestateSagaContext,
-  restateTerminalErrorType,
-
 } from '../types.js';
-import { deserializeRestateHandlerResponse, serializeRestateTerminalErrorType } from '../serializer.js';
 
 export class SagaManager<Data> {
+  #processActionsPromise?: Promise<void>;
+
   constructor(
     protected readonly ctx: RestateSagaContext,
     protected readonly saga: Saga<Data>,
@@ -41,7 +44,7 @@ export class SagaManager<Data> {
         return {
           success: false,
           data: serializeRestateTerminalErrorType(err),
-          typeName: restateTerminalErrorType.typeName!,
+          typeName: 'TerminalError',
         };
       }
       // TODO: what to do with unhandled errors?
@@ -113,6 +116,13 @@ export class SagaManager<Data> {
     }
   }
 
+  async waitForCompletion(): Promise<void> {
+    if (!this.#processActionsPromise) {
+      throw new Error('Saga has not been started yet');
+    }
+    await this.#processActionsPromise;
+  }
+
   async start(data: Data): Promise<SagaInstance<Data>> {
     // TODO: wait for state machine api.
     //  currently we have to rerun everything in the same order to keep the restate journal consistent
@@ -126,7 +136,7 @@ export class SagaManager<Data> {
 
     const actions = await this.saga.definition.start(instance);
 
-    void this.processActions(instance, actions);
+    this.#processActionsPromise = this.processActions(instance, actions);
 
     return instance;
   }

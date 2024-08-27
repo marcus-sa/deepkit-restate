@@ -1,3 +1,4 @@
+import { ClassType } from '@deepkit/core';
 import {
   assertType,
   ReflectionKind,
@@ -6,8 +7,6 @@ import {
   TypeObjectLiteral,
   TypeTuple,
 } from '@deepkit/type';
-import { getBSONDeserializer, getBSONSerializer } from '@deepkit/bson';
-import { ClassType } from '@deepkit/core';
 
 import { Entities } from './types.js';
 import { getTypeArgument } from './utils.js';
@@ -46,14 +45,7 @@ export function getRestateClassEntities(serviceType: Type): Entities {
     typeArgument.types
       .map(type => type.type)
       .filter((type): type is TypeClass => type.kind === ReflectionKind.class)
-      .map(type => {
-        const deserialize = getBSONDeserializer(undefined, type);
-        const serialize = getBSONSerializer(undefined, type);
-        return [
-          type.typeName!,
-          { deserialize, serialize, classType: type.classType },
-        ];
-      }),
+      .map(type => [type.typeName!, type.classType]),
   );
 }
 

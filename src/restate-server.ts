@@ -137,16 +137,25 @@ export class RestateServer {
   private createContext<
     T extends RestateObjectContext | RestateSagaContext | RestateServiceContext,
   >(ctx: restate.ObjectContext | restate.WorkflowContext | restate.Context): T {
-    return {
-      original: ctx,
+    const _resolveAwakeable = ctx.resolveAwakeable.bind(ctx);
+    const _awakeable = ctx.awakeable.bind(ctx);
+    const _run = ctx.run.bind(ctx);
+
+    return Object.assign(ctx, {
+      serviceClient: undefined,
+      serviceSendClient: undefined,
+      objectSendClient: undefined,
+      objectClient: undefined,
+      workflowClient: undefined,
+      workflowSendClient: undefined,
       resolveAwakeable<T>(id: string, payload?: T, type?: ReceiveType<T>) {
         type = resolveReceiveType(type);
         const serialize = getBSONSerializer(undefined, type);
-        ctx.resolveAwakeable(id, Array.from(serialize(payload)));
+        _resolveAwakeable(id, Array.from(serialize(payload)));
       },
       awakeable<T>(type?: ReceiveType<T>): RestateAwakeable<T> {
         type = resolveReceiveType(type);
-        const awakeable = ctx.awakeable<readonly uint8[]>();
+        const awakeable = _awakeable<readonly uint8[]>();
         const deserialize = getBSONDeserializer<T>(undefined, type);
         const promise = awakeable.promise.then(bytes =>
           deserialize(new Uint8Array(bytes)),
@@ -167,7 +176,7 @@ export class RestateServer {
           type = resolveReceiveType(type);
         } catch {}
         // TODO: https://github.com/restatedev/sdk-typescript/issues/410
-        const result = await ctx.run(async () => {
+        const result = await _run(async () => {
           const result = await action();
           if (!type || !result) return;
           return serializeBSON(result, undefined, type);
@@ -206,18 +215,7 @@ export class RestateServer {
             ),
         );
       },
-      serviceClient: undefined,
-      serviceSendClient: undefined,
-      objectSendClient: undefined,
-      objectClient: undefined,
-      workflowClient: undefined,
-      workflowSendClient: undefined,
-      clearAll: 'clearAll' in ctx ? ctx.clearAll.bind(ctx) : undefined,
-      clear: 'clear' in ctx ? ctx.clear.bind(ctx) : undefined,
-      stateKeys: 'stateKeys' in ctx ? ctx.stateKeys.bind(ctx) : undefined,
-      set: 'set' in ctx ? ctx.set.bind(ctx) : undefined,
-      get: 'get' in ctx ? ctx.get.bind(ctx) : undefined,
-    } as unknown as T;
+    }) as T;
   }
 
   private createObjectContext(
@@ -301,7 +299,10 @@ export class RestateServer {
           const restateSaga = injector.get(classType, module);
           const sagaManager = new SagaManager(ctx, restateSaga, metadata);
           const data = metadata.deserializeData(request);
-          await this.contextStorage.run(ctx, () => sagaManager.start(data));
+          await this.contextStorage.run(ctx, async () => {
+            await sagaManager.start(data);
+            await sagaManager.waitForCompletion();
+          });
           return new Uint8Array();
         },
       ),
@@ -367,25 +368,21 @@ export class RestateServer {
             : new Uint8Array(),
         typeName: handler.returnType.typeName,
       });
-    } catch (err: any) {
-      if (hasTypeInformation(err.constructor)) {
-        const entityName = reflect(err.constructor).typeName!;
-        const entity = clazz.entities.get(entityName);
-        if (entity) {
-          return serializeRestateHandlerResponse({
-            success: false,
-            data: entity.serialize(err),
-            typeName: entityName,
-          });
-        }
-      }
-      if (err instanceof TypeError) {
-        throw new restate.TerminalError(err.message, {
-          cause: TypeError.name,
-          // errorCode: restate.RestateErrorCodes.INTERNAL,
+    } catch (error: any) {
+      if (hasTypeInformation(error.constructor)) {
+        return serializeRestateHandlerResponse({
+          success: false,
+          data: serializeBSON(error, undefined, error.constructor),
+          typeName: error.constructor.name,
         });
       }
-      throw err;
+      if (error instanceof TypeError) {
+        throw new restate.TerminalError(error.message, {
+          cause: TypeError.name,
+          errorCode: 500,
+        });
+      }
+      throw error;
     }
   }
 }

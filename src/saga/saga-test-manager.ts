@@ -48,22 +48,16 @@ export class SagaTestManager<D, S extends Saga<D>> extends SagaManager<D> {
         request: RestateHandlerRequest,
         response: RestateHandlerResponse,
       ) => {
-        return await origHandleReply(
-          state,
-          data,
-          request,
-          response,
-          () => {
-            const reply = this.replies.get(response.typeName!);
-            if (reply) {
-              try {
-                reply.handle(data, state);
-              } finally {
-                reply.called = true;
-              }
+        return await origHandleReply(state, data, request, response, () => {
+          const reply = this.replies.get(response.typeName!);
+          if (reply) {
+            try {
+              reply.handle(data, state);
+            } finally {
+              reply.called = true;
             }
-          },
-        );
+          }
+        });
       },
     });
     Object.assign(saga, { definition });
@@ -203,7 +197,9 @@ export class SagaTestManager<D, S extends Saga<D>> extends SagaManager<D> {
     }
     for (const handler of this.compensators) {
       if (handler && !handler.called) {
-        throw new Error(`Compensate handler ${String(handler.name)} wasn't called`);
+        throw new Error(
+          `Compensate handler ${String(handler.name)} wasn't called`,
+        );
       }
     }
     for (const handler of this.replies.values()) {

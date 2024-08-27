@@ -1,9 +1,6 @@
 import { typeOf, uint8 } from '@deepkit/type';
 import { WorkflowContext } from '@restatedev/restate-sdk';
-import {
-  getBSONDeserializer,
-  getBSONSerializer,
-} from '@deepkit/bson';
+import { getBSONDeserializer, getBSONSerializer } from '@deepkit/bson';
 
 import { SagaExecutionState } from './saga-execution-state.js';
 import { RestateSagaMetadata } from '../decorator.js';
