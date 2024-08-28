@@ -56,6 +56,7 @@ export class SagaStep<Data> {
 
         return SagaStepOutcome.forParticipant(request);
       } catch (err) {
+        console.error(err);
         return SagaStepOutcome.forParticipantWithError(err);
       }
     } else {
@@ -67,6 +68,7 @@ export class SagaStep<Data> {
         }
         return SagaStepOutcome.forLocal();
       } catch (err) {
+        console.error(err);
         return SagaStepOutcome.forLocalWithError(err);
       }
     }

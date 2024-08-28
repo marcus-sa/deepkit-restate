@@ -43,16 +43,15 @@ export class SagaTestManager<D, S extends Saga<D>> extends SagaManager<D> {
 
     const definition = Object.assign(saga.definition, {
       handleReply: async (
-        state: SagaExecutionState,
-        data: D,
+        instance: SagaInstance<D>,
         request: RestateHandlerRequest,
         response: RestateHandlerResponse,
       ) => {
-        return await handleReply(state, data, request, response, () => {
+        return await handleReply(instance, request, response, () => {
           const reply = this.replies.get(response.typeName!);
           if (reply) {
             try {
-              reply.handle(data, state);
+              reply.handle(instance.sagaData, instance.currentState);
             } finally {
               reply.called = true;
             }

@@ -61,26 +61,27 @@ export class SagaDefinition<Data> {
   }
 
   async handleReply(
-    state: SagaExecutionState,
-    sagaData: Data,
+    instance: SagaInstance<Data>,
     request: RestateHandlerRequest,
     response: RestateHandlerResponse,
     afterHandler?: () => void,
   ): Promise<SagaActions<Data>> {
-    const currentStep = this.steps[state.currentlyExecuting];
+    const currentStep = this.steps[instance.currentState.currentlyExecuting];
     if (!currentStep) {
       throw new TerminalError(
-        `Saga step is missing for execution state ${state}`,
+        `Saga step is missing for execution state ${instance.currentState}`,
       );
     }
-    const reply = currentStep.getReply(response, state.compensating);
+    const reply = currentStep.getReply(response, instance.currentState.compensating);
     if (reply) {
       const replyData = this.deserializeReply(request, response);
-      await reply.handler(sagaData, replyData);
+      await reply.handler(instance.sagaData, replyData);
+      instance.save();
       afterHandler?.();
+    } else if (response.typeName) {
+      console.warn('Unhandled reply:', response.typeName);
     }
-
-    return await this.handleActions(state, sagaData, response.success);
+    return await this.handleActions(instance.currentState, instance.sagaData, response.success, response.typeName);
   }
 
   private deserializeReply<T>(
@@ -118,11 +119,15 @@ export class SagaDefinition<Data> {
     state: SagaExecutionState,
     sagaData: Data,
     success: boolean,
+    error?: Error | string,
   ): Promise<SagaActions<Data>> {
     if (success) {
       return await this.executeNextStep(sagaData, state);
     } else if (state.compensating) {
-      throw new TerminalError('Failure when compensating');
+      throw new TerminalError('Failure when compensating', {
+        errorCode: 500,
+        cause: error,
+      });
     } else {
       return await this.executeNextStep(sagaData, state.startCompensating());
     }

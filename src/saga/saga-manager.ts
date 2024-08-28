@@ -73,6 +73,7 @@ export class SagaManager<Data> {
           actions.updatedState!,
           actions.updatedData!,
           false,
+          actions.stepOutcome.error,
         );
       } else {
         if (actions.updatedState) {
@@ -89,8 +90,7 @@ export class SagaManager<Data> {
           );
         }
 
-        // TODO: this might not be sufficient for restate reruns
-        await instance.save(this.ctx, this.metadata);
+        instance.save();
 
         if (actions.stepOutcome?.request) {
           const response = await this.invokeParticipant(
@@ -98,8 +98,7 @@ export class SagaManager<Data> {
             actions.stepOutcome.request,
           );
           actions = await this.saga.definition.handleReply(
-            instance.currentState,
-            instance.sagaData,
+            instance,
             actions.stepOutcome.request,
             response,
           );
@@ -126,11 +125,8 @@ export class SagaManager<Data> {
   async start(data: Data): Promise<SagaInstance<Data>> {
     // TODO: wait for state machine api.
     //  currently we have to rerun everything in the same order to keep the restate journal consistent
-    // const instance = await new SagaInstance<Data>(data).restore(
-    //   this.ctx,
-    //   this.metadata,
-    // );
-    const instance = new SagaInstance(data);
+    // const instance = await new SagaInstance<Data>(this.ctx, this.metadata, data).restore();
+    const instance = new SagaInstance<Data>(this.ctx, this.metadata, data);
 
     await this.saga.onStarting?.(instance.sagaData);
 

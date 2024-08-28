@@ -373,6 +373,7 @@ export class RestateServer {
       });
     } catch (error: any) {
       if (hasTypeInformation(error.constructor)) {
+        // console.error(error);
         return serializeRestateHandlerResponse({
           success: false,
           data: serializeResponseData(error, error.constructor),
@@ -380,8 +381,9 @@ export class RestateServer {
         });
       }
       if (error instanceof TypeError) {
+        console.error(error);
         throw new restate.TerminalError(error.message, {
-          cause: TypeError.name,
+          cause: TypeError,
           errorCode: 500,
         });
       }

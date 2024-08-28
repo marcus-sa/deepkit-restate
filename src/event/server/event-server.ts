@@ -44,7 +44,6 @@ export class RestateEventsServer implements EventServerHandlers {
             method: subscription.method,
             data,
             ...options,
-            // key,
           }),
         );
       }),
