@@ -23,24 +23,18 @@ export class SagaInstance<Data> implements SagaState<Data> {
     ctx: RestateSagaContext | WorkflowContext,
     metadata: RestateSagaMetadata<Data>,
   ): Promise<SagaInstance<Data>> {
-    const ctxData = await ctx.get<readonly uint8[]>(SAGA_STATE_KEY);
-    if (!ctxData) return this;
-    const instance = deserializeSagaState(new Uint8Array(ctxData));
-    this.sagaData = metadata.deserializeData(instance.sagaData);
-    this.currentState = instance.currentState;
+    const state = await ctx.get<SagaState>(SAGA_STATE_KEY);
+    if (!state) return this;
+    this.sagaData = metadata.deserializeData(state.sagaData);
+    this.currentState = state.currentState;
     return this;
   }
 
   save(): void {
-    this.ctx.set(
-      SAGA_STATE_KEY,
-      Array.from(
-        serializeSagaState({
-          currentState: this.currentState,
-          sagaData: this.metadata.serializeData(this.sagaData),
-        } satisfies SagaState),
-      ),
-    );
+    this.ctx.set<SagaState>(SAGA_STATE_KEY, {
+      currentState: this.currentState,
+      sagaData: this.metadata.serializeData(this.sagaData),
+    });
   }
 }
 

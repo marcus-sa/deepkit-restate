@@ -1,4 +1,4 @@
-import { TerminalError } from '@restatedev/restate-sdk';
+import { serde, Serde, TerminalError } from '@restatedev/restate-sdk';
 
 import { Saga } from './saga.js';
 import { SagaInstance } from './saga-instance.js';
@@ -7,7 +7,7 @@ import { RestateSagaMetadata } from '../decorator.js';
 import {
   deserializeRestateHandlerResponse,
   serializeRestateTerminalErrorType,
-} from '../serializer.js';
+} from '../serde.js';
 import {
   RestateHandlerRequest,
   RestateHandlerResponse,
@@ -30,14 +30,15 @@ export class SagaManager<Data> {
     key?: string,
   ): Promise<RestateHandlerResponse> {
     try {
-      return await (this.ctx as any).invoke(
+      const response = await this.ctx.genericCall({
         service,
         method,
-        data,
+        parameter: data,
         key,
-        undefined,
-        (response: Uint8Array) => deserializeRestateHandlerResponse(response),
-      );
+        outputSerde: serde.binary,
+      });
+
+      return deserializeRestateHandlerResponse(response);
     } catch (err: unknown) {
       // TODO: should terminal errors stop execution?
       if (err instanceof TerminalError) {
@@ -47,7 +48,6 @@ export class SagaManager<Data> {
           typeName: 'TerminalError',
         };
       }
-      // TODO: what to do with unhandled errors?
       throw err;
     }
   }

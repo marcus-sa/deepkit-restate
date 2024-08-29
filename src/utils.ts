@@ -1,10 +1,9 @@
 import { ClassType, sleep } from '@deepkit/core';
-import { CombineablePromise, TerminalError } from '@restatedev/restate-sdk';
+import { TerminalError } from '@restatedev/restate-sdk';
 import { FactoryProvider } from '@deepkit/injector';
 import {
   BSONDeserializer,
   BSONSerializer,
-  deserializeBSON,
   getBSONSerializer,
 } from '@deepkit/bson';
 import {
@@ -41,7 +40,7 @@ import {
   deserializeRestateHandlerResponse,
   getResponseDataDeserializer,
   serializeResponseData,
-} from './serializer.js';
+} from './serde.js';
 
 export function getRestateClassDeps(classType: ClassType): readonly Type[] {
   const serviceType = reflect(classType);
@@ -301,17 +300,6 @@ export interface InvokeOneWayOptions {
   readonly data: Uint8Array;
   readonly delay?: number;
   readonly key?: string;
-}
-
-export function invokeOneWay<T>(
-  ctx: any,
-  { service, method, data, delay, key }: InvokeOneWayOptions,
-): CombineablePromise<T> {
-  return ctx
-    .invokeOneWay(service, method, data, undefined, delay, key)
-    .catch((e: Error) => {
-      ctx.stateMachine.handleDanglingPromiseError(e);
-    });
 }
 
 export function success<T>(

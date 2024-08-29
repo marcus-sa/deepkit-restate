@@ -33,7 +33,7 @@ import {
   getResponseDataSerializer,
   getSagaDataDeserializer,
   getSagaDataSerializer,
-} from './serializer.js';
+} from './serde.js';
 import {
   Entities,
   RestateKafkaTopic,

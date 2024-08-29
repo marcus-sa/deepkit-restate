@@ -7,7 +7,10 @@ import { SagaExecutionState } from './saga-execution-state.js';
 import { StepToExecute } from './step-to-execute.js';
 import { SagaInstance } from './saga-instance.js';
 import { SagaActions } from './saga-actions.js';
-import { deserializeResponseData, deserializeRestateTerminalErrorType } from '../serializer.js';
+import {
+  deserializeResponseData,
+  deserializeRestateTerminalErrorType,
+} from '../serde.js';
 import { getRegisteredEntity } from '../utils.js';
 import {
   RestateHandlerRequest,
@@ -72,7 +75,10 @@ export class SagaDefinition<Data> {
         `Saga step is missing for execution state ${instance.currentState}`,
       );
     }
-    const reply = currentStep.getReply(response, instance.currentState.compensating);
+    const reply = currentStep.getReply(
+      response,
+      instance.currentState.compensating,
+    );
     if (reply) {
       const replyData = this.deserializeReply(request, response);
       await reply.handler(instance.sagaData, replyData);
@@ -81,7 +87,12 @@ export class SagaDefinition<Data> {
     } else if (response.typeName) {
       console.warn('Unhandled reply:', response.typeName);
     }
-    return await this.handleActions(instance.currentState, instance.sagaData, response.success, response.typeName);
+    return await this.handleActions(
+      instance.currentState,
+      instance.sagaData,
+      response.success,
+      response.typeName,
+    );
   }
 
   private deserializeReply<T>(

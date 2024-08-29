@@ -6,10 +6,10 @@ export { RestateConfig } from './config.js';
 export { getRestateSagaMetadata } from './metadata.js';
 export { getRestateObjectMetadata } from './metadata.js';
 export { getRestateServiceMetadata } from './metadata.js';
-export { deserializeRestateTerminalErrorType } from './serializer.js';
-export { serializeRestateTerminalErrorType } from './serializer.js';
-export { serializeRestateHandlerResponse } from './serializer.js';
-export { deserializeRestateHandlerResponse } from './serializer.js';
+export { deserializeRestateTerminalErrorType } from './serde.js';
+export { serializeRestateTerminalErrorType } from './serde.js';
+export { serializeRestateHandlerResponse } from './serde.js';
+export { deserializeRestateHandlerResponse } from './serde.js';
 export {
   RestateContextStorage,
   RestateInMemoryContext,

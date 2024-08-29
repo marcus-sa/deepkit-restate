@@ -1,4 +1,4 @@
-import { TerminalError } from '@restatedev/restate-sdk';
+import { Serde, TerminalError } from '@restatedev/restate-sdk';
 import {
   ReceiveType,
   ReflectionKind,
@@ -20,6 +20,25 @@ import {
   restateHandlerResponseType,
   restateTerminalErrorType,
 } from './types.js';
+
+export function createBsonSerde<T>(type?: ReceiveType<T>) {
+  type = resolveReceiveType(type);
+  return new BsonSerde<T>(type);
+}
+
+export class BsonSerde<T> implements Serde<T> {
+  readonly contentType = 'application/octet-stream';
+
+  constructor(private readonly type: Type) {}
+
+  deserialize(data: Uint8Array): T {
+    return deserializeResponseData<T>(data, this.type);
+  }
+
+  serialize(value: T): Uint8Array {
+    return serializeResponseData(value, this.type);
+  }
+}
 
 const VALUE_KEY = 'v' as const;
 

@@ -3,18 +3,11 @@ import { onServerMainBootstrap } from '@deepkit/framework';
 import { InjectorContext } from '@deepkit/injector';
 import * as restate from '@restatedev/restate-sdk';
 import {
-  deserializeBSON,
-  getBSONDeserializer,
-  getBSONSerializer,
-  serializeBSON,
-} from '@deepkit/bson';
-import {
   hasTypeInformation,
   ReceiveType,
-  reflect,
   ReflectionKind,
-  resolveReceiveType,
   uint8,
+  uuid,
 } from '@deepkit/type';
 
 import { SagaManager } from './saga/saga-manager.js';
@@ -26,13 +19,14 @@ import { InjectorObject, InjectorObjects } from './objects.js';
 import { InjectorSaga, InjectorSagas } from './sagas.js';
 import { RestateClassMetadata, RestateHandlerMetadata } from './decorator.js';
 import { RestateConfig } from './config.js';
-import { decodeRestateServiceMethodResponse, invokeOneWay } from './utils.js';
+import { decodeRestateServiceMethodResponse } from './utils.js';
 import { RestateAdminClient } from './restate-admin-client.js';
 import { RestateContextStorage } from './restate-context-storage.js';
 import {
+  createBsonSerde,
   serializeResponseData,
   serializeRestateHandlerResponse,
-} from './serializer.js';
+} from './serde.js';
 import {
   RestateAwakeable,
   RestateObjectContext,
@@ -44,6 +38,8 @@ import {
   restateServiceContextType,
   SCOPE,
 } from './types.js';
+import { serde, Serde } from '@restatedev/restate-sdk';
+import { T } from 'vitest/dist/reporters-yx5ZTtEV.js';
 
 const DEFAULT_HANDLER_OPTS = {
   contentType: 'application/octet-stream',
@@ -144,7 +140,7 @@ export class RestateServer {
     const _awakeable = ctx.awakeable.bind(ctx);
     const _run = ctx.run.bind(ctx);
 
-    return Object.assign(ctx, {
+    const newCtx = Object.assign(ctx, {
       serviceClient: undefined,
       serviceSendClient: undefined,
       objectSendClient: undefined,
@@ -152,73 +148,74 @@ export class RestateServer {
       workflowClient: undefined,
       workflowSendClient: undefined,
       resolveAwakeable<T>(id: string, payload?: T, type?: ReceiveType<T>) {
-        type = resolveReceiveType(type);
-        const serialize = getBSONSerializer(undefined, type);
-        _resolveAwakeable(id, Array.from(serialize(payload)));
+        const serde = createBsonSerde(type);
+        _resolveAwakeable(id, payload, serde);
       },
       awakeable<T>(type?: ReceiveType<T>): RestateAwakeable<T> {
-        type = resolveReceiveType(type);
-        const awakeable = _awakeable<readonly uint8[]>();
-        const deserialize = getBSONDeserializer<T>(undefined, type);
-        const promise = awakeable.promise.then(bytes =>
-          deserialize(new Uint8Array(bytes)),
-        );
-        return {
-          id: awakeable.id,
-          promise,
-        } as RestateAwakeable<T>;
+        return _awakeable<T>(createBsonSerde<T>(type)) as RestateAwakeable<T>;
       },
-      // TypeError: Cannot read properties of undefined (reading 'kind')
-      //   at ReflectionTransformer.getArrowFunctionΩPropertyAccessIdentifier
-      // run: async <T>(action: RestateRunAction<T>, type?: ReceiveType<T>): Promise<T> => {
       async run<T = void>(
         action: RestateRunAction<T>,
         type?: ReceiveType<T>,
       ): Promise<T> {
-        try {
-          type = resolveReceiveType(type);
-        } catch {}
-        // TODO: https://github.com/restatedev/sdk-typescript/issues/410
-        const result = await _run(async () => {
-          const result = await action();
-          if (!type || !result) return;
-          return serializeBSON(result, undefined, type);
-        });
-        // @ts-ignore
-        if (!type || !result) return;
-        return deserializeBSON(result, undefined, undefined, type);
+        if (type) {
+          const serde = createBsonSerde<T>(type);
+          // FIXME: name shouldn't be required when providing serde
+          return (await _run(action.toString(), action, { serde })) as T;
+        } else {
+          await _run(action);
+          return void 0 as T;
+        }
       },
-      send: (...args: readonly any[]): restate.CombineablePromise<void> => {
+      send(...args: readonly any[]): void {
         const [key, { service, method, data }, options] =
           args.length === 1 ? [undefined, ...args] : args;
 
-        return invokeOneWay(ctx, {
+        ctx.genericSend({
           service,
           method,
-          data,
+          parameter: data,
           delay: options?.delay,
           key,
         });
       },
-      rpc: <T>(...args: readonly any[]): restate.CombineablePromise<T> => {
+      async rpc<T>(...args: readonly any[]): Promise<T> {
         const [key, { service, method, data, deserializeReturn, entities }] =
           args.length === 1 ? [undefined, ...args] : args;
 
-        return (ctx as any).invoke(
+        const response = await ctx.genericCall({
           service,
           method,
-          data,
+          parameter: data,
           key,
-          undefined,
-          (response: Uint8Array) =>
-            decodeRestateServiceMethodResponse(
-              response,
-              deserializeReturn,
-              entities,
-            ),
+          outputSerde: serde.binary,
+        });
+
+        return decodeRestateServiceMethodResponse(
+          response,
+          deserializeReturn,
+          entities,
         );
       },
     }) as T;
+
+    if ('key' in ctx) {
+      const _set = ctx.set.bind(ctx);
+      const _get = ctx.get.bind(ctx);
+
+      Object.assign(newCtx, {
+        set<T>(name: string, value: T, type?: ReceiveType<T>) {
+          const serde = createBsonSerde<T>(type);
+          _set(name, value, serde);
+        },
+        async get<T>(name: string, type?: ReceiveType<T>): Promise<T | null> {
+          const serde = createBsonSerde<T>(type);
+          return await _get<T>(name, serde);
+        },
+      });
+    }
+
+    return newCtx;
   }
 
   private createObjectContext(

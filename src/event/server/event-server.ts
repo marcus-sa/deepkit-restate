@@ -1,6 +1,5 @@
 import { restate } from '../../decorator.js';
 import { RestateObjectContext } from '../../types.js';
-import { invokeOneWay } from '../../utils.js';
 import {
   EventServerApi,
   EventServerHandlers,
@@ -32,22 +31,21 @@ export class RestateEventsServer implements EventServerHandlers {
   ): Promise<void> {
     const allSubscriptions = await this.#getSubscriptions();
 
-    await Promise.all(
-      events.flatMap(({ data, name }) => {
-        const eventSubscriptions = allSubscriptions.filter(
-          ({ typeName }) => typeName === name,
-        );
+    for (const { data, name } of events) {
+      const eventSubscriptions = allSubscriptions.filter(
+        ({ typeName }) => typeName === name,
+      );
 
-        return eventSubscriptions.map(subscription =>
-          invokeOneWay(this.ctx, {
-            service: subscription.service,
-            method: subscription.method,
-            data,
-            ...options,
-          }),
-        );
-      }),
-    );
+      for (const subscription of eventSubscriptions) {
+        this.ctx.genericSend({
+          service: subscription.service,
+          method: subscription.method,
+          parameter: data,
+          delay: options?.delay,
+          ...options,
+        });
+      }
+    }
   }
 
   @restate.handler()

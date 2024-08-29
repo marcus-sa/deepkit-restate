@@ -2,6 +2,8 @@ import { BSONDeserializer, BSONSerializer } from '@deepkit/bson';
 import { ReceiveType, resolveReceiveType, Type } from '@deepkit/type';
 
 import { deserializeSagaState, SagaState } from './saga/saga-instance.js';
+import { getSagaDataDeserializer, getSagaDataSerializer } from './serde.js';
+import { getRestateClassName } from './metadata.js';
 import {
   createClassProxy,
   decodeRestateServiceMethodResponse,
@@ -16,11 +18,6 @@ import {
   RestateServiceHandlerRequest,
   RestateStatus,
 } from './types.js';
-import {
-  getSagaDataDeserializer,
-  getSagaDataSerializer,
-} from './serializer.js';
-import { getRestateClassName } from './metadata.js';
 
 interface RestateApiResponseError {
   readonly code: string;
