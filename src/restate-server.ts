@@ -6,8 +6,6 @@ import {
   hasTypeInformation,
   ReceiveType,
   ReflectionKind,
-  uint8,
-  uuid,
 } from '@deepkit/type';
 
 import { SagaManager } from './saga/saga-manager.js';

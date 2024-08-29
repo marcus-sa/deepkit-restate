@@ -28,7 +28,7 @@ function createTestContext(): RestateTestContext {
     store,
     invoke: vi.fn(),
     set: async (key, value) => store.set(key, value),
-    get: async key => store.get(key),
+    get: key => store.get(key),
     run: async (action: RestateRunAction<any>) => action(),
   } as RestateTestContext;
 }

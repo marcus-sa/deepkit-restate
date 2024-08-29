@@ -1,5 +1,4 @@
-import { Excluded, typeOf, uint8 } from '@deepkit/type';
-import { WorkflowContext } from '@restatedev/restate-sdk';
+import { Excluded, typeOf } from '@deepkit/type';
 import { getBSONDeserializer, getBSONSerializer } from '@deepkit/bson';
 
 import { SagaExecutionState } from './saga-execution-state.js';
@@ -14,18 +13,15 @@ export interface SagaState<Data = Uint8Array> {
 export class SagaInstance<Data> implements SagaState<Data> {
   constructor(
     private readonly ctx: RestateSagaContext & Excluded,
-    private readonly metadata: RestateSagaMetadata & Excluded,
+    private readonly metadata: RestateSagaMetadata<Data> & Excluded,
     public sagaData: Data,
     public currentState: SagaExecutionState = new SagaExecutionState(),
   ) {}
 
-  async restore(
-    ctx: RestateSagaContext,
-    metadata: RestateSagaMetadata<Data>,
-  ): Promise<SagaInstance<Data>> {
-    const state = await ctx.get<SagaState>(SAGA_STATE_KEY);
+  async restore(): Promise<SagaInstance<Data>> {
+    const state = await this.ctx.get<SagaState>(SAGA_STATE_KEY);
     if (!state) return this;
-    this.sagaData = metadata.deserializeData(state.sagaData);
+    this.sagaData = this.metadata.deserializeData(state.sagaData);
     this.currentState = state.currentState;
     return this;
   }

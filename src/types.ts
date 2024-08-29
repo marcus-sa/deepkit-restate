@@ -103,7 +103,7 @@ export interface RestateAwakeable<T> {
 }
 
 export interface RestateCustomContext {
-  get<T>(name: string, type?: ReceiveType<T>): Promise<T>;
+  get<T>(name: string, type?: ReceiveType<T>): Promise<T | null>;
   set<T>(name: string, value: T, type?: ReceiveType<T>): void;
   awakeable<T>(type?: ReceiveType<T>): RestateAwakeable<T>;
   resolveAwakeable<T>(id: string, payload: NoInfer<T>, type?: ReceiveType<T>): void;

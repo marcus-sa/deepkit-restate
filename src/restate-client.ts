@@ -1,8 +1,12 @@
 import { BSONDeserializer, BSONSerializer } from '@deepkit/bson';
 import { ReceiveType, resolveReceiveType, Type } from '@deepkit/type';
 
-import { deserializeSagaState, SagaState } from './saga/saga-instance.js';
-import { getSagaDataDeserializer, getSagaDataSerializer } from './serde.js';
+import { SagaState } from './saga/saga-instance.js';
+import {
+  deserializeResponseData,
+  getSagaDataDeserializer,
+  getSagaDataSerializer,
+} from './serde.js';
 import { getRestateClassName } from './metadata.js';
 import {
   createClassProxy,
@@ -67,7 +71,7 @@ export class RestateSagaClient<Data> {
       throw new Error('Missing saga state');
     }
 
-    const state = deserializeSagaState(
+    const state = deserializeResponseData<SagaState>(
       new Uint8Array(await response.arrayBuffer()),
     );
 
