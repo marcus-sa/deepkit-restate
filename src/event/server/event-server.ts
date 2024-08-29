@@ -53,7 +53,8 @@ export class RestateEventsServer implements EventServerHandlers {
     const currentSubscriptions = await this.#getSubscriptions();
     const allSubscriptions = new Map<string, Subscription>();
 
-    const generateKey = (sub: Subscription) => `${sub.service}-${sub.method}-${sub.typeName}`;
+    const generateKey = (sub: Subscription) =>
+      `${sub.service}-${sub.method}-${sub.typeName}`;
 
     currentSubscriptions.forEach(sub => {
       const key = generateKey(sub);
@@ -65,6 +66,8 @@ export class RestateEventsServer implements EventServerHandlers {
       allSubscriptions.set(key, sub);
     });
 
-    this.ctx.set(SUBSCRIPTIONS_STATE_KEY, [...allSubscriptions.values()]);
+    this.ctx.set<Subscriptions>(SUBSCRIPTIONS_STATE_KEY, [
+      ...allSubscriptions.values(),
+    ]);
   }
 }
