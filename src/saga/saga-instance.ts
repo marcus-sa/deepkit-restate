@@ -20,7 +20,7 @@ export class SagaInstance<Data> implements SagaState<Data> {
   ) {}
 
   async restore(
-    ctx: RestateSagaContext | WorkflowContext,
+    ctx: RestateSagaContext,
     metadata: RestateSagaMetadata<Data>,
   ): Promise<SagaInstance<Data>> {
     const state = await ctx.get<SagaState>(SAGA_STATE_KEY);

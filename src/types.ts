@@ -103,8 +103,10 @@ export interface RestateAwakeable<T> {
 }
 
 export interface RestateCustomContext {
+  get<T>(name: string, type?: ReceiveType<T>): Promise<T>;
+  set<T>(name: string, value: T, type?: ReceiveType<T>): void;
   awakeable<T>(type?: ReceiveType<T>): RestateAwakeable<T>;
-  resolveAwakeable<T>(id: string, payload: T, type?: ReceiveType<T>): void;
+  resolveAwakeable<T>(id: string, payload: NoInfer<T>, type?: ReceiveType<T>): void;
   rejectAwakeable(id: string, reason: string): void;
   // run should only return a value if a generic is provided
   run(action: RestateRunAction<unknown>): Promise<void>;
@@ -138,12 +140,14 @@ type ContextWithoutClients<T> = Omit<
   | 'objectClient'
   | 'objectSendClient'
   | 'run'
+  | 'get'
+  | 'set'
   | 'resolveAwakeable'
   | 'awakeable'
 >;
 
 export interface RestateServiceContext
-  extends RestateCustomContext,
+  extends Omit<RestateCustomContext, 'get' | 'set'>,
     ContextWithoutClients<ServiceContext> {}
 
 export interface RestateObjectContext
