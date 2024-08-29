@@ -21,12 +21,12 @@ import {
   restateTerminalErrorType,
 } from './types.js';
 
-export function createBsonSerde<T>(type?: ReceiveType<T>) {
+export function createBSONSerde<T>(type?: ReceiveType<T>) {
   type = resolveReceiveType(type);
-  return new BsonSerde<T>(type);
+  return new BSONSerde<T>(type);
 }
 
-export class BsonSerde<T> implements Serde<T> {
+export class BSONSerde<T> implements Serde<T> {
   readonly contentType = 'application/octet-stream';
 
   constructor(private readonly type: Type) {}

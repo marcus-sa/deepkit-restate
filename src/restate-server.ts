@@ -23,7 +23,7 @@ import { decodeRestateServiceMethodResponse } from './utils.js';
 import { RestateAdminClient } from './restate-admin-client.js';
 import { RestateContextStorage } from './restate-context-storage.js';
 import {
-  createBsonSerde,
+  createBSONSerde,
   serializeResponseData,
   serializeRestateHandlerResponse,
 } from './serde.js';
@@ -148,18 +148,18 @@ export class RestateServer {
       workflowClient: undefined,
       workflowSendClient: undefined,
       resolveAwakeable<T>(id: string, payload?: T, type?: ReceiveType<T>) {
-        const serde = createBsonSerde(type);
+        const serde = createBSONSerde(type);
         _resolveAwakeable(id, payload, serde);
       },
       awakeable<T>(type?: ReceiveType<T>): RestateAwakeable<T> {
-        return _awakeable<T>(createBsonSerde<T>(type)) as RestateAwakeable<T>;
+        return _awakeable<T>(createBSONSerde<T>(type)) as RestateAwakeable<T>;
       },
       async run<T = void>(
         action: RestateRunAction<T>,
         type?: ReceiveType<T>,
       ): Promise<T> {
         if (type) {
-          const serde = createBsonSerde<T>(type);
+          const serde = createBSONSerde<T>(type);
           // FIXME: name shouldn't be required when providing serde
           return (await _run(action.toString(), action, { serde })) as T;
         } else {
@@ -205,11 +205,11 @@ export class RestateServer {
 
       Object.assign(newCtx, {
         set<T>(name: string, value: T, type?: ReceiveType<T>) {
-          const serde = createBsonSerde<T>(type);
+          const serde = createBSONSerde<T>(type);
           _set(name, value, serde);
         },
         async get<T>(name: string, type?: ReceiveType<T>): Promise<T | null> {
-          const serde = createBsonSerde<T>(type);
+          const serde = createBSONSerde<T>(type);
           return await _get<T>(name, serde);
         },
       });
@@ -228,7 +228,9 @@ export class RestateServer {
     return this.createContext<RestateServiceContext>(ctx);
   }
 
-  private createSagaContext(ctx: restate.WorkflowContext): RestateSagaContext {
+  private createSagaContext(
+    ctx: restate.WorkflowContext | restate.WorkflowSharedContext
+  ): RestateSagaContext {
     return Object.assign(this.createContext<RestateSagaContext>(ctx), {
       send: undefined,
       rpc: undefined,
@@ -309,11 +311,14 @@ export class RestateServer {
       state: restate.handlers.workflow.shared(
         DEFAULT_HANDLER_OPTS,
         async (ctx: restate.WorkflowSharedContext) => {
-          const value = await ctx.get<readonly uint8[]>(SAGA_STATE_KEY);
-          if (!value) {
-            throw new Error('Missing state');
+          const data = await ctx.get<Uint8Array>(
+            SAGA_STATE_KEY,
+            serde.binary,
+          );
+          if (!data) {
+            throw new Error('Missing saga state');
           }
-          return new Uint8Array(value);
+          return data;
         },
       ),
     };
