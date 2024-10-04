@@ -1,3 +1,5 @@
+import { serde } from '@restatedev/restate-sdk';
+
 import { restate } from '../../decorator.js';
 import { RestateObjectContext } from '../../types.js';
 import {
@@ -41,7 +43,7 @@ export class RestateEventsServer implements EventServerHandlers {
           service: subscription.service,
           method: subscription.method,
           parameter: data,
-          delay: options?.delay,
+          inputSerde: serde.binary,
           ...options,
         });
       }

@@ -1,6 +1,7 @@
 import { ClassType, sleep } from '@deepkit/core';
 import { TerminalError } from '@restatedev/restate-sdk';
 import { FactoryProvider } from '@deepkit/injector';
+import { xxHash32 } from 'js-xxhash';
 import {
   BSONDeserializer,
   BSONSerializer,
@@ -360,4 +361,8 @@ export function waitUntil(
       await sleep(0);
     }
   });
+}
+
+export function fastHash(value: string | Uint8Array): string {
+  return xxHash32(value).toString(16);
 }

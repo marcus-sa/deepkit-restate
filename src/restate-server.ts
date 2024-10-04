@@ -2,11 +2,7 @@ import { eventDispatcher } from '@deepkit/event';
 import { onServerMainBootstrap } from '@deepkit/framework';
 import { InjectorContext } from '@deepkit/injector';
 import * as restate from '@restatedev/restate-sdk';
-import {
-  hasTypeInformation,
-  ReceiveType,
-  ReflectionKind,
-} from '@deepkit/type';
+import { hasTypeInformation, ReceiveType, ReflectionKind } from '@deepkit/type';
 
 import { SagaManager } from './saga/saga-manager.js';
 import { SAGA_STATE_KEY } from './saga/saga-instance.js';
@@ -15,9 +11,9 @@ import { Subscriptions } from './event/types.js';
 import { InjectorService, InjectorServices } from './services.js';
 import { InjectorObject, InjectorObjects } from './objects.js';
 import { InjectorSaga, InjectorSagas } from './sagas.js';
-import { RestateClassMetadata, RestateHandlerMetadata } from './decorator.js';
+import { RestateHandlerMetadata } from './decorator.js';
 import { RestateConfig } from './config.js';
-import { decodeRestateServiceMethodResponse } from './utils.js';
+import { decodeRestateServiceMethodResponse, fastHash } from './utils.js';
 import { RestateAdminClient } from './restate-admin-client.js';
 import { RestateContextStorage } from './restate-context-storage.js';
 import {
@@ -36,8 +32,6 @@ import {
   restateServiceContextType,
   SCOPE,
 } from './types.js';
-import { serde, Serde } from '@restatedev/restate-sdk';
-import { T } from 'vitest/dist/reporters-yx5ZTtEV.js';
 
 const DEFAULT_HANDLER_OPTS = {
   contentType: 'application/octet-stream',
@@ -150,7 +144,8 @@ export class RestateServer {
         _resolveAwakeable(id, payload, serde);
       },
       awakeable<T>(type?: ReceiveType<T>): RestateAwakeable<T> {
-        return _awakeable<T>(createBSONSerde<T>(type)) as RestateAwakeable<T>;
+        const serde = createBSONSerde<T>(type);
+        return _awakeable<T>(serde) as RestateAwakeable<T>;
       },
       async run<T = void>(
         action: RestateRunAction<T>,
@@ -158,8 +153,11 @@ export class RestateServer {
       ): Promise<T> {
         if (type) {
           const serde = createBSONSerde<T>(type);
-          // FIXME: name shouldn't be required when providing serde
-          return (await _run(action.toString(), action, { serde })) as T;
+          // TODO: name shouldn't be required when providing serde
+          const name = fastHash(action.toString());
+          return (await _run(name, action, {
+            serde,
+          })) as T;
         } else {
           await _run(action);
           return void 0 as T;
@@ -186,7 +184,7 @@ export class RestateServer {
           method,
           parameter: data,
           key,
-          outputSerde: serde.binary,
+          outputSerde: restate.serde.binary,
         });
 
         return decodeRestateServiceMethodResponse(
@@ -227,7 +225,7 @@ export class RestateServer {
   }
 
   private createSagaContext(
-    ctx: restate.WorkflowContext | restate.WorkflowSharedContext
+    ctx: restate.WorkflowContext | restate.WorkflowSharedContext,
   ): RestateSagaContext {
     return Object.assign(this.createContext<RestateSagaContext>(ctx), {
       send: undefined,
@@ -251,7 +249,7 @@ export class RestateServer {
 
           await admin.kafka.subscriptions.create({
             source: `kafka://${this.config.kafka!.clusterName}/${handler.kafka!.topic}`,
-            // TODO: figure out if protocol "object://" is needed for objects?
+            // TODO: figure out if protocol "object://" is needed for objects
             sink: `${protocol}://${metadata.name}/${handler.name}`,
             options: handler.kafka?.options,
           });
@@ -279,7 +277,7 @@ export class RestateServer {
             injector.set(restateServiceContextType, ctx);
             const instance = injector.get(classType, module);
             return await this.contextStorage.run(ctx, () =>
-              this.callHandler(instance, metadata, handler, data),
+              this.callHandler(instance, handler, data),
             );
           },
         ),
@@ -311,7 +309,7 @@ export class RestateServer {
         async (ctx: restate.WorkflowSharedContext) => {
           const data = await ctx.get<Uint8Array>(
             SAGA_STATE_KEY,
-            serde.binary,
+            restate.serde.binary,
           );
           if (!data) {
             throw new Error('Missing saga state');
@@ -344,7 +342,7 @@ export class RestateServer {
             injector.set(restateObjectContextType, ctx);
             const instance = injector.get(classType, module);
             return await this.contextStorage.run(ctx, () =>
-              this.callHandler(instance, metadata, handler, data),
+              this.callHandler(instance, handler, data),
             );
           },
         ),
@@ -355,12 +353,11 @@ export class RestateServer {
 
   private async callHandler(
     instance: any,
-    clazz: RestateClassMetadata,
     handler: RestateHandlerMetadata,
-    request: Uint8Array,
+    data: Uint8Array,
   ): Promise<Uint8Array> {
     try {
-      const args = handler.deserializeArgs(request);
+      const args = handler.deserializeArgs(data);
       const result = await instance[handler.name].bind(instance)(...args);
       return serializeRestateHandlerResponse({
         success: true,
@@ -373,7 +370,6 @@ export class RestateServer {
       });
     } catch (error: any) {
       if (hasTypeInformation(error.constructor)) {
-        // console.error(error);
         return serializeRestateHandlerResponse({
           success: false,
           data: serializeResponseData(error, error.constructor),
@@ -381,9 +377,8 @@ export class RestateServer {
         });
       }
       if (error instanceof TypeError) {
-        console.error(error);
         throw new restate.TerminalError(error.message, {
-          cause: TypeError,
+          cause: error,
           errorCode: 500,
         });
       }
