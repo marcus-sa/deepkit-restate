@@ -1,0 +1,72 @@
+{
+  "$schema": "https://mintlify.com/schema.json",
+  "name": "Deepkit Restate",
+  "logo": {
+    "dark": "/logo/light.svg",
+    "light": "/logo/dark.svg"
+  },
+  "feedback": {
+    "suggestEdit": true,
+    "raiseIssue": true,
+    "thumbsRating": true
+  },
+  "favicon": "/logo/dark.svg",
+  "colors": {
+    "primary": "#4752C4",
+    "light": "#4752C4",
+    "dark": "#4752C4"
+  },
+  "topbarLinks": [],
+  "topbarCtaButton": {
+    "name": "Get Started",
+    "url": "/quickstart"
+  },
+  "anchors": [
+    {
+      "name": "Changelog",
+      "icon": "list",
+      "url": "https://github.com/marcus-sa/deepkit-restate/releases"
+    }
+  ],
+  "navigation": [
+    {
+      "group": "Home",
+      "pages": ["introduction", "quickstart"]
+    },
+    {
+      "group": "Concepts",
+      "pages": [
+        {
+          "group": "Sagas",
+          "pages": ["concepts/sagas/overview"]
+        },
+        {
+          "group": "Types",
+          "pages": [
+            "concepts/types/overview",
+            "concepts/types/inline",
+            "concepts/types/referenced",
+            "concepts/types/data",
+            "concepts/types/utility",
+            "concepts/types/validation"
+          ]
+        },
+        {
+          "group": "Resolvers",
+          "pages": [
+            "concepts/resolvers/overview",
+            "concepts/resolvers/queries",
+            "concepts/resolvers/mutations",
+            "concepts/resolvers/subscriptions",
+            "concepts/resolvers/fields",
+            "concepts/resolvers/middleware"
+          ]
+        }
+      ]
+    }
+  ],
+  "footerSocials": {
+    "github": "https://github.com/marcus-sa/deepkit-restate",
+    "discord": "https://discord.gg/dXTwNGBm"
+  }
+}

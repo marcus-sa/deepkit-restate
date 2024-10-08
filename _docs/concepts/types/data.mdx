@@ -1,0 +1,86 @@
+---
+title: 'Data'
+---
+
+<Info><b>Prerequisite</b>: Read the Deepkit section about [Type Annotations](https://deepkit.io/documentation/runtime-types/types).</Info>
+
+## ID
+The [`ID`](https://deepkit.io/documentation/runtime-types/types#uuid) type is represented as a `ID` scalar.
+<Info>`ID` is exported from `@deepkit-graphql/core`</Info>
+
+## MongoID
+The [`MongoID`](https://deepkit.io/documentation/runtime-types/types#mongoid) type is represented as a `ObjectID` scalar.
+<Info>`MongoID` is exported from `@deepkit/type`</Info>
+
+## UUID
+The [`UUID`](https://deepkit.io/documentation/runtime-types/types#uuid) type is represented as a `UUID` scalar.
+<Info>`UUID` is exported from `@deepkit/type`</Info>
+
+## Array
+The `Array` type is represented as a `List`.
+
+## Date
+The `Date` type is serialized as an ISO 8601 formatted string, and represented as a `DateTime` scalar.
+
+<Info>An ISO 8601 formatted string looks like `2007-12-03T10:15:30Z`</Info>
+
+## string
+The `string` type is represented as a `String` scalar.
+
+## boolean
+The `boolean` type is is represented as a `Boolean` scalar.
+
+## float
+The [`float`](https://deepkit.io/documentation/runtime-types/types#float) type is represented as a `Float` scalar.
+<Info>`float` is exported from `@deepkit/type`</Info>
+
+### Annotations
+
+#### Positive
+The `Positive` annotation for `float` is represented as a [`PositiveFloat`](https://the-guild.dev/graphql/scalars/docs/scalars/positive-float) scalar.
+
+<Info>`Positive` is exported from `@deepkit/type`</Info>
+
+#### Negative
+The `Negative` annotation for `float` is represented as a [`NegativeFloat`](https://the-guild.dev/graphql/scalars/docs/scalars/negative-float) scalar.
+
+<Info>`Negative` is exported from `@deepkit/type`</Info>
+
+## number
+The `number` type is not a valid type, because it cannot be represented.
+
+## integer
+The [`integer`](https://deepkit.io/documentation/runtime-types/types#integer) type is represented as a [`Int`](https://graphql.com/learn/scalars-objects-lists/#the-int-type) scalar.
+
+<Info>`integer` is exported from `@deepkit/type`</Info>
+
+### Annotations
+
+#### Positive
+The [`Positive`](https://deepkit.io/documentation/runtime-types/types#integer) annotation for `integer` is represented as a [`PositiveInt`](https://the-guild.dev/graphql/scalars/docs/scalars/positive-int) scalar.
+
+<Info>`Positive` is exported from `@deepkit/type`</Info>
+
+#### Negative
+The `Negative` annotation for `integer` is represented as a [`NegativeInt`](https://the-guild.dev/graphql/scalars/docs/scalars/negative-int) scalar.
+
+<Info>`Negative` is exported from `@deepkit/type`</Info>
+
+## bigint
+The [`bigint`](https://deepkit.io/documentation/runtime-types/types#bigint) type is represented as a [`BigInt`](https://the-guild.dev/graphql/scalars/docs/scalars/big-int) scalar.
+
+### Annotations
+
+#### BinaryBigInt
+The [`BinaryBigInt`](https://deepkit.io/documentation/runtime-types/types#bigint) type is represented as a `BinaryBigInt` scalar.
+<Info>`BinaryBigInt` is exported from `@deepkit/type`</Info>
+
+#### SignedBinaryBigInt
+The [`SignedBinaryBigInt`](https://deepkit.io/documentation/runtime-types/types#bigint) type is represented as a `SignedBinaryBigInt` scalar.
+<Info>`SignedBinaryBigInt` is exported from `@deepkit/type`</Info>
+
+## ArrayBuffer
+The [`ArrayBuffer`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer) type is represented as a `Byte` scalar.
+
+## Uint8Array
+The [`Uint8Array`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array) type is represented as a `Byte` scalar.

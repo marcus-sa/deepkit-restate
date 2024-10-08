@@ -1,0 +1,9 @@
+---
+title: 'Overview'
+---
+
+There is no code distinction between [Object](https://graphql.org/graphql-js/object-types/) and [Input](https://graphql.org/learn/schema/#input-types) types.
+
+It depends entirely on where those types are being used in the code.
+
+For example, TypeScript object type literals used in query/mutation parameters will be GraphQL Input types, whereas the return type of those resolvers will be GraphQL Object types.

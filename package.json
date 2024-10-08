@@ -33,6 +33,7 @@
   "scripts": {
     "postinstall": "deepkit-type-install",
     "build": "rm -rf lib && tsc -p tsconfig.cjs.json && tsc -p tsconfig.esm.json && tsc -p tsconfig.types.json",
+    "docs": "cd docs && mintlify dev",
     "test": "vitest run",
     "prepublish": "pnpm build"
   },
@@ -57,6 +58,7 @@
   "devDependencies": {
     "@deepkit/type-compiler": "1.0.1-alpha.150",
     "@deepkit/vite": "1.0.1-alpha.150",
+    "@mintlify/cli": "^4.0.236",
     "@swc/core": "^1.7.10",
     "prettier": "3.3.2",
     "typescript": "5.5.2",

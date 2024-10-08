@@ -1,0 +1,41 @@
+---
+title: 'Referenced'
+description: 'In TypeScript, a referenced type is a type definition declared with a specific name, allowing it to be referred to or reused elsewhere in the code.'
+---
+
+Referenced type names will be used as the name for the generated GraphQL object type.
+
+<Info>For comparison, see [inline types](/concepts/types/inline).</Info>
+
+## Example
+
+```ts
+interface User {
+  id: string;
+  name: string;
+}
+
+type UserWithoutName = Omit<User, 'name'>;
+
+@graphql.resolver()
+class UserResolver {
+  @graphql.query()
+  getUserId(): UserWithoutName {
+    // ...
+  }
+}
+```
+
+In this example, the `UserWithoutName` referenced type is utilized as the object type name instead of the automatically generated inline type name `OmitUsername` derived from `Omit<User, 'name'>`.
+
+```graphql
+type UserWithoutName {
+  id: String!
+}
+
+type Query {
+  getUserId: UserWithoutName
+}
+```
+
+This showcases how the explicitly named referenced type contributes to the clarity and semantic coherence of the generated GraphQL object type.
