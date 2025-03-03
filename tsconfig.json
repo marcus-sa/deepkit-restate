@@ -1,0 +1,32 @@
+{
+  "compileOnSave": false,
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "lib",
+    "moduleResolution": "nodenext",
+    "strictPropertyInitialization": false,
+    "emitDecoratorMetadata": true,
+    "useDefineForClassFields": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": false,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "strict": true,
+    "experimentalDecorators": true,
+    "importHelpers": true,
+    "target": "esnext",
+    "module": "nodenext",
+    "lib": ["esnext"],
+    "skipLibCheck": true,
+    "skipDefaultLibCheck": true,
+    "types": [
+      "node",
+      "bun"
+    ]
+  },
+  "exclude": ["node_modules", "tmp", "lib"],
+  "include": ["src/**/*.ts"],
+  "reflection": true
+}
