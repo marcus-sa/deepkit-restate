@@ -108,7 +108,7 @@ describe('e2e', () => {
       const user = client.service<UserServiceApi>();
 
       {
-        const result = await client.rpc(user.create('Test'));
+        const result = await client.call(user.create('Test'));
         expect(result).toBeInstanceOf(User);
         expect(result).toMatchObject({
           id: expect.any(String),
@@ -170,7 +170,7 @@ describe('e2e', () => {
       const user = client.service<UserServiceApi>();
 
       {
-        const result = await client.rpc(user.create('Test'));
+        const result = await client.call(user.create('Test'));
         expect(result).toBeInstanceOf(User);
         expect(result).toMatchObject({
           id: expect.any(String),
@@ -296,7 +296,7 @@ describe('e2e', () => {
       const user = client.service<UserServiceApi>();
 
       {
-        const result = await client.rpc(user.create('Test'));
+        const result = await client.call(user.create('Test'));
         expect(result).toBeInstanceOf(User);
         expect(result).toMatchObject({
           id: expect.any(String),

@@ -43,17 +43,7 @@ describe('RestateClient', () => {
         'rpc',
         async () => {
           const app = createTestingApp({
-            imports: [
-              new RestateModule({
-                run: {
-                  retryIntervalFactor: 0,
-                  maxRetryIntervalMillis: 0,
-                  initialRetryIntervalMillis: 0,
-                  maxRetryDurationMillis: 0,
-                  maxRetryAttempts: 0,
-                },
-              }),
-            ],
+            imports: [new RestateModule()],
             controllers: [PaymentObject],
           });
           const injector = app.app.getInjectorContext();
@@ -61,7 +51,7 @@ describe('RestateClient', () => {
           const client = injector.get<RestateClient>();
 
           const paymentObject = client.object<PaymentObjectApi>();
-          const payment = await client.rpc(
+          const payment = await client.call(
             paymentId,
             paymentObject.create(10.0),
           );
@@ -124,7 +114,7 @@ describe('RestateClient', () => {
         const client = injector.get<RestateClient>();
 
         const userService = client.service<UserServiceApi>();
-        const user = await client.rpc(userService.create('Test'));
+        const user = await client.call(userService.create('Test'));
         expect(user).toBeInstanceOf(User);
       });
     });

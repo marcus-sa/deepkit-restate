@@ -82,7 +82,7 @@ test('event e2e', async () => {
   const proxy = client.service<CustomerServiceProxy>();
 
   {
-    const customer = await client.rpc(proxy.create('Test'));
+    const customer = await client.call(proxy.create('Test'));
     expect(customer).toBeInstanceOf(Customer);
   }
 });

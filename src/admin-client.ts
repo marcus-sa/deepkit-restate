@@ -69,8 +69,8 @@ export class DeploymentClient {
 }
 
 export class RestateAdminClientOptions {
-  readonly url: string;
-  readonly autoDeploy?: boolean = true;
+  url: string;
+  autoDeploy?: boolean = true;
 }
 
 export class RestateAdminClient {

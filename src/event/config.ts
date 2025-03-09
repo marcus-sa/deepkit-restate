@@ -1,3 +1,3 @@
 export class RestateEventConfig {
-  readonly cluster: string;
+  cluster: string;
 }

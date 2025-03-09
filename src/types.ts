@@ -19,7 +19,7 @@ export interface RestateSendOptions {
   readonly idempotencyKey?: string;
 }
 
-export interface RestateRpcOptions {
+export interface RestateCallOptions {
   readonly idempotencyKey?: string;
 }
 

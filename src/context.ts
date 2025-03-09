@@ -143,7 +143,7 @@ export class RestateMemoryContext implements Context {
   }
 
   async rpc<R>(...args: readonly any[]): Promise<R> {
-    return await this.client.rpc(...args);
+    return await this.client.call(...args);
   }
 
   async send(...args: readonly any[]): Promise<RestateStatus> {
