@@ -16,9 +16,9 @@ import {
   getSagaDataSerializer,
 } from './serde.js';
 import {
+  RestateCallOptions,
   RestateObject,
   RestateObjectHandlerRequest,
-  RestateRpcOptions,
   RestateSaga,
   RestateSendOptions,
   RestateService,
@@ -44,8 +44,8 @@ export class RestateApiError extends Error {
 }
 
 export class RestateIngressClientOptions {
-  readonly url: string;
-  readonly headers?: Record<string, string>;
+  url: string;
+  headers?: Record<string, string>;
 }
 
 export interface IRestateSagaClient<Data> {
@@ -116,14 +116,14 @@ export interface RestateClient {
   saga<T extends RestateSaga<string, any>>(
     type?: ReceiveType<T>,
   ): IRestateSagaClient<T['data']>;
-  rpc<R, A extends any[]>(
+  call<R, A extends any[]>(
     key: string,
     request: RestateObjectHandlerRequest<R, A>,
-    options?: RestateRpcOptions,
+    options?: RestateCallOptions,
   ): Promise<R>;
-  rpc<R, A extends any[]>(
+  call<R, A extends any[]>(
     request: RestateServiceHandlerRequest<R, A>,
-    options?: RestateRpcOptions,
+    options?: RestateCallOptions,
   ): Promise<R>;
   send(
     key: string,
@@ -158,7 +158,7 @@ export class RestateHttpClient implements RestateClient {
     return new RestateSagaClient(this.opts, type);
   }
 
-  async rpc<R>(...args: readonly any[]): Promise<R> {
+  async call<R>(...args: readonly any[]): Promise<R> {
     const [
       key,
       { service, method, data, deserializeReturn, entities },
@@ -307,7 +307,7 @@ export class RestateMemoryClient implements RestateClient {
     throw new Error('Not yet implemented');
   }
 
-  async rpc<R>(...args: readonly any[]): Promise<R> {
+  async call<R>(...args: readonly any[]): Promise<R> {
     const [key, fn] = args.length === 1 ? [undefined, ...args] : args;
 
     const run = (): Promise<R> => retry(fn, this.module.config.retry);

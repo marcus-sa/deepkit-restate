@@ -2,7 +2,11 @@ export { restate } from './decorator.js';
 export { RestateModule } from './module.js';
 export { RestateAdminClient } from './admin-client.js';
 export { RestateHttpClient, RestateMemoryClient } from './client.js';
-export { provideRestateObjectProxy, provideRestateServiceProxy, createClassProxy } from './utils/type.js';
+export {
+  provideRestateObjectProxy,
+  provideRestateServiceProxy,
+  createClassProxy,
+} from './utils/type.js';
 export {
   RestateConfig,
   RestateKafkaConfig,
