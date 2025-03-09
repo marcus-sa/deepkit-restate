@@ -1,29 +1,25 @@
 {
   "name": "deepkit-restate",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "license": "MIT",
-  "repository": "https://github.com/marcus-sa/deepstate.git",
-  "homepage": "https://deepstate.js.org",
+  "repository": "https://github.com/marcus-sa/deepkit-restate.git",
   "author": "Marcus S. Abildskov <work@marcus-sa.dev>",
   "type": "module",
-  "main": "./lib/cjs/src/index.js",
-  "module": "./lib/esm/src/index.js",
-  "types": "./lib/types/src/index.d.js",
+  "main": "./lib/src/index.js",
+  "module": "./lib/src/index.js",
+  "types": "./lib/src/index.d.js",
   "exports": {
     ".": {
-      "require": "./lib/cjs/src/index.js",
-      "import": "./lib/esm/src/index.js",
-      "types": "./lib/types/src/index.d.js"
+      "default": "./lib/src/index.js",
+      "types": "./lib/src/index.d.js"
     },
     "./kafka": {
-      "require": "./lib/cjs/src/kafka/index.js",
-      "import": "./lib/esm/src/kafka/index.js",
-      "types": "./lib/types/src/kafka/index.d.js"
+      "default": "./lib/src/kafka/index.js",
+      "types": "./lib/src/kafka/index.d.js"
     },
     "./event-server": {
-      "require": "./lib/cjs/src/event/server/index.js",
-      "import": "./lib/esm/src/event/server/index.js",
-      "types": "./lib/types/src/event/server/index.d.js"
+      "default": "./lib/src/event/server/index.js",
+      "types": "./lib/src/event/server/index.d.js"
     }
   },
   "files": [
@@ -33,7 +29,7 @@
   "scripts": {
     "postinstall": "deepkit-type-install",
     "build": "rm -rf lib && tsc -p tsconfig.json",
-    "test": "rm -rf test && tsc -p tsconfig.spec.json && cd test && bun test",
+    "test": "rm -rf test && tsc -p tsconfig.test.json && cd test && bun test",
     "prepublish": "bun run build",
     "check": "biome check",
     "check:fix": "biome check --fix --unsafe",
@@ -42,7 +38,6 @@
   "dependencies": {
     "@restatedev/restate-sdk": "^1.4.0",
     "@restatedev/restate-sdk-clients": "^1.4.0",
-    "kafkajs": "^2.2.4",
     "tslib": "^2.8.1"
   },
   "peerDependencies": {
@@ -54,11 +49,11 @@
     "@deepkit/filesystem": "^1.0.1",
     "@deepkit/framework": "^1.0.2",
     "@deepkit/injector": "^1.0.2",
-    "@deepkit/type": "^1.0.2"
+    "@deepkit/type": "^1.0.2",
+    "kafkajs": "^2.2.4"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
-    "@deepkit/bun": "^1.0.2",
     "@deepkit/type-compiler": "^1.0.2",
     "@types/bun": "^1.2.4",
     "typescript": "5.7.3"

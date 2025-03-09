@@ -6,12 +6,10 @@
       "dependencies": {
         "@restatedev/restate-sdk": "^1.4.0",
         "@restatedev/restate-sdk-clients": "^1.4.0",
-        "kafkajs": "^2.2.4",
         "tslib": "^2.8.1",
       },
       "devDependencies": {
         "@biomejs/biome": "^1.9.4",
-        "@deepkit/bun": "^1.0.2",
         "@deepkit/type-compiler": "^1.0.2",
         "@types/bun": "^1.2.4",
         "typescript": "5.7.3",
@@ -26,6 +24,7 @@
         "@deepkit/framework": "^1.0.2",
         "@deepkit/injector": "^1.0.2",
         "@deepkit/type": "^1.0.2",
+        "kafkajs": "^2.2.4",
       },
     },
   },
@@ -61,8 +60,6 @@
     "@deepkit/broker": ["@deepkit/broker@1.0.2", "", { "dependencies": { "@lukeed/ms": "^2.0.1", "js-xxhash": "3.0.1" }, "peerDependencies": { "@deepkit/app": "^1.0.1-alpha.40", "@deepkit/bson": "^1.0.1-alpha.40", "@deepkit/core": "^1.0.1-alpha.39", "@deepkit/core-rxjs": "^1.0.1-alpha.39", "@deepkit/event": "^1.0.1-alpha.40", "@deepkit/rpc": "^1.0.1-alpha.41", "@deepkit/type": "^1.0.1-alpha.40", "rxjs": "*" } }, "sha512-dFjnZOD8iZLT9pwg86v1jJqENGW1VR7GuYQELX0Z8ie3HOarUH7+I/DZJWKA5cEXf1h8gbvW98q3ZAQaSCv4gQ=="],
 
     "@deepkit/bson": ["@deepkit/bson@1.0.2", "", { "peerDependencies": { "@deepkit/core": "^1.0.1-alpha.13", "@deepkit/type": "^1.0.1-alpha.13" } }, "sha512-yKPdwYsg7pdcCnhhBUVBgJFq7C+y6GTC7nGZyX/z6TX1+j8APZTi48tVwVlb5gOs0X7KjAFVt1VH4O5R0KlGCQ=="],
-
-    "@deepkit/bun": ["@deepkit/bun@1.0.2", "", { "peerDependencies": { "@deepkit/type-compiler": "^1.0.1-alpha.93", "typescript": "*" } }, "sha512-Z3pbf/q6+XbVme42mJIGAoVWCpk4mpcTbJY3FmSEPBLF3pNJ0lZ7V1fBWCFhwFDNggZGhiNZfFBDx4NTndcFUg=="],
 
     "@deepkit/core": ["@deepkit/core@1.0.1", "", { "dependencies": { "dot-prop": "^5.1.1", "to-fast-properties": "^3.0.1" } }, "sha512-M60P3ydSm3LLyrmKUshA8fX4XX63cAxB1caTlGM/tHk5dXXw1p5kqlL5s5RrIOFNkT1KMCO9f4vN9IWBo95f3Q=="],
 

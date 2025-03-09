@@ -1,4 +1,0 @@
-preload = ["@deepkit/bun"]
-
-[test]
-preload = ["@deepkit/bun"]
