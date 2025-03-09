@@ -7,7 +7,7 @@ import {
 import { ReceiveType, resolveReceiveType } from '@deepkit/type';
 import { Kafka, Producer, ProducerRecord, RecordMetadata } from 'kafkajs';
 
-import { RestateContextStorage, Context } from '../context.js';
+import { Context, RestateContextStorage } from '../context.js';
 import { RestateKafkaTopic } from '../types.js';
 import { RestateKafkaConfig } from './module.js';
 

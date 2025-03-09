@@ -1,4 +1,4 @@
-import {sleep} from "@deepkit/core";
+import { sleep } from '@deepkit/core';
 
 export function waitUntil(
   predicate: () => boolean,

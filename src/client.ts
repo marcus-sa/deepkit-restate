@@ -10,7 +10,8 @@ import {
 import { RestateModule } from './module.js';
 import { SagaState } from './saga/saga-instance.js';
 import {
-  deserializeResponseData, deserializeRestateServiceMethodResponse,
+  deserializeResponseData,
+  deserializeRestateServiceMethodResponse,
   getSagaDataDeserializer,
   getSagaDataSerializer,
 } from './serde.js';
@@ -26,10 +27,7 @@ import {
   SCOPE,
 } from './types.js';
 import { retry } from './utils/retry.js';
-import {
-  createClassProxy,
-  getRestateClassName,
-} from './utils/type.js';
+import { createClassProxy, getRestateClassName } from './utils/type.js';
 
 interface RestateApiResponseError {
   readonly code: string;
@@ -240,10 +238,7 @@ export class RestateMemoryClient implements RestateClient {
     private readonly module: RestateModule,
     private readonly injectorContext: InjectorContext,
   ) {
-    this.context = new RestateMemoryContextProvider(
-      this,
-      this.module.config,
-    );
+    this.context = new RestateMemoryContextProvider(this, this.module.config);
   }
 
   service<T extends RestateService<string, any, any[]>>(
@@ -259,15 +254,21 @@ export class RestateMemoryClient implements RestateClient {
     }
     const injector = this.injectorContext.createChildScope(SCOPE);
     injector.set(restateServiceContextType, this.context.getService());
-    const service = injector.get(serviceModule.classType, serviceModule.module) as T;
-    return new Proxy({}, {
-      get(target: {}, method: string | symbol, receiver: any): any {
-        return (...args: readonly unknown[]) => {
-          // @ts-ignore
-          return () => service[method](...args);
-        }
-      }
-    }) as T;
+    const service = injector.get(
+      serviceModule.classType,
+      serviceModule.module,
+    ) as T;
+    return new Proxy(
+      {},
+      {
+        get(target: {}, method: string | symbol, receiver: any): any {
+          return (...args: readonly unknown[]) => {
+            // @ts-ignore
+            return () => service[method](...args);
+          };
+        },
+      },
+    ) as T;
   }
 
   object<T extends RestateObject<string, any, any[]>>(
@@ -282,19 +283,22 @@ export class RestateMemoryClient implements RestateClient {
       throw new Error(`No object module found for ${objectName}`);
     }
     const injector = this.injectorContext.createChildScope(SCOPE);
-    injector.set(
-      restateObjectContextType,
-      this.context.getObject(objectName),
-    );
-    const object = injector.get(objectModule.classType, objectModule.module) as T;
-    return new Proxy({}, {
-      get(target: {}, method: string | symbol, receiver: any): any {
-        return (...args: readonly unknown[]) => {
-          // @ts-ignore
-          return () => object[method](...args);
-        }
-      }
-    }) as T;
+    injector.set(restateObjectContextType, this.context.getObject(objectName));
+    const object = injector.get(
+      objectModule.classType,
+      objectModule.module,
+    ) as T;
+    return new Proxy(
+      {},
+      {
+        get(target: {}, method: string | symbol, receiver: any): any {
+          return (...args: readonly unknown[]) => {
+            // @ts-ignore
+            return () => object[method](...args);
+          };
+        },
+      },
+    ) as T;
   }
 
   saga<T extends RestateSaga<string, any>>(

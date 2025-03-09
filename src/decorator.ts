@@ -149,6 +149,11 @@ export interface RestateEventHandlerMetadata {
   readonly type: TypeClass | TypeObjectLiteral;
 }
 
+export interface RestateHandlerOptions {
+  // use json instead of bson for serde
+  readonly json?: boolean;
+}
+
 export class RestateHandlerMetadata<T = readonly unknown[]> {
   readonly name: string;
   readonly classType: ClassType;
@@ -160,6 +165,7 @@ export class RestateHandlerMetadata<T = readonly unknown[]> {
   readonly exclusive?: boolean;
   readonly kafka?: RestateKafkaHandlerMetadata;
   readonly event?: RestateEventHandlerMetadata;
+  readonly json?: boolean;
 }
 
 export class RestateHandlerDecorator {
@@ -193,7 +199,11 @@ export class RestateHandlerDecorator {
     restateSagaDecorator.addHandler(this.t)(classType);
   }
 
-  handler() {}
+  handler(opts?: RestateHandlerOptions) {
+    if (opts?.json) {
+      Object.assign(this.t, { json: true });
+    }
+  }
 
   // FIXME: options and type are somehow required
   event<T>(type?: ReceiveType<T>) {

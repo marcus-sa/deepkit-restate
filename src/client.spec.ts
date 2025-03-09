@@ -3,7 +3,7 @@ import { createTestingApp } from '@deepkit/framework';
 import { UUID, uuid } from '@deepkit/type';
 
 import { RestateClient } from './client.js';
-import { RestateObjectContext, RestateServiceContext} from './context.js';
+import { RestateObjectContext, RestateServiceContext } from './context.js';
 import { restate } from './decorator.js';
 import { RestateModule } from './module.js';
 import { RestateObject, RestateService } from './types.js';
@@ -39,31 +39,40 @@ describe('RestateClient', () => {
           return new Payment(this.ctx.key, amount);
         }
       }
-      test('rpc', async () => {
-        const app = createTestingApp({
-          imports: [new RestateModule({
-            run: {
-              retryIntervalFactor: 0,
-              maxRetryIntervalMillis: 0,
-              initialRetryIntervalMillis: 0,
-              maxRetryDurationMillis: 0,
-              maxRetryAttempts: 0,
-            },
-          })],
-          controllers: [PaymentObject],
-        });
-        const injector = app.app.getInjectorContext();
+      test(
+        'rpc',
+        async () => {
+          const app = createTestingApp({
+            imports: [
+              new RestateModule({
+                run: {
+                  retryIntervalFactor: 0,
+                  maxRetryIntervalMillis: 0,
+                  initialRetryIntervalMillis: 0,
+                  maxRetryDurationMillis: 0,
+                  maxRetryAttempts: 0,
+                },
+              }),
+            ],
+            controllers: [PaymentObject],
+          });
+          const injector = app.app.getInjectorContext();
 
-        const client = injector.get<RestateClient>();
+          const client = injector.get<RestateClient>();
 
-        const paymentObject = client.object<PaymentObjectApi>();
-        const payment = await client.rpc(paymentId, paymentObject.create(10.0));
-        // expect(payment).toBeInstanceOf(Payment);
-        expect(payment).toMatchObject({
-          id: paymentId,
-          amount: 10.0,
-        });
-      }, { timeout: 10_000 });
+          const paymentObject = client.object<PaymentObjectApi>();
+          const payment = await client.rpc(
+            paymentId,
+            paymentObject.create(10.0),
+          );
+          // expect(payment).toBeInstanceOf(Payment);
+          expect(payment).toMatchObject({
+            id: paymentId,
+            amount: 10.0,
+          });
+        },
+        { timeout: 10_000 },
+      );
     });
 
     describe('service', () => {

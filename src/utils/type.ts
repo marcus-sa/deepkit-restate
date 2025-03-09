@@ -1,40 +1,44 @@
-import {BSONDeserializer, BSONSerializer, getBSONSerializer,} from '@deepkit/bson';
-import {ClassType} from '@deepkit/core';
-import {FactoryProvider} from '@deepkit/injector';
 import {
-  assertType,
-  isExtendable,
+  BSONDeserializer,
+  BSONSerializer,
+  getBSONSerializer,
+} from '@deepkit/bson';
+import { ClassType } from '@deepkit/core';
+import { FactoryProvider } from '@deepkit/injector';
+import {
   ReceiveType,
-  reflect,
   ReflectionClass,
   ReflectionFunction,
   ReflectionKind,
-  resolveReceiveType,
   Type,
   TypeClass,
   TypeObjectLiteral,
   TypeParameter,
-  typeSettings,
   TypeTuple,
   TypeTupleMember,
+  assertType,
+  isExtendable,
+  reflect,
+  resolveReceiveType,
+  typeSettings,
 } from '@deepkit/type';
 
 import {
-  restateObjectDecorator,
   RestateObjectMetadata,
-  restateSagaDecorator,
   RestateSagaMetadata,
-  restateServiceDecorator,
   RestateServiceMetadata,
+  restateObjectDecorator,
+  restateSagaDecorator,
+  restateServiceDecorator,
 } from '../decorator.js';
-import {getResponseDataDeserializer,} from '../serde.js';
+import { getResponseDataDeserializer } from '../serde.js';
 import {
   Entities,
   RestateHandlerRequest,
   RestateObject,
+  RestateService,
   restateObjectType,
   restateSagaType,
-  RestateService,
   restateServiceType,
 } from '../types.js';
 

@@ -1,6 +1,6 @@
-import {ReceiveType, resolveReceiveType} from "@deepkit/type";
-import {RestateHandlerResponse} from "../types.js";
-import {serializeResponseData} from "../serde.js";
+import { ReceiveType, resolveReceiveType } from '@deepkit/type';
+import { serializeResponseData } from '../serde.js';
+import { RestateHandlerResponse } from '../types.js';
 
 export function success<T>(
   reply?: T,

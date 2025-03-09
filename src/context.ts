@@ -38,8 +38,7 @@ export interface RestateAwakeable<T> {
   readonly promise: CombineablePromise<T>;
 }
 
-export interface Context
-  extends ContextWithoutClients<RestateContext> {
+export interface Context extends ContextWithoutClients<RestateContext> {
   awakeable<T>(type?: ReceiveType<T>): RestateAwakeable<T>;
   resolveAwakeable<T>(
     id: string,
@@ -297,7 +296,9 @@ export class RestateMemoryContextObjectKeyValueStorage {
 export class RestateMemoryContextProvider {
   readonly objectKeyStorage = new AsyncLocalStorage<string>();
   readonly #awakeables = new Map<string, InMemoryAwakeable<unknown>>();
-  readonly objectStorage = new RestateMemoryContextObjectKeyValueStorage(this.objectKeyStorage);
+  readonly objectStorage = new RestateMemoryContextObjectKeyValueStorage(
+    this.objectKeyStorage,
+  );
 
   constructor(
     private readonly client: RestateMemoryClient,

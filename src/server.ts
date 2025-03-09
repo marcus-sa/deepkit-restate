@@ -29,7 +29,8 @@ import { ModuleObject, ModuleSaga, ModuleService } from './providers.js';
 import { SAGA_STATE_KEY } from './saga/saga-instance.js';
 import { SagaManager } from './saga/saga-manager.js';
 import {
-  createBSONSerde, deserializeRestateServiceMethodResponse,
+  createBSONSerde,
+  deserializeRestateServiceMethodResponse,
   serializeResponseData,
   serializeRestateHandlerResponse,
 } from './serde.js';

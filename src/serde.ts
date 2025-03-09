@@ -1,16 +1,26 @@
-import {BSONDeserializer, BSONSerializer, getBSONDeserializer, getBSONSerializer,} from '@deepkit/bson';
+import {
+  BSONDeserializer,
+  BSONSerializer,
+  getBSONDeserializer,
+  getBSONSerializer,
+} from '@deepkit/bson';
 import {
   ReceiveType,
   ReflectionKind,
-  resolveReceiveType,
   Type,
   TypeObjectLiteral,
   TypePropertySignature,
+  resolveReceiveType,
 } from '@deepkit/type';
-import {Serde, TerminalError} from '@restatedev/restate-sdk';
+import { Serde, TerminalError } from '@restatedev/restate-sdk';
 
-import {Entities, RestateHandlerResponse, restateHandlerResponseType, restateTerminalErrorType,} from './types.js';
-import {getRegisteredEntity, getSagaDataType} from './utils/type.js';
+import {
+  Entities,
+  RestateHandlerResponse,
+  restateHandlerResponseType,
+  restateTerminalErrorType,
+} from './types.js';
+import { getRegisteredEntity, getSagaDataType } from './utils/type.js';
 
 export function createBSONSerde<T>(type?: ReceiveType<T>) {
   type = resolveReceiveType(type);
