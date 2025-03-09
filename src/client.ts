@@ -1,30 +1,35 @@
 import { BSONDeserializer, BSONSerializer } from '@deepkit/bson';
-import {ReceiveType, resolveReceiveType, Type, uuid} from '@deepkit/type';
-import {InjectorContext} from "@deepkit/injector";
+import { InjectorContext } from '@deepkit/injector';
+import { ReceiveType, Type, resolveReceiveType, uuid } from '@deepkit/type';
 
+import {
+  RestateMemoryContextProvider,
+  restateObjectContextType,
+  restateServiceContextType,
+} from './context.js';
+import { RestateModule } from './module.js';
 import { SagaState } from './saga/saga-instance.js';
 import {
-  deserializeResponseData,
+  deserializeResponseData, deserializeRestateServiceMethodResponse,
   getSagaDataDeserializer,
   getSagaDataSerializer,
 } from './serde.js';
-import {getRestateClassName} from './metadata.js';
 import {
-  createClassProxy,
-  decodeRestateServiceMethodResponse,
-} from './utils.js';
-import {
-  RestateObject, restateObjectContextType,
+  RestateObject,
   RestateObjectHandlerRequest,
   RestateRpcOptions,
   RestateSaga,
   RestateSendOptions,
-  RestateService, restateServiceContextType,
+  RestateService,
   RestateServiceHandlerRequest,
-  RestateStatus, SCOPE,
+  RestateStatus,
+  SCOPE,
 } from './types.js';
-import {RestateModule} from "./restate.module.js";
-import {RestateMemoryContext} from "./restate-context-storage.js";
+import { retry } from './utils/retry.js';
+import {
+  createClassProxy,
+  getRestateClassName,
+} from './utils/type.js';
 
 interface RestateApiResponseError {
   readonly code: string;
@@ -109,9 +114,7 @@ export interface RestateClient {
   service<T extends RestateService<string, any, any[]>>(
     type?: ReceiveType<T>,
   ): T;
-  object<T extends RestateObject<string, any, any[]>>(
-    type?: ReceiveType<T>,
-  ): T
+  object<T extends RestateObject<string, any, any[]>>(type?: ReceiveType<T>): T;
   saga<T extends RestateSaga<string, any>>(
     type?: ReceiveType<T>,
   ): IRestateSagaClient<T['data']>;
@@ -192,7 +195,7 @@ export class RestateHttpClient implements RestateClient {
 
     const result = new Uint8Array(await response.arrayBuffer());
 
-    return decodeRestateServiceMethodResponse(
+    return deserializeRestateServiceMethodResponse(
       result,
       deserializeReturn,
       entities,
@@ -231,24 +234,40 @@ export class RestateHttpClient implements RestateClient {
 }
 
 export class RestateMemoryClient implements RestateClient {
+  readonly context: RestateMemoryContextProvider;
+
   constructor(
     private readonly module: RestateModule,
     private readonly injectorContext: InjectorContext,
-  ) {}
+  ) {
+    this.context = new RestateMemoryContextProvider(
+      this,
+      this.module.config,
+    );
+  }
 
   service<T extends RestateService<string, any, any[]>>(
     type?: ReceiveType<T>,
   ): T {
     type = resolveReceiveType(type);
     const serviceName = getRestateClassName(type);
-    const serviceModule = [...this.module.services]
-      .find(service => service.metadata.name === serviceName);
+    const serviceModule = [...this.module.services].find(
+      service => service.metadata.name === serviceName,
+    );
     if (!serviceModule) {
       throw new Error(`No service module found for ${serviceName}`);
     }
     const injector = this.injectorContext.createChildScope(SCOPE);
-    injector.set(restateServiceContextType, new RestateMemoryContext(this));
-    return injector.get(serviceModule.classType, serviceModule.module) as T;
+    injector.set(restateServiceContextType, this.context.getService());
+    const service = injector.get(serviceModule.classType, serviceModule.module) as T;
+    return new Proxy({}, {
+      get(target: {}, method: string | symbol, receiver: any): any {
+        return (...args: readonly unknown[]) => {
+          // @ts-ignore
+          return () => service[method](...args);
+        }
+      }
+    }) as T;
   }
 
   object<T extends RestateObject<string, any, any[]>>(
@@ -256,14 +275,26 @@ export class RestateMemoryClient implements RestateClient {
   ): T {
     type = resolveReceiveType(type);
     const objectName = getRestateClassName(type);
-    const objectModule = [...this.module.objects]
-      .find(object => object.metadata.name === objectName);
+    const objectModule = [...this.module.objects].find(
+      object => object.metadata.name === objectName,
+    );
     if (!objectModule) {
       throw new Error(`No object module found for ${objectName}`);
     }
     const injector = this.injectorContext.createChildScope(SCOPE);
-    injector.set(restateObjectContextType, new RestateMemoryContext(this));
-    return injector.get(objectModule.classType, objectModule.module) as T;
+    injector.set(
+      restateObjectContextType,
+      this.context.getObject(objectName),
+    );
+    const object = injector.get(objectModule.classType, objectModule.module) as T;
+    return new Proxy({}, {
+      get(target: {}, method: string | symbol, receiver: any): any {
+        return (...args: readonly unknown[]) => {
+          // @ts-ignore
+          return () => object[method](...args);
+        }
+      }
+    }) as T;
   }
 
   saga<T extends RestateSaga<string, any>>(
@@ -273,15 +304,23 @@ export class RestateMemoryClient implements RestateClient {
   }
 
   async rpc<R>(...args: readonly any[]): Promise<R> {
-    const [, result] =
-      args.length === 1 ? [undefined, ...args] : args;
-    return await result;
+    const [key, fn] = args.length === 1 ? [undefined, ...args] : args;
+
+    const run = (): Promise<R> => retry(fn, this.module.config.retry);
+
+    return key ? this.context.objectKeyStorage.run(key, run) : run();
   }
 
   async send(...args: readonly any[]): Promise<RestateStatus> {
-    const [, result] =
-      args.length === 1 ? [undefined, ...args] : args;
-    await result;
+    const [key, fn] = args.length === 1 ? [undefined, ...args] : args;
+
+    const run = () => retry(fn, this.module.config.retry);
+
+    if (key) {
+      void this.context.objectKeyStorage.run(key, run);
+    } else {
+      void run();
+    }
     return { invocationId: uuid(), status: 'Accepted' };
   }
 }

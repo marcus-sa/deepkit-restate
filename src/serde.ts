@@ -1,4 +1,4 @@
-import { Serde, TerminalError } from '@restatedev/restate-sdk';
+import {BSONDeserializer, BSONSerializer, getBSONDeserializer, getBSONSerializer,} from '@deepkit/bson';
 import {
   ReceiveType,
   ReflectionKind,
@@ -7,19 +7,10 @@ import {
   TypeObjectLiteral,
   TypePropertySignature,
 } from '@deepkit/type';
-import {
-  BSONDeserializer,
-  BSONSerializer,
-  getBSONDeserializer,
-  getBSONSerializer,
-} from '@deepkit/bson';
+import {Serde, TerminalError} from '@restatedev/restate-sdk';
 
-import { getSagaDataType } from './metadata.js';
-import {
-  RestateHandlerResponse,
-  restateHandlerResponseType,
-  restateTerminalErrorType,
-} from './types.js';
+import {Entities, RestateHandlerResponse, restateHandlerResponseType, restateTerminalErrorType,} from './types.js';
+import {getRegisteredEntity, getSagaDataType} from './utils/type.js';
 
 export function createBSONSerde<T>(type?: ReceiveType<T>) {
   type = resolveReceiveType(type);
@@ -127,3 +118,39 @@ export const serializeRestateTerminalErrorType = getBSONSerializer(
 
 export const deserializeRestateTerminalErrorType =
   getBSONDeserializer<TerminalError>(undefined, restateTerminalErrorType);
+
+export function deserializeRestateServiceMethodResponse<T>(
+  response: Uint8Array,
+  deserialize: BSONDeserializer<T>,
+  entities: Entities,
+): T {
+  const internalResponse = deserializeRestateHandlerResponse(response);
+  if (internalResponse.success) {
+    return internalResponse.data
+      ? deserialize(internalResponse.data)
+      : (undefined as T);
+  }
+  if (!internalResponse.typeName) {
+    throw new TerminalError('Missing typeName');
+  }
+  const entity =
+    entities.get(internalResponse.typeName) ||
+    getRegisteredEntity(internalResponse.typeName);
+  if (!entity) {
+    // if (internalResponse.typeName === restateTerminalErrorType.typeName) {
+    //   throw deserializeRestateTerminalErrorType(internalResponse.data);
+    // }
+    throw new TerminalError(`Unknown type ${internalResponse.typeName}`, {
+      errorCode: 500,
+    });
+  }
+  if (!internalResponse.data) {
+    throw new TerminalError(
+      `Missing response data for error ${internalResponse.typeName}`,
+      {
+        errorCode: 500,
+      },
+    );
+  }
+  throw deserializeResponseData(internalResponse.data, entity);
+}

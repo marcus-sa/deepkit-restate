@@ -1,12 +1,13 @@
 import { describe, expect, test } from 'bun:test';
-import { createTestingApp } from '@deepkit/framework';
-import { PrimaryKey, Unique, uuid, UUID } from '@deepkit/type';
 import { sleep } from '@deepkit/core';
+import { createTestingApp } from '@deepkit/framework';
+import { PrimaryKey, UUID, Unique, uuid } from '@deepkit/type';
 
-import { RestateModule } from './restate.module.js';
-import { RestateClient } from './restate-client.js';
+import { RestateClient } from './client.js';
+import { RestateServiceContext } from './context.js';
 import { restate } from './decorator.js';
-import { RestateService, RestateServiceContext } from './types.js';
+import { RestateModule } from './module.js';
+import { RestateService } from './types.js';
 
 describe('e2e', () => {
   describe('context', () => {
@@ -136,7 +137,10 @@ describe('e2e', () => {
 
         @restate.handler()
         async create(username: string): Promise<User> {
-          const user = await this.ctx.run<User>('create user', () => new User(username));
+          const user = await this.ctx.run<User>(
+            'create user',
+            () => new User(username),
+          );
           expect(user).toBeInstanceOf(User);
           return user;
         }
@@ -194,7 +198,10 @@ describe('e2e', () => {
 
         @restate.handler()
         async create(username: string): Promise<void> {
-          const user = await this.ctx.run('create user', () => new User(username));
+          const user = await this.ctx.run(
+            'create user',
+            () => new User(username),
+          );
           expect(user).toBe(undefined);
         }
       }

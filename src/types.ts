@@ -1,13 +1,7 @@
-import { ReceiveType, typeOf } from '@deepkit/type';
-import { ClassType } from '@deepkit/core';
 import { BSONDeserializer } from '@deepkit/bson';
-import {
-  CombineablePromise,
-  Context as ServiceContext,
-  type ObjectContext,
-  TerminalError,
-  WorkflowContext,
-} from '@restatedev/restate-sdk';
+import { ClassType } from '@deepkit/core';
+import { typeOf } from '@deepkit/type';
+import { TerminalError } from '@restatedev/restate-sdk';
 
 export interface RestateStatus {
   readonly invocationId: string;
@@ -97,76 +91,11 @@ export interface RestateSaga<Name extends string, Data> {
   readonly data: Data;
 }
 
-export interface RestateAwakeable<T> {
-  readonly id: string;
-  readonly promise: CombineablePromise<T>;
-}
-
-export interface RestateCustomContext {
-  get<T>(name: string, type?: ReceiveType<T>): Promise<T | null>;
-  set<T>(name: string, value: T, type?: ReceiveType<T>): Promise<void>;
-  awakeable<T>(type?: ReceiveType<T>): RestateAwakeable<T>;
-  resolveAwakeable<T>(
-    id: string,
-    payload: NoInfer<T>,
-    type?: ReceiveType<T>,
-  ): void;
-  rejectAwakeable(id: string, reason: string): void;
-  // only return value if type argument was provided
-  run(name: string, action: RestateRunAction<unknown>): Promise<void>;
-  run<T>(name: string, action: RestateRunAction<T>, type?: ReceiveType<T>): Promise<T>;
-  // used for objects
-  send(
-    key: string,
-    request: RestateObjectHandlerRequest,
-    options?: RestateSendOptions,
-  ): void; // Promise<RestateStatus>
-  // used for services
-  send(
-    request: RestateServiceHandlerRequest,
-    options?: RestateSendOptions,
-  ): void; // Promise<RestateStatus>
-  // used for objects
-  rpc<R, A extends any[]>(
-    key: string,
-    request: RestateObjectHandlerRequest<R, A>,
-  ): Promise<R>;
-  // used for services
-  rpc<R, A extends any[]>(call: RestateServiceHandlerRequest<R, A>): Promise<R>;
-}
-
-type ContextWithoutClients<T> = Omit<
-  T,
-  | 'workflowClient'
-  | 'workflowSendClient'
-  | 'serviceClient'
-  | 'serviceSendClient'
-  | 'objectClient'
-  | 'objectSendClient'
-  | 'run'
-  | 'get'
-  | 'set'
-  | 'resolveAwakeable'
-  | 'awakeable'
->;
-
-export interface RestateServiceContext
-  extends Omit<RestateCustomContext, 'get' | 'set'>,
-    ContextWithoutClients<ServiceContext> {}
-
-export interface RestateObjectContext
-  extends RestateCustomContext,
-    ContextWithoutClients<ObjectContext> {}
-
 export interface RestateHandlerResponse {
   readonly success: boolean;
   readonly data?: Uint8Array;
   readonly typeName?: string;
 }
-
-export interface RestateSagaContext
-  extends Omit<RestateCustomContext, 'rpc' | 'send'>,
-    ContextWithoutClients<WorkflowContext> {}
 
 export const restateServiceType = typeOf<RestateService<string, any, any[]>>();
 
@@ -175,12 +104,6 @@ export const restateHandlerResponseType = typeOf<RestateHandlerResponse>();
 export const restateObjectType = typeOf<RestateObject<string, any, any[]>>();
 
 export const restateSagaType = typeOf<RestateSaga<string, any>>();
-
-export const restateServiceContextType = typeOf<RestateServiceContext>();
-
-export const restateObjectContextType = typeOf<RestateObjectContext>();
-
-export const restateSagaContextType = typeOf<RestateSagaContext>();
 
 export const restateTerminalErrorType = typeOf<TerminalError>();
 

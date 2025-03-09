@@ -1,10 +1,10 @@
-import {serializeBSON} from '@deepkit/bson';
-import {ClassType} from "@deepkit/core";
+import { serializeBSON } from '@deepkit/bson';
+import { ClassType } from '@deepkit/core';
 
-import {RestateContextStorage} from '../restate-context-storage.js';
-import {RestateClient} from '../restate-client.js';
-import {EventServerApi, PublishEvent, PublishOptions} from './types.js';
-import {RestateEventConfig} from './config.js';
+import { RestateClient } from '../client.js';
+import { RestateContextStorage } from '../context.js';
+import { RestateEventConfig } from './config.js';
+import { EventServerApi, PublishEvent, PublishOptions } from './types.js';
 
 export class RestateEventsPublisher {
   constructor(
@@ -18,7 +18,7 @@ export class RestateEventsPublisher {
     events: E,
     options?: PublishOptions,
   ): Promise<void> {
-    const eventsToPublish = events.map<PublishEvent>((event) => {
+    const eventsToPublish = events.map<PublishEvent>(event => {
       const eventType = event.constructor as ClassType;
       return {
         name: eventType.name,

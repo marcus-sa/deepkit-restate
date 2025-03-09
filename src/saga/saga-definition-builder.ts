@@ -1,6 +1,6 @@
+import { SagaDefinition } from './saga-definition.js';
 import { SagaStep } from './saga-step.js';
 import { Saga } from './saga.js';
-import { SagaDefinition } from './saga-definition.js';
 
 export class SagaDefinitionBuilder<Data> {
   private readonly steps: SagaStep<Data>[] = [];

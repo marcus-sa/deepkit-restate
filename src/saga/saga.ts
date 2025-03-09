@@ -1,6 +1,6 @@
-import { StepBuilder } from './step-builder.js';
 import { SagaDefinitionBuilder } from './saga-definition-builder.js';
 import { SagaDefinition } from './saga-definition.js';
+import { StepBuilder } from './step-builder.js';
 import { AsyncLike } from './types.js';
 
 export abstract class Saga<Data> {

@@ -1,36 +1,39 @@
 import { eventDispatcher } from '@deepkit/event';
 import { onServerMainBootstrap } from '@deepkit/framework';
 import { InjectorContext } from '@deepkit/injector';
+import {
+  NoTypeReceived,
+  ReceiveType,
+  ReflectionKind,
+  hasTypeInformation,
+} from '@deepkit/type';
 import * as restate from '@restatedev/restate-sdk';
-import {hasTypeInformation, NoTypeReceived, ReceiveType, ReflectionKind} from '@deepkit/type';
 
-import { SagaManager } from './saga/saga-manager.js';
-import { SAGA_STATE_KEY } from './saga/saga-instance.js';
+import { RestateAdminClient } from './admin-client.js';
+import { RestateConfig } from './config.js';
+import {
+  RestateAwakeable,
+  RestateContextStorage,
+  RestateObjectContext,
+  RestateSagaContext,
+  RestateServiceContext,
+  restateObjectContextType,
+  restateSagaContextType,
+  restateServiceContextType,
+} from './context.js';
+import { RestateHandlerMetadata } from './decorator.js';
 import { RestateEventsSubscriber } from './event/subscriber.js';
 import { Subscriptions } from './event/types.js';
-import { RestateHandlerMetadata } from './decorator.js';
-import { RestateConfig } from './config.js';
-import { decodeRestateServiceMethodResponse } from './utils.js';
-import { RestateAdminClient } from './restate-admin-client.js';
-import { RestateContextStorage } from './restate-context-storage.js';
+import { RestateModule } from './module.js';
+import { ModuleObject, ModuleSaga, ModuleService } from './providers.js';
+import { SAGA_STATE_KEY } from './saga/saga-instance.js';
+import { SagaManager } from './saga/saga-manager.js';
 import {
-  createBSONSerde,
+  createBSONSerde, deserializeRestateServiceMethodResponse,
   serializeResponseData,
   serializeRestateHandlerResponse,
 } from './serde.js';
-import {
-  RestateAwakeable,
-  RestateObjectContext,
-  restateObjectContextType,
-  RestateRunAction,
-  RestateSagaContext,
-  restateSagaContextType,
-  RestateServiceContext,
-  restateServiceContextType,
-  SCOPE,
-} from './types.js';
-import {ModuleSaga, ModuleObject, ModuleService} from "./providers.js";
-import {RestateModule} from "./restate.module.js";
+import { RestateRunAction, SCOPE } from './types.js';
 
 const DEFAULT_HANDLER_OPTS = {
   contentType: 'application/octet-stream',
@@ -98,7 +101,10 @@ export class RestateServer {
   private async addEventHandlerSubscriptions() {
     const events = this.injectorContext.get(RestateEventsSubscriber);
     let subscriptions: Subscriptions = [];
-    for (const { metadata } of [...this.module.services, ...this.module.objects]) {
+    for (const { metadata } of [
+      ...this.module.services,
+      ...this.module.objects,
+    ]) {
       for (const handler of metadata.handlers) {
         if (handler.event) {
           subscriptions = [
@@ -183,7 +189,7 @@ export class RestateServer {
           outputSerde: restate.serde.binary,
         });
 
-        return decodeRestateServiceMethodResponse(
+        return deserializeRestateServiceMethodResponse(
           response,
           deserializeReturn,
           entities,

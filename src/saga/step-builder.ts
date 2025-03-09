@@ -2,8 +2,8 @@ import { ReceiveType, ReflectionKind, resolveReceiveType } from '@deepkit/type';
 
 import { RestateHandlerRequest } from '../types.js';
 import { SagaDefinitionBuilder } from './saga-definition-builder.js';
-import { SagaStep } from './saga-step.js';
 import { SagaDefinition } from './saga-definition.js';
+import { SagaStep } from './saga-step.js';
 import {
   Handler,
   PredicateFn,

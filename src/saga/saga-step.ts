@@ -1,7 +1,4 @@
-import {
-  RestateHandlerRequest,
-  RestateHandlerResponse,
-} from '../types.js';
+import { RestateHandlerRequest, RestateHandlerResponse } from '../types.js';
 import {
   Handler,
   PredicateFn,

@@ -1,34 +1,41 @@
 import { AppModule, ControllerConfig, createModuleClass } from '@deepkit/app';
-import {provide} from "@deepkit/injector";
 import { ClassType } from '@deepkit/core';
+import { provide } from '@deepkit/injector';
 
-import { RestateAdminClient } from './restate-admin-client.js';
-import {RestateClient, RestateHttpClient, RestateMemoryClient} from './restate-client.js';
-import { RestateConfig } from './config.js';
-import { RestateServer } from './restate-server.js';
-import { RestateEventModule } from './event/module.js';
+import { RestateAdminClient } from './admin-client.js';
 import {
-  RestateMemoryContextStorage,
+  RestateClient,
+  RestateHttpClient,
+  RestateMemoryClient,
+} from './client.js';
+import { RestateConfig } from './config.js';
+import {
   RestateContextStorage,
-} from './restate-context-storage.js';
+  restateObjectContextType,
+  restateSagaContextType,
+  restateServiceContextType,
+} from './context.js';
 import {
   RestateObjectMetadata,
   RestateSagaMetadata,
   RestateServiceMetadata,
 } from './decorator.js';
 import {
-  restateObjectContextType,
-  restateSagaContextType,
-  restateServiceContextType,
-  SCOPE,
-} from './types.js';
-import { createClassProxy, getRestateClassDeps } from './utils.js';
+  ObjectContextNotAllowedError,
+  SagaContextNotAllowedError,
+  ServiceContextNotAllowedError,
+} from './errors.js';
+import { RestateEventModule } from './event/module.js';
+import { ModuleObjects, ModuleSagas, ModuleServices } from './providers.js';
+import { RestateServer } from './server.js';
+import { SCOPE } from './types.js';
 import {
+  createClassProxy,
+  getRestateClassDeps,
   getRestateObjectMetadata,
   getRestateSagaMetadata,
   getRestateServiceMetadata,
-} from './metadata.js';
-import {ModuleSagas, ModuleObjects, ModuleServices} from "./providers.js";
+} from './utils/type.js';
 
 export class RestateModule extends createModuleClass({
   config: RestateConfig,
@@ -41,14 +48,18 @@ export class RestateModule extends createModuleClass({
   override process() {
     if (this.config.ingress) {
       this.addProvider(RestateHttpClient);
-      this.addProvider(provide<RestateClient>({
-        useExisting: RestateHttpClient,
-      }));
+      this.addProvider(
+        provide<RestateClient>({
+          useExisting: RestateHttpClient,
+        }),
+      );
     } else {
       this.addProvider(RestateMemoryClient);
-      this.addProvider(provide<RestateClient>({
-        useExisting: RestateMemoryClient,
-      }));
+      this.addProvider(
+        provide<RestateClient>({
+          useExisting: RestateMemoryClient,
+        }),
+      );
     }
 
     if (this.config.event) {
@@ -62,40 +73,13 @@ export class RestateModule extends createModuleClass({
     if (this.config.server) {
       this.addListener(RestateServer);
       this.addProvider(RestateContextStorage);
-    } else {
-      this.addProvider(RestateMemoryContextStorage);
-      this.addProvider({
-        provide: RestateContextStorage,
-        useExisting: RestateMemoryContextStorage,
-      });
-      this.addProvider({
-        provide: restateServiceContextType,
-        scope: SCOPE,
-        useFactory(contextStorage: RestateMemoryContextStorage) {
-          return contextStorage.getStore();
-        },
-      });
-      this.addProvider({
-        provide: restateObjectContextType,
-        scope: SCOPE,
-        useFactory(contextStorage: RestateMemoryContextStorage) {
-          return contextStorage.getStore();
-        },
-      });
-      this.addProvider({
-        provide: restateSagaContextType,
-        scope: SCOPE,
-        useFactory(contextStorage: RestateMemoryContextStorage) {
-          return contextStorage.getStore();
-        },
-      });
     }
 
     this.addProvider({
       provide: restateServiceContextType,
       scope: SCOPE,
       useFactory() {
-        throw new Error('You cannot use a service context in an object');
+        throw new ServiceContextNotAllowedError();
       },
     });
 
@@ -103,7 +87,7 @@ export class RestateModule extends createModuleClass({
       provide: restateObjectContextType,
       scope: SCOPE,
       useFactory() {
-        throw new Error('You cannot use an object context in a service');
+        throw new ObjectContextNotAllowedError();
       },
     });
 
@@ -111,7 +95,7 @@ export class RestateModule extends createModuleClass({
       provide: restateSagaContextType,
       scope: SCOPE,
       useFactory() {
-        throw new Error('You cannot use a saga context outside a saga');
+        throw new SagaContextNotAllowedError();
       },
     });
   }
@@ -140,6 +124,7 @@ export class RestateModule extends createModuleClass({
     this.sagas.add({ classType, module, metadata });
   }
 
+  // TODO: determine if restate dependencies should be explicitly provided
   private addDeps(classType: ClassType): void {
     const restateServiceDeps = getRestateClassDeps(classType);
 

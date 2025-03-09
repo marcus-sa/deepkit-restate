@@ -1,7 +1,7 @@
 import { serde } from '@restatedev/restate-sdk';
 
+import { RestateObjectContext } from '../../context.js';
 import { restate } from '../../decorator.js';
-import { RestateObjectContext } from '../../types.js';
 import {
   EventServerApi,
   EventServerHandlers,

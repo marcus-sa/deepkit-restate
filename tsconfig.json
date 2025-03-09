@@ -3,6 +3,7 @@
   "compilerOptions": {
     "rootDir": ".",
     "outDir": "lib",
+    "declaration": true,
     "moduleResolution": "nodenext",
     "strictPropertyInitialization": false,
     "emitDecoratorMetadata": true,
@@ -26,7 +27,7 @@
       "bun"
     ]
   },
-  "exclude": ["node_modules", "tmp", "lib"],
+  "exclude": ["node_modules", "tmp", "lib", "**/*.spec.ts"],
   "include": ["src/**/*.ts"],
   "reflection": true
 }

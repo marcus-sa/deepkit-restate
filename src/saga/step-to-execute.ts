@@ -1,6 +1,6 @@
-import { SagaStep } from './saga-step.js';
-import { SagaExecutionState } from './saga-execution-state.js';
 import { SagaActions } from './saga-actions.js';
+import { SagaExecutionState } from './saga-execution-state.js';
+import { SagaStep } from './saga-step.js';
 
 export class StepToExecute<Data> {
   constructor(

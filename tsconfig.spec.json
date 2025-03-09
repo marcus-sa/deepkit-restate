@@ -1,4 +1,10 @@
 {
-  "extends": "./tsconfig.esm.json",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "test",
+    "declaration": false,
+    "sourceMap": true
+  },
+  "include": ["**/*.ts", "**/*.spec.ts"],
   "exclude": []
 }

@@ -1,11 +1,11 @@
 import { expect, test } from 'bun:test';
 import { createTestingApp } from '@deepkit/framework';
-import { uuid, UUID } from '@deepkit/type';
+import { UUID, uuid } from '@deepkit/type';
 
-import { RestateModule } from '../restate.module.js';
-import { RestateService } from '../types.js';
+import { RestateClient } from '../client.js';
 import { restate } from '../decorator.js';
-import { RestateClient } from '../restate-client.js';
+import { RestateModule } from '../module.js';
+import { RestateService } from '../types.js';
 import { RestateEventsPublisher } from './publisher.js';
 import { RestateEventsServerModule } from './server/module.js';
 

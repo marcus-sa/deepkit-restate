@@ -1,20 +1,20 @@
 import { TerminalError } from '@restatedev/restate-sdk';
 
-import { SagaStep } from './saga-step.js';
-import { SagaExecutionState } from './saga-execution-state.js';
-import { StepToExecute } from './step-to-execute.js';
-import { SagaInstance } from './saga-instance.js';
-import { SagaActions } from './saga-actions.js';
 import {
   deserializeResponseData,
   deserializeRestateTerminalErrorType,
 } from '../serde.js';
-import { getRegisteredEntity } from '../utils.js';
 import {
   RestateHandlerRequest,
   RestateHandlerResponse,
   restateTerminalErrorType,
 } from '../types.js';
+import { getRegisteredEntity } from '../utils/type.js';
+import { SagaActions } from './saga-actions.js';
+import { SagaExecutionState } from './saga-execution-state.js';
+import { SagaInstance } from './saga-instance.js';
+import { SagaStep } from './saga-step.js';
+import { StepToExecute } from './step-to-execute.js';
 
 export class SagaDefinition<Data> {
   constructor(readonly steps: readonly SagaStep<Data>[]) {}
@@ -131,7 +131,7 @@ export class SagaDefinition<Data> {
   ): Promise<SagaActions<Data>> {
     if (success) {
       return await this.executeNextStep(sagaData, state);
-    // biome-ignore lint/style/noUselessElse: false-positive
+      // biome-ignore lint/style/noUselessElse: false-positive
     } else if (state.compensating) {
       throw new TerminalError('Failure when compensating', {
         errorCode: 500,

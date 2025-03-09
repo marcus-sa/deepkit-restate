@@ -1,24 +1,26 @@
 import { describe, expect, test } from 'bun:test';
 import { getBSONDeserializer, getBSONSerializer } from '@deepkit/bson';
 import {
-  reflect,
   ReflectionFunction,
   ReflectionKind,
+  reflect,
   typeOf,
 } from '@deepkit/type';
 
-import {RestateObject, RestateObjectContext, RestateService} from './types.js';
+import { RestateObjectContext } from '../context.js';
+import { RestateObject, RestateService } from '../types.js';
 import {
   assertValidKafkaTopicName,
   createClassProxy,
   getClassConstructorParameters,
   getReflectionFunctionArgsType,
   getRestateClassDeps,
+  getRestateClassEntities,
+  getRestateClassName,
   getTypeArgument,
   getUnwrappedReflectionFunctionReturnType,
   isRestateServiceType,
-} from './utils.js';
-import { getRestateClassEntities, getRestateClassName } from './metadata.js';
+} from './type.js';
 
 describe('isRestateServiceType', () => {
   test('returns true', () => {

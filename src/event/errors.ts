@@ -1,4 +1,4 @@
-import { entity, Type } from '@deepkit/type';
+import { Type, entity } from '@deepkit/type';
 
 @entity.name('@error/subscription-not-found')
 export class SubscriptionNotFound extends Error {}

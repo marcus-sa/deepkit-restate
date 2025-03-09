@@ -1,6 +1,6 @@
-import { RestateClient } from '../restate-client.js';
-import { EventServerApi, Subscriptions } from './types.js';
+import { RestateClient } from '../client.js';
 import { RestateEventConfig } from './config.js';
+import { EventServerApi, Subscriptions } from './types.js';
 
 export class RestateEventsSubscriber {
   constructor(

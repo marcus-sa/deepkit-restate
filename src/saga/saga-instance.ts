@@ -1,9 +1,10 @@
-import { Excluded, typeOf } from '@deepkit/type';
 import { getBSONDeserializer, getBSONSerializer } from '@deepkit/bson';
+import { Excluded, typeOf } from '@deepkit/type';
 
-import { SagaExecutionState } from './saga-execution-state.js';
 import { RestateSagaMetadata } from '../decorator.js';
-import { RestateSagaContext } from '../types.js';
+import { SagaExecutionState } from './saga-execution-state.js';
+
+import { RestateSagaContext } from '../context.js';
 
 export interface SagaState<Data = Uint8Array> {
   readonly sagaData: Data;

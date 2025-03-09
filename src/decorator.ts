@@ -1,30 +1,30 @@
-import { ClassType } from '@deepkit/core';
 import {
   BSONDeserializer,
   BSONSerializer,
   getBSONDeserializer,
 } from '@deepkit/bson';
+import { ClassType } from '@deepkit/core';
 import {
   ClassDecoratorFn,
-  createClassDecoratorContext,
-  createPropertyDecoratorContext,
   DecoratorAndFetchSignature,
   DualDecorator,
   ExtractApiDataType,
   ExtractClass,
-  isSameType,
-  mergeDecorator,
   PropertyDecoratorFn,
   PropertyDecoratorResult,
   ReceiveType,
   ReflectionClass,
-  resolveReceiveType,
-  stringifyType,
   Type,
   TypeClass,
   TypeObjectLiteral,
   TypeTuple,
   UnionToIntersection,
+  createClassDecoratorContext,
+  createPropertyDecoratorContext,
+  isSameType,
+  mergeDecorator,
+  resolveReceiveType,
+  stringifyType,
 } from '@deepkit/type';
 
 import {
@@ -42,14 +42,12 @@ import {
 import {
   assertValidKafkaTopicName,
   getReflectionFunctionArgsType,
-  getUnwrappedReflectionFunctionReturnType,
-} from './utils.js';
-import {
   getRestateClassEntities,
   getRestateClassName,
   getRestateKafkaTopicArgsType,
   getRestateKafkaTopicSource,
-} from './metadata.js';
+  getUnwrappedReflectionFunctionReturnType,
+} from './utils/type.js';
 
 export class RestateClassMetadata {
   readonly name: string;

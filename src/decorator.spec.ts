@@ -1,25 +1,21 @@
-import { describe, expect, test } from 'bun:test';
+import { expect, test } from 'bun:test';
 import assert from 'node:assert';
-import { isType, uuid, UUID } from '@deepkit/type';
+import { isType } from '@deepkit/type';
 
-import { Saga } from './saga/saga.js';
 import {
-  RestateKafkaTopic,
-  RestateObject,
-  RestateSaga,
-  RestateService,
-} from './types.js';
-import {
-  restate,
   RestateObjectMetadata,
   RestateSagaMetadata,
   RestateServiceMetadata,
+  restate,
 } from './decorator.js';
+import { Saga } from './saga/saga.js';
+import { RestateObject, RestateSaga, RestateService } from './types.js';
+
 import {
   getRestateObjectMetadata,
   getRestateSagaMetadata,
   getRestateServiceMetadata,
-} from './metadata.js';
+} from './utils/type.js';
 
 test('object', () => {
   interface PaymentServiceInterface {
@@ -56,7 +52,6 @@ test('service', () => {
 });
 
 test('saga', () => {
-  // biome-ignore lint/suspicious/noEmptyInterface: required
   interface TestSagaData {}
 
   type TestSagaApi = RestateSaga<'create-order', TestSagaData>;

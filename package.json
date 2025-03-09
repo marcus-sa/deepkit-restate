@@ -32,9 +32,12 @@
   ],
   "scripts": {
     "postinstall": "deepkit-type-install",
-    "build": "rm -rf lib && tsc -p tsconfig.cjs.json && tsc -p tsconfig.esm.json && tsc -p tsconfig.types.json",
-    "test": "tsc -p tsconfig.spec.json && cd lib/esm && bun test",
-    "prepublish": "bun run build"
+    "build": "rm -rf lib && tsc -p tsconfig.json",
+    "test": "rm -rf test && tsc -p tsconfig.spec.json && cd test && bun test",
+    "prepublish": "bun run build",
+    "check": "biome check",
+    "check:fix": "biome check --fix --unsafe",
+    "check:write": "biome check --write"
   },
   "dependencies": {
     "@restatedev/restate-sdk": "^1.4.0",
