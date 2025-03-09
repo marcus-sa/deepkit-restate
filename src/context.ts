@@ -201,7 +201,6 @@ export class RestateObjectMemoryContext
   }
 
   get key() {
-    console.log('now');
     return this.store.getKey();
   }
 
