@@ -151,7 +151,7 @@ export interface RestateEventHandlerMetadata {
 
 export interface RestateHandlerOptions {
   // use json instead of bson for serde
-  readonly json?: boolean;
+  readonly json?: true;
 }
 
 export class RestateHandlerMetadata<T = readonly unknown[]> {

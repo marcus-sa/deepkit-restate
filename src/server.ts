@@ -36,9 +36,14 @@ import {
 } from './serde.js';
 import { RestateRunAction, SCOPE } from './types.js';
 
-const DEFAULT_HANDLER_OPTS = {
+const DEFAULT_BSON_HANDLER_OPTS = {
   contentType: 'application/octet-stream',
   accept: 'application/octet-stream',
+} as const;
+
+const DEFAULT_JSON_HANDLER_OPTS = {
+  contentType: 'application/json',
+  accept: 'application/json',
 } as const;
 
 export class RestateServer {
@@ -268,11 +273,8 @@ export class RestateServer {
       (handlers, handler) => ({
         ...handlers,
         [handler.name]: restate.handlers.handler(
-          DEFAULT_HANDLER_OPTS,
-          async (
-            rsCtx: restate.Context,
-            data: Uint8Array,
-          ): Promise<Uint8Array> => {
+          handler.json ? DEFAULT_JSON_HANDLER_OPTS : DEFAULT_BSON_HANDLER_OPTS,
+          async (rsCtx: restate.Context, data: any): Promise<any> => {
             const injector = this.createScopedInjector();
             const ctx = this.createServiceContext(rsCtx);
             injector.set(restateServiceContextType, ctx);
@@ -290,7 +292,7 @@ export class RestateServer {
   private createSagaHandlers({ module, classType, metadata }: ModuleSaga) {
     return {
       run: restate.handlers.workflow.workflow(
-        DEFAULT_HANDLER_OPTS,
+        DEFAULT_BSON_HANDLER_OPTS,
         async (rsCtx: restate.WorkflowContext, request: Uint8Array) => {
           const injector = this.createScopedInjector();
           const ctx = this.createSagaContext(rsCtx);
@@ -306,7 +308,7 @@ export class RestateServer {
         },
       ),
       state: restate.handlers.workflow.shared(
-        DEFAULT_HANDLER_OPTS,
+        DEFAULT_BSON_HANDLER_OPTS,
         async (ctx: restate.WorkflowSharedContext) => {
           const data = await ctx.get<Uint8Array>(
             SAGA_STATE_KEY,
@@ -332,18 +334,18 @@ export class RestateServer {
         [handler.name]: (handler.shared
           ? restate.handlers.object.shared
           : restate.handlers.object.exclusive)(
-          DEFAULT_HANDLER_OPTS,
+          handler.json ? DEFAULT_JSON_HANDLER_OPTS : DEFAULT_BSON_HANDLER_OPTS,
           // @ts-ignore
           async (
             rsCtx: restate.ObjectContext,
-            data: Uint8Array,
-          ): Promise<Uint8Array> => {
+            ...args: readonly any[] | readonly [Uint8Array]
+          ): Promise<any> => {
             const injector = this.createScopedInjector();
             const ctx = this.createObjectContext(rsCtx);
             injector.set(restateObjectContextType, ctx);
             const instance = injector.get(classType, module);
             return await this.contextStorage.run(ctx, () =>
-              this.callHandler(instance, handler, data),
+              this.callHandler(instance, handler, args),
             );
           },
         ),
@@ -355,11 +357,16 @@ export class RestateServer {
   private async callHandler(
     instance: any,
     handler: RestateHandlerMetadata,
-    data: Uint8Array,
-  ): Promise<Uint8Array> {
+    args: readonly any[] | readonly [Uint8Array],
+  ): Promise<any> {
     try {
-      const args = handler.deserializeArgs(data);
+      if (!handler.json) {
+        args = handler.deserializeArgs(args[0] as Uint8Array);
+      }
       const result = await instance[handler.name].bind(instance)(...args);
+      if (handler.json) {
+        return result;
+      }
       return serializeRestateHandlerResponse({
         success: true,
         data:
