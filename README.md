@@ -449,17 +449,13 @@ export class CreateOrderSaga extends Saga<CreateOrderSagaData> {
 }
 ```
 
-Sure! Here’s the added documentation explaining how to start a saga and retrieve its state, including your example:
-
----
-
 ## Starting a Saga and Retrieving Its State
 
 After defining your saga, you typically want to **start** an instance of it and later **query its state** to track progress or outcome.
 
 ### Creating a Saga Client
 
-Use the client to create a saga instance:
+Use the client to create a saga proxy:
 
 ```ts
 const createOrderSaga = client.saga<CreateOrderSagaApi>();
@@ -479,7 +475,6 @@ const startStatus = await createOrderSaga.start(orderId, {
   orderTotal: 10.5,
   customerId,
 });
-console.log({ startStatus });
 ```
 
 * `orderId` uniquely identifies the saga instance.
@@ -494,7 +489,6 @@ At any time, you can query the current state of the saga instance by its ID usin
 
 ```ts
 const state = await createOrderSaga.state(orderId);
-console.log({ state });
 ```
 
 This returns the persisted saga data reflecting its current progress, e.g., which step it is on, and any state variables updated along the way.
