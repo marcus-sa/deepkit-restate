@@ -1,4 +1,4 @@
-import { AppModule, ControllerConfig, createModule } from '@deepkit/app';
+import { AppModule, ControllerConfig, createModuleClass } from '@deepkit/app';
 import { ClassType } from '@deepkit/core';
 
 import { RestateAdminClient } from './restate-admin-client.js';
@@ -31,13 +31,10 @@ import {
   getRestateServiceMetadata,
 } from './metadata.js';
 
-export class RestateModule extends createModule(
-  {
-    config: RestateConfig,
-    forRoot: true,
-  },
-  'restate',
-) {
+export class RestateModule extends createModuleClass({
+  config: RestateConfig,
+  forRoot: true,
+}) {
   readonly services = new InjectorServices();
   readonly objects = new InjectorObjects();
   readonly sagas = new InjectorSagas();

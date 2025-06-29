@@ -15,7 +15,7 @@ import {
 import {
   RestateObject,
   RestateObjectHandlerRequest,
-  RestateRpcOptions,
+  RestateCallOptions,
   RestateSaga,
   RestateSendOptions,
   RestateService,
@@ -119,16 +119,16 @@ export class RestateClient {
     return new RestateSagaClient(this.opts, type);
   }
 
-  rpc<R, A extends any[]>(
+  call<R, A extends any[]>(
     key: string,
     request: RestateObjectHandlerRequest<R, A>,
-    options?: RestateRpcOptions,
+    options?: RestateCallOptions,
   ): Promise<R>;
-  rpc<R, A extends any[]>(
+  call<R, A extends any[]>(
     request: RestateServiceHandlerRequest<R, A>,
-    options?: RestateRpcOptions,
+    options?: RestateCallOptions,
   ): Promise<R>;
-  async rpc<R>(...args: readonly any[]): Promise<R> {
+  async call<R>(...args: readonly any[]): Promise<R> {
     const [
       key,
       { service, method, data, deserializeReturn, entities },

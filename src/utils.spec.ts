@@ -6,7 +6,11 @@ import {
   typeOf,
 } from '@deepkit/type';
 
-import { RestateObject, RestateService } from './types.js';
+import {
+  RestateObject,
+  RestateObjectContext,
+  RestateService,
+} from './types.js';
 import {
   assertValidKafkaTopicName,
   createClassProxy,
@@ -35,7 +39,7 @@ describe('isRestateServiceType', () => {
 
     expect(isRestateServiceType(reflect(TestService))).toBe(false);
 
-    expect(isRestateServiceType(typeOf<RestateKeyedContext>())).toBe(false);
+    expect(isRestateServiceType(typeOf<RestateObjectContext>())).toBe(false);
   });
 });
 

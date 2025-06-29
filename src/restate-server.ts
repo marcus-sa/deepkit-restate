@@ -7,13 +7,17 @@ import { hasTypeInformation, ReceiveType, ReflectionKind } from '@deepkit/type';
 import { SagaManager } from './saga/saga-manager.js';
 import { SAGA_STATE_KEY } from './saga/saga-instance.js';
 import { RestateEventsSubscriber } from './event/subscriber.js';
-import { Subscriptions } from './event/types.js';
+import { EventHandlers } from './event/types.js';
 import { InjectorService, InjectorServices } from './services.js';
 import { InjectorObject, InjectorObjects } from './objects.js';
 import { InjectorSaga, InjectorSagas } from './sagas.js';
 import { RestateHandlerMetadata } from './decorator.js';
 import { RestateConfig } from './config.js';
-import { decodeRestateServiceMethodResponse, fastHash } from './utils.js';
+import {
+  decodeRestateServiceMethodResponse,
+  getTypeHash,
+  getTypeName,
+} from './utils.js';
 import { RestateAdminClient } from './restate-admin-client.js';
 import { RestateContextStorage } from './restate-context-storage.js';
 import {
@@ -32,10 +36,11 @@ import {
   restateServiceContextType,
   SCOPE,
 } from './types.js';
+import { RunOptions } from '@restatedev/restate-sdk';
 
 const DEFAULT_HANDLER_OPTS = {
-  contentType: 'application/octet-stream',
-  accept: 'application/octet-stream',
+  input: restate.serde.binary,
+  output: restate.serde.binary,
 } as const;
 
 export class RestateServer {
@@ -77,7 +82,7 @@ export class RestateServer {
 
     await this.endpoint.listen(config.port);
 
-    if (this.config.admin?.autoDeploy) {
+    if (this.config.admin?.deployOnStartup) {
       const admin = this.injectorContext.get(RestateAdminClient);
       await admin.deployments.create(`${config.host}:${config.port}`);
     }
@@ -94,30 +99,30 @@ export class RestateServer {
     }
 
     if (this.config.event) {
-      await this.addEventHandlerSubscriptions();
+      await this.registerEventHandlers();
     }
   }
 
-  private async addEventHandlerSubscriptions() {
+  private async registerEventHandlers() {
     const events = this.injectorContext.get(RestateEventsSubscriber);
-    let subscriptions: Subscriptions = [];
-    for (const { metadata } of [...this.services, ...this.objects]) {
+    let handlers: EventHandlers = [];
+    for (const { metadata } of this.services) {
       for (const handler of metadata.handlers) {
         if (handler.event) {
-          subscriptions = [
-            ...subscriptions,
+          handlers = [
+            ...handlers,
             {
               service: metadata.name,
               method: handler.name,
-              typeName: handler.event.type.typeName!,
+              eventName: getTypeName(handler.event.type),
+              eventVersion: getTypeHash(handler.event.type),
             },
           ];
         }
       }
     }
-    if (subscriptions.length) {
-      // TODO: call this as part of cli
-      await events.subscribe(subscriptions);
+    if (handlers.length) {
+      await events.registerHandlers(handlers);
     }
   }
 
@@ -147,21 +152,21 @@ export class RestateServer {
         const serde = createBSONSerde<T>(type);
         return _awakeable<T>(serde) as RestateAwakeable<T>;
       },
-      async run<T = void>(
+      run<T = void>(
+        name: string,
         action: RestateRunAction<T>,
+        options: RunOptions<unknown> = {},
         type?: ReceiveType<T>,
-      ): Promise<T> {
+      ): restate.RestatePromise<T> {
         if (type) {
           const serde = createBSONSerde<T>(type);
-          // TODO: name shouldn't be required when providing serde
-          const name = fastHash(action.toString());
-          return (await _run(name, action, {
+          return _run(name, action, {
             serde,
-          })) as T;
-        } else {
-          await _run(action);
-          return void 0 as T;
+            ...options,
+          }) as restate.RestatePromise<T>;
         }
+
+        return _run(name, action, options) as restate.RestatePromise<never>;
       },
       send(...args: readonly any[]): void {
         const [key, { service, method, data }, options] =
@@ -175,7 +180,7 @@ export class RestateServer {
           key,
         });
       },
-      async rpc<T>(...args: readonly any[]): Promise<T> {
+      async call<T>(...args: readonly any[]): Promise<T> {
         const [key, { service, method, data, deserializeReturn, entities }] =
           args.length === 1 ? [undefined, ...args] : args;
 
@@ -187,6 +192,7 @@ export class RestateServer {
           outputSerde: restate.serde.binary,
         });
 
+        // TODO: make into restate promise
         return decodeRestateServiceMethodResponse(
           response,
           deserializeReturn,
@@ -229,7 +235,7 @@ export class RestateServer {
   ): RestateSagaContext {
     return Object.assign(this.createContext<RestateSagaContext>(ctx), {
       send: undefined,
-      rpc: undefined,
+      call: undefined,
     });
   }
 
@@ -332,7 +338,6 @@ export class RestateServer {
           ? restate.handlers.object.shared
           : restate.handlers.object.exclusive)(
           DEFAULT_HANDLER_OPTS,
-          // @ts-ignore
           async (
             rsCtx: restate.ObjectContext,
             data: Uint8Array,

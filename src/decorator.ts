@@ -19,8 +19,6 @@ import {
   ReceiveType,
   ReflectionClass,
   resolveReceiveType,
-  SerializedType,
-  serializeType,
   stringifyType,
   Type,
   TypeClass,

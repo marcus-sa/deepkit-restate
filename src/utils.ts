@@ -1,4 +1,4 @@
-import { ClassType, sleep } from '@deepkit/core';
+import { ClassType, sleep, toFastProperties } from '@deepkit/core';
 import { TerminalError } from '@restatedev/restate-sdk';
 import { FactoryProvider } from '@deepkit/injector';
 import { xxHash32 } from 'js-xxhash';
@@ -6,9 +6,11 @@ import {
   BSONDeserializer,
   BSONSerializer,
   getBSONSerializer,
+  serializeBSON,
 } from '@deepkit/bson';
 import {
   assertType,
+  getTypeJitContainer,
   isExtendable,
   ReceiveType,
   reflect,
@@ -16,6 +18,8 @@ import {
   ReflectionFunction,
   ReflectionKind,
   resolveReceiveType,
+  SerializedTypes,
+  serializeType,
   Type,
   TypeClass,
   TypeObjectLiteral,
@@ -42,6 +46,7 @@ import {
   getResponseDataDeserializer,
   serializeResponseData,
 } from './serde.js';
+import { MissingTypeName } from './event/index.js';
 
 export function getRestateClassDeps(classType: ClassType): readonly Type[] {
   const serviceType = reflect(classType);
@@ -365,4 +370,19 @@ export function waitUntil(
 
 export function fastHash(value: string | Uint8Array): string {
   return xxHash32(value).toString(16);
+}
+
+export function getTypeName(type: Type): string {
+  if (!type.typeName) {
+    throw new MissingTypeName(type);
+  }
+  return type.typeName;
+}
+
+export function getTypeHash(type: Type): string {
+  const jit = getTypeJitContainer(type);
+  if (jit['hash']) return jit['hash'];
+  jit['hash'] = fastHash(serializeBSON<SerializedTypes>(serializeType(type)));
+  toFastProperties(jit);
+  return jit['hash'];
 }

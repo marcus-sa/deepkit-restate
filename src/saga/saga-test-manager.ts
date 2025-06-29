@@ -1,7 +1,7 @@
 import { ClassType } from '@deepkit/core';
 import { integer } from '@deepkit/type';
 
-import { success, waitUntil } from '../utils.js';
+import { getTypeName, success, waitUntil } from '../utils.js';
 import { SagaExecutionState } from './saga-execution-state.js';
 import { SagaManager } from './saga-manager.js';
 import { Saga } from './saga.js';
@@ -119,7 +119,7 @@ export class SagaTestManager<D, S extends Saga<D>> extends SagaManager<D> {
 
       if (!handler) continue;
 
-      this.replies.set(handler.type.typeName!, {
+      this.replies.set(getTypeName(handler.type), {
         name: method,
         called: false,
         handle: fn,

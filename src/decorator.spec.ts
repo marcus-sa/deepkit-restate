@@ -112,7 +112,7 @@ describe('kafka', () => {
       class AccountingService implements IAccountingService {
         // FIXME: options and type are somehow required
         // @ts-ignore
-        @restate.kafka<KafkaConsumerTopic>().handler()
+        @(restate.kafka<KafkaConsumerTopic>().handler())
         createAccount(consumer: Consumer, name: string): void {}
       }
     }).toThrowErrorMatchingInlineSnapshot(

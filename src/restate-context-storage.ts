@@ -9,6 +9,7 @@ import {
   RestateSagaContext,
   RestateServiceContext,
 } from './types.js';
+import { RestatePromise } from '@restatedev/restate-sdk';
 
 export class RestateContextStorage extends AsyncLocalStorage<
   RestateObjectContext | RestateSagaContext | RestateServiceContext
@@ -20,13 +21,13 @@ interface InMemoryAwakeable<T> {
 }
 
 export class RestateInMemoryContext
-  implements Omit<RestateCustomContext, 'rpc' | 'send'>
+  implements Omit<RestateCustomContext, 'call' | 'send'>
 {
   readonly #awakeables = new Map<string, InMemoryAwakeable<unknown>>();
   readonly #store = new Map<string, any>();
 
-  async run(action: RestateRunAction<any>): Promise<void> {
-    await action();
+  run(name: string, action: RestateRunAction<any>): RestatePromise<void> {
+    return action();
   }
 
   async get<T>(key: string): Promise<T> {
@@ -62,7 +63,7 @@ export class RestateInMemoryContext
 }
 
 export class RestateInMemoryContextStorage {
-  getStore(): Omit<RestateCustomContext, 'rpc' | 'send'> {
+  getStore(): Omit<RestateCustomContext, 'call' | 'send'> {
     return new RestateInMemoryContext();
   }
 }

@@ -10,6 +10,7 @@ import {
   SagaReplyHandlerFn,
   SagaReplyHandlers,
 } from './types.js';
+import { getTypeName } from '../utils.js';
 
 export interface BaseStepBuilder<Data> {
   step(): StepBuilder<Data>;
@@ -87,9 +88,9 @@ class InvokedStepBuilder<Data>
     }
 
     if (this.compensator) {
-      this.compensationReplyHandlers.set(type.typeName!, { type, handler });
+      this.compensationReplyHandlers.set(getTypeName(type), { type, handler });
     } else {
-      this.actionReplyHandlers.set(type.typeName!, { type, handler });
+      this.actionReplyHandlers.set(getTypeName(type), { type, handler });
     }
 
     return this;

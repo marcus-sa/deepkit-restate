@@ -25,7 +25,8 @@
       "vitest/globals",
       "vitest/importMeta",
       "vite/client",
-      "vitest"
+      "vitest",
+      "bun"
     ]
   },
   "exclude": ["node_modules", "tmp", "lib"],

@@ -1,4 +1,4 @@
-import { createModule } from '@deepkit/app';
+import { createModuleClass } from '@deepkit/app';
 
 import { RestateKafkaProducer } from './producer.js';
 
@@ -7,7 +7,7 @@ export class RestateKafkaConfig {
   readonly clientId?: string;
 }
 
-export class RestateKafkaProducerModule extends createModule({
+export class RestateKafkaProducerModule extends createModuleClass({
   config: RestateKafkaConfig,
   providers: [RestateKafkaProducer],
   listeners: [RestateKafkaProducer],

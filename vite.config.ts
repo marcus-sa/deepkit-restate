@@ -1,5 +1,8 @@
-import { deepkitType } from '@deepkit/vite';
 import { defineConfig } from 'vite';
+import { createRequire } from 'node:module';
+const require = createRequire(import.meta.url);
+
+const { deepkitType } = require('@deepkit/vite');
 
 export default defineConfig(({ mode }) => {
   return {

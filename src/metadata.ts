@@ -9,7 +9,7 @@ import {
 } from '@deepkit/type';
 
 import { Entities } from './types.js';
-import { getTypeArgument } from './utils.js';
+import { getTypeArgument, getTypeName } from './utils.js';
 import {
   restateObjectDecorator,
   RestateObjectMetadata,
@@ -45,7 +45,7 @@ export function getRestateClassEntities(serviceType: Type): Entities {
     typeArgument.types
       .map(type => type.type)
       .filter((type): type is TypeClass => type.kind === ReflectionKind.class)
-      .map(type => [type.typeName!, type.classType]),
+      .map(type => [getTypeName(type), type.classType]),
   );
 }
 

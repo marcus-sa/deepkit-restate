@@ -27,7 +27,7 @@ test('e2e', async () => {
   class AccountingService implements IAccountingService {
     // FIXME: options and type are somehow required
     // @ts-ignore
-    @restate.kafka<KafkaConsumerCreatedTopic>().handler()
+    @(restate.kafka<KafkaConsumerCreatedTopic>().handler())
     createAccount(consumer: Consumer): void {
       expect(consumer).toBeInstanceOf(Consumer);
     }

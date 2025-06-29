@@ -6,10 +6,11 @@ import { RestateModule } from './restate.module.js';
 import { RestateClient } from './restate-client.js';
 import { restate } from './decorator.js';
 import { RestateService, RestateServiceContext } from './types.js';
+import { RestateTestEnvironment } from '@restatedev/restate-sdk-testcontainers';
 
 describe('e2e', () => {
   describe('context', () => {
-    test('rpc', async () => {
+    test('call', async () => {
       class Account {
         static create(ctx: RestateServiceContext, user: User): Account {
           return new Account(ctx.rand.uuidv4(), user.id);
@@ -75,7 +76,7 @@ describe('e2e', () => {
         @restate.handler()
         async create(username: string): Promise<User> {
           const user = User.create(this.ctx, username);
-          const account = await this.ctx.rpc(this.account.create(user));
+          const account = await this.ctx.call(this.account.create(user));
           expect(account).toBeInstanceOf(Account);
           user.setAccount(account);
           return user;
@@ -106,7 +107,7 @@ describe('e2e', () => {
       const user = client.service<UserServiceApi>();
 
       {
-        const result = await client.rpc(user.create('Test'));
+        const result = await client.call(user.create('Test'));
         expect(result).toBeInstanceOf(User);
         expect(result).toMatchObject({
           id: expect.any(String),
@@ -135,7 +136,10 @@ describe('e2e', () => {
 
         @restate.handler()
         async create(username: string): Promise<User> {
-          const user = await this.ctx.run<User>(() => new User(username));
+          const user = await this.ctx.run<User>(
+            'create user',
+            () => new User(username),
+          );
           expect(user).toBeInstanceOf(User);
           return user;
         }
@@ -165,7 +169,7 @@ describe('e2e', () => {
       const user = client.service<UserServiceApi>();
 
       {
-        const result = await client.rpc(user.create('Test'));
+        const result = await client.call(user.create('Test'));
         expect(result).toBeInstanceOf(User);
         expect(result).toMatchObject({
           id: expect.any(String),
@@ -193,7 +197,10 @@ describe('e2e', () => {
 
         @restate.handler()
         async create(username: string): Promise<void> {
-          const user = await this.ctx.run(() => new User(username));
+          const user = await this.ctx.run(
+            'create user',
+            () => new User(username),
+          );
           expect(user).toBe(undefined);
         }
       }
@@ -263,7 +270,7 @@ describe('e2e', () => {
       }
     }
 
-    test('rpc', async () => {
+    test('call', async () => {
       const app = createTestingApp({
         imports: [
           new RestateModule({
@@ -288,7 +295,7 @@ describe('e2e', () => {
       const user = client.service<UserServiceApi>();
 
       {
-        const result = await client.rpc(user.create('Test'));
+        const result = await client.call(user.create('Test'));
         expect(result).toBeInstanceOf(User);
         expect(result).toMatchObject({
           id: expect.any(String),

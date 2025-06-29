@@ -1,8 +1,10 @@
 import { Serde, TerminalError } from '@restatedev/restate-sdk';
 import {
+  deserialize,
   ReceiveType,
   ReflectionKind,
   resolveReceiveType,
+  serialize,
   Type,
   TypeObjectLiteral,
   TypePropertySignature,
@@ -37,6 +39,30 @@ export class BSONSerde<T> implements Serde<T> {
 
   serialize(value: T): Uint8Array {
     return serializeResponseData(value, this.type);
+  }
+}
+
+export class JSONSerde<T> implements Serde<T> {
+  readonly contentType = 'application/json';
+
+  constructor(private readonly type: Type) {}
+
+  deserialize(data: Uint8Array): T {
+    return deserialize<T>(
+      JSON.parse(data.toString()),
+      undefined,
+      undefined,
+      undefined,
+      this.type,
+    );
+  }
+
+  serialize(value: T): Uint8Array {
+    return Buffer.from(
+      JSON.stringify(
+        serialize<T>(value, undefined, undefined, undefined, this.type),
+      ),
+    );
   }
 }
 

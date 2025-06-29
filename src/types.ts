@@ -2,9 +2,10 @@ import { ReceiveType, typeOf } from '@deepkit/type';
 import { ClassType } from '@deepkit/core';
 import { BSONDeserializer } from '@deepkit/bson';
 import {
-  CombineablePromise,
   Context as ServiceContext,
-  ObjectContext,
+  type ObjectContext,
+  RestatePromise,
+  RunOptions,
   TerminalError,
   WorkflowContext,
 } from '@restatedev/restate-sdk';
@@ -25,7 +26,7 @@ export interface RestateSendOptions {
   readonly idempotencyKey?: string;
 }
 
-export interface RestateRpcOptions {
+export interface RestateCallOptions {
   readonly idempotencyKey?: string;
 }
 
@@ -99,7 +100,7 @@ export interface RestateSaga<Name extends string, Data> {
 
 export interface RestateAwakeable<T> {
   readonly id: string;
-  readonly promise: CombineablePromise<T>;
+  readonly promise: RestatePromise<T>;
 }
 
 export interface RestateCustomContext {
@@ -113,8 +114,17 @@ export interface RestateCustomContext {
   ): void;
   rejectAwakeable(id: string, reason: string): void;
   // run should only return a value if a generic is provided
-  run(action: RestateRunAction<unknown>): Promise<void>;
-  run<T>(action: RestateRunAction<T>, type?: ReceiveType<T>): Promise<T>;
+  run(
+    name: string,
+    action: RestateRunAction<unknown>,
+    options?: Omit<RunOptions<unknown>, 'serde'>,
+  ): RestatePromise<void>;
+  run<T>(
+    name: string,
+    action: RestateRunAction<T>,
+    options?: Omit<RunOptions<unknown>, 'serde'>,
+    type?: ReceiveType<T>,
+  ): RestatePromise<T>;
   // used for objects
   send(
     key: string,
@@ -127,12 +137,14 @@ export interface RestateCustomContext {
     options?: RestateSendOptions,
   ): void; // Promise<RestateStatus>
   // used for objects
-  rpc<R, A extends any[]>(
+  call<R, A extends any[]>(
     key: string,
     request: RestateObjectHandlerRequest<R, A>,
   ): Promise<R>;
   // used for services
-  rpc<R, A extends any[]>(call: RestateServiceHandlerRequest<R, A>): Promise<R>;
+  call<R, A extends any[]>(
+    call: RestateServiceHandlerRequest<R, A>,
+  ): Promise<R>;
 }
 
 type ContextWithoutClients<T> = Omit<
@@ -165,7 +177,7 @@ export interface RestateHandlerResponse {
 }
 
 export interface RestateSagaContext
-  extends Omit<RestateCustomContext, 'rpc' | 'send'>,
+  extends Omit<RestateCustomContext, 'call' | 'send'>,
     ContextWithoutClients<WorkflowContext> {}
 
 export const restateServiceType = typeOf<RestateService<string, any, any[]>>();

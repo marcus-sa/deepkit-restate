@@ -70,7 +70,7 @@ export class DeploymentClient {
 
 export class RestateAdminClientOptions {
   readonly url: string;
-  readonly autoDeploy?: boolean = true;
+  readonly deployOnStartup?: boolean = true;
 }
 
 export class RestateAdminClient {
