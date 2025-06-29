@@ -59,11 +59,27 @@ You can configure any combination of the following:
 
 ---
 
-## Serialization
+## Serialization (Serde) and Error Handling
 
-All data is serialized using **BSON**.
+All serialization and deserialization in Deepkit Restate is handled via **BSON** by default.
 
-> JSON support is planned via an adapter.
+This means you can **return** and **accept** any types in your service handlers or saga steps, including:
+
+* Primitives (`string`, `number`, `boolean`, etc.)
+* Plain objects (`{ name: string; age: number }`)
+* Class instances (with properties and methods)
+* Complex nested types and arrays
+* Custom types supported by BSON serialization
+
+The serialization system preserves type fidelity and structure when encoding and decoding data across the network.
+
+### Automatic Error Forwarding and Serialization
+
+* If an error is **thrown** inside a handler or saga step, it is automatically serialized and forwarded to the caller.
+* This allows errors to be **caught** remotely, preserving the error information.
+* **Custom errors with type information** are supported and **will not be retried** automatically by the system, enabling precise control over error handling and retries.
+
+> We are actively working on an adapter to support JSON serialization as an alternative to BSON.
 
 ---
 
