@@ -66,7 +66,7 @@ export class RestateEventsSubscriber {
       types.map(type => [`${getTypeName(type)}:${getTypeHash(type)}`, type]),
     );
     const eventSource = new EventSource(
-      `http://${this.config.host}:${this.config.port}/events/subscribe/${events.keys().toArray().join(',')}`,
+      `//${this.config.host}:${this.config.port}/events/subscribe/${events.keys().toArray().join(',')}`,
     );
     for (const [id, type] of events.entries()) {
       eventSource.addEventListener(id, event => {
