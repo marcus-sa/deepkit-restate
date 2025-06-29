@@ -1,27 +1,19 @@
 import { RestateObject } from '../types.js';
 import { SubscriptionNotFound, SubscriptionTypeNoMatch } from './errors.js';
 
-export interface Subscription {
+export interface EventHandler {
   readonly service: string;
   readonly method: string;
-  readonly typeName: string;
+  readonly eventName: string;
+  readonly eventVersion: string;
 }
 
-export type Subscriptions = readonly Subscription[];
-
-export interface Event {
-  readonly name: string;
-  readonly processed: boolean;
-  readonly success: boolean;
-  readonly data: Uint8Array;
-  readonly typeName: string;
-}
-
-export type Events = readonly Event[];
+export type EventHandlers = readonly EventHandler[];
 
 export interface PublishEvent {
-  readonly data: Uint8Array;
+  readonly data: number[];
   readonly name: string;
+  readonly version: string;
 }
 
 export interface PublishOptions {
@@ -29,10 +21,10 @@ export interface PublishOptions {
 }
 
 export interface EventServerHandlers {
-  getSubscriptions(): Promise<Subscriptions>;
+  getHandlers(): Promise<EventHandlers>;
   // TODO: store all processed events
   // getEvents(): Promise<Events>;
-  subscribe(subscriptions: Subscriptions): Promise<void>;
+  registerHandlers(subscriptions: EventHandlers): Promise<void>;
   publish(
     events: readonly PublishEvent[],
     options?: PublishOptions,

@@ -46,7 +46,6 @@ test('e2e', async () => {
 
   @restate.service<AccountServiceProxy>()
   class AccountService implements AccountServiceHandlers {
-    // @ts-ignore
     @(restate.event<CustomerCreated>().handler())
     async create(event: CustomerCreated) {
       expect(event).toBeInstanceOf(CustomerCreated);
@@ -81,7 +80,7 @@ test('e2e', async () => {
   const proxy = client.service<CustomerServiceProxy>();
 
   {
-    const customer = await client.rpc(proxy.create('Test'));
+    const customer = await client.call(proxy.create('Test'));
     expect(customer).toBeInstanceOf(Customer);
   }
 });
