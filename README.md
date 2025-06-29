@@ -301,10 +301,52 @@ const publisher = app.get<RestateEventsPublisher>();
 await publisher.publish([new UserCreatedEvent(user)]);
 ```
 
-> Only classes are supported as events.
-> Events are versioned by hashing their structure.
+### SSE Delivery
 
----
+Server-Sent Events (SSE) allow real-time delivery of events to connected subscribers.
+
+#### Configuration (Global)
+
+You can configure global SSE delivery behavior in `RestateEventsServerModule`:
+
+```ts
+new RestateEventsServerModule({
+  sse: {
+    all: true,
+    autoDiscover: true,
+    hosts: [
+      'http://events-1.internal:9090',
+      'http://events-2.internal:9090',
+    ],
+  },
+});
+``` 
+
+| Option             | Type        | Description                                                                   |
+| ------------------ |-------------| ----------------------------------------------------------------------------- |
+| `sse.all`          | `boolean`   | If `true`, all published events will be delivered via SSE by default.         |
+| `sse.autoDiscover` | `boolean`   | When enabled, resolves peer IPs via DNS to fan out SSE events to other nodes. |
+| `sse.hosts`        | `string[]`  | List of peer event server URLs for fan-out (used with `autoDiscover`).        |
+
+> SSE fan-out is stateless and opportunistic. Each node will attempt to push matching events to other known nodes.
+
+#### Overriding per Publish
+
+You can override the global SSE setting by passing `{ sse: true }` in the publish options:
+
+```ts
+await publisher.publish([new UserCreatedEvent(user)], {
+  sse: true,
+});
+```
+
+Behavior summary:
+
+* If `sse.all` is **true**, SSE is used by default unless explicitly disabled.
+* If `sse.all` is **false**, SSE is off by default — but you can still enable it by passing `sse: true`.
+* When `autoDiscover` is enabled, the event will fan out to all DNS-discovered peers.
+
+> Only events published with SSE enabled will be streamed to subscribers.
 
 ### Handling Events
 

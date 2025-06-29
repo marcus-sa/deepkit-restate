@@ -7,31 +7,31 @@ import * as dns from 'node:dns/promises';
 import { PublishEvent } from '../types.js';
 import { EventsSubject } from './types.js';
 import { fastHash } from '../../utils.js';
-import { RestateEventsServerConfig } from './config.js';
+import { RestateEventsServerConfig, RestateSseConfig } from './config.js';
 import { RestateEventConfig } from '../config.js';
 
 @http.controller('events')
 export class EventsController {
   constructor(
     private readonly subject: EventsSubject,
-    private readonly serverConfig: RestateEventsServerConfig,
+    private readonly sseConfig: RestateSseConfig,
     private readonly eventConfig: RestateEventConfig,
     private readonly logger: ScopedLogger,
   ) {}
 
   @eventDispatcher.listen(onServerMainBootstrapDone)
   async autoDiscoverServers() {
-    if (!this.serverConfig.hosts && !this.eventConfig.host) {
+    if (!this.sseConfig.hosts && !this.eventConfig.host) {
       throw new Error('Hosts are not configured');
     }
-    const hosts = this.serverConfig.hosts
+    const hosts = this.sseConfig.hosts
       ? (
           await Promise.all(
-            this.serverConfig.hosts.map(host => dns.resolve4(host)),
+            this.sseConfig.hosts.map(host => dns.resolve4(host)),
           )
         ).flat()
       : await dns.resolve4(this.eventConfig.host!);
-    Object.assign(this.serverConfig, { hosts });
+    Object.assign(this.sseConfig, { hosts });
   }
 
   @http.POST('publish')

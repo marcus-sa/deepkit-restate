@@ -12,7 +12,7 @@ import {
   EventHandlers,
 } from '../types.js';
 import { RestateEventConfig } from '../config.js';
-import { RestateEventsServerConfig } from './config.js';
+import { RestateEventsServerConfig, RestateSseConfig } from './config.js';
 
 const HANDLERS_STATE_KEY = 'handlers';
 
@@ -21,7 +21,7 @@ export class RestateEventsServer implements EventServerHandlers {
   constructor(
     private readonly ctx: RestateObjectContext,
     private readonly config: RestateEventConfig,
-    private readonly serverConfig: RestateEventsServerConfig,
+    private readonly sseConfig: RestateSseConfig,
   ) {}
 
   async #getHandlers(): Promise<EventHandlers> {
@@ -56,8 +56,8 @@ export class RestateEventsServer implements EventServerHandlers {
       }
     }
 
-    if (this.serverConfig.hosts && (options?.sse ?? this.serverConfig.sse)) {
-      await this.fanOutServerSentEvents(this.serverConfig.hosts, events);
+    if (this.sseConfig.hosts && (options?.sse ?? this.sseConfig.all)) {
+      await this.fanOutServerSentEvents(this.sseConfig.hosts, events);
     }
   }
 

@@ -15,7 +15,7 @@ export class RestateEventServerModule extends createModuleClass({
   forRoot: true,
 }) {
   override process() {
-    if (this.config.autoDiscover) {
+    if (this.config.sse.autoDiscover) {
       this.addListener(EventsController);
     }
   }
