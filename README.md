@@ -1,18 +1,27 @@
 # Deepkit Restate
-Deepkit Restate is a Restate integration for Deepkit, that makes it easy to work with Restate for Deepkit
 
-This documentation assumes that you know how Restate works
+**Deepkit Restate** is a seamless [Restate](https://restate.dev) integration for [Deepkit](https://deepkit.io). It enables effortless communication between distributed services using durable invocations, service interfaces, and event-driven architecture.
 
-Install the package
-```
+> This documentation assumes familiarity with Restate's concepts and lifecycle.
+
+---
+
+## Installation
+
+```bash
 npm add deepkit-restate
 ```
 
-Import module
+---
+
+## Module Setup
+
+To use Deepkit Restate, import the `RestateModule` and provide configuration for the components you need:
 
 ```ts
 import { FrameworkModule } from '@deepkit/framework';
 import { RestateModule } from 'deepkit-restate';
+import { App } from '@deepkit/app';
 
 const app = new App({
   imports: [
@@ -32,78 +41,98 @@ const app = new App({
       },
       admin: {
         url: 'http://0.0.0.0:9070',
-        // will register new deployment version on startup
-        deployOnStartup: true
+        deployOnStartup: true,
       },
-    })
+    }),
   ],
 });
 ```
-the module can be used to configure the Restate server, ingress client, event bus, and admin client.
-if server is not configured, the module will not provide a Restate server
-if client is not configured, the module will not provide a Restate client.
-if event is not configured, the module will not provide an event bus.
-if admin is not configured, the module will not provide an admin client.
 
-All serde is done via BSON.
-> Working on an adapter for JSON serde
+You can configure any combination of the following:
 
-Communication between services is done via interfaces
+* **server**: Starts a Restate server
+* **ingress**: Enables outbound service calls
+* **event**: Enables pub/sub event system
+* **admin**: Registers deployments with the admin interface
 
-### Client
-library exposes a `RestateClient` that can be used to communicate with Ingress, and is what you use to call other services. it can either be instantiated by itself
+> If a section is not configured, that functionality will not be available.
+
+---
+
+## Serialization
+
+All data is serialized using **BSON**.
+
+> JSON support is planned via an adapter.
+
+---
+
+## Calling Services
+
+### `RestateClient`
+
+The `RestateClient` handles communication between services and objects. It behaves differently depending on whether it is used within or outside an invocation context.
+
+You can create a client manually:
 
 ```ts
 import { RestateClient } from 'deepkit-restate';
 
-const client = new RestateClient({
-  url: 'http://localhost:9080',
-});
+const client = new RestateClient({ url: 'http://localhost:9080' });
 ```
 
-or imported from the module when it has been configured
-```ts
-import { RestateClient } from 'deepkit-restate';
+Or retrieve the configured instance via DI:
 
+```ts
 const client = app.get<RestateClient>();
 ```
-the client is used both within and outside of an invocation context.
-however it works differently. within an invocation context, it is durable, whereas outside it uses the ingress client.
-outside of an invocation context, the client can also be used to instantiate proxies for objects and services allowing you to communicate with them.
-service
+
+### Using the Client
+
+To create a proxy to a **service**:
+
 ```ts
 const user = client.service<UserServiceApi>();
 ```
-object
+
+To create a proxy to an **object**:
+
 ```ts
 const user = client.object<UserObjectApi>();
 ```
 
-the client expose two methods for communication
+### Invoking Methods
 
-this is used for sending a request and waiting a response
-```ts
-client.call(user.create());
-```
+Durable request (waits for a result):
 
-this is used for sending a request without waiting for the response.
 ```ts
-client.send(user.create());
-```
-the last argument is options, that can be used to configure the delay
-```ts
-client.send(user.create(), { delay: '10s' });
+await client.call(user.create());
 ```
 
-when sending a request to a object, you have to provide the key as the first argument
+Fire-and-forget (does not wait for result):
+
 ```ts
-client.call('key', user.create());
-```
-```ts
-client.send('key', user.create());
+await client.send(user.create());
 ```
 
-defining a service
+You can configure delivery options:
+
+```ts
+await client.send(user.create(), { delay: '10s' });
+```
+
+For object calls, specify the key:
+
+```ts
+await client.call('user-key', user.create());
+await client.send('user-key', user.create());
+```
+
+---
+
+## Defining Services and Objects
+
+### Services
 
 ```ts
 interface UserServiceHandlers {
@@ -112,156 +141,178 @@ interface UserServiceHandlers {
 
 type UserServiceApi = RestateService<'user', UserServiceHandlers>;
 
-// services are defined by decorating a class with @restate.service()
 @restate.service<UserServiceApi>()
 class UserService implements UserServiceHandlers {
-  // the context can be accessed by injecting it into the constructor of your service
-  constructor(private readonly ctx: RestateServiceContext) {
-  }
+  constructor(private readonly ctx: RestateServiceContext) {}
 
-  // handlers are defined by decorating a method with @restate.handler()
   @restate.handler()
   async create(username: string): Promise<User> {
-    const user = User.create(this.ctx, username);
-    return user;
+    return User.create(this.ctx, username);
   }
 }
 ```
 
-the first argument to the `RestateObject` and `RestateService` type is the name of the service/object, and is used to identify it in the network.
+* Use `@restate.service()` to define a service.
+* Use `@restate.handler()` define handlers.
+* The context (`RestateServiceContext`) provides durable execution helpers.
 
-`RestateService` and `RestateObject` is how we define the api of a service/object. this way we can provide type safety when calling the service from another service, without needing to import the service class to reduce bundle size and circular dependencies.
-
-similar, defining an object
+### Objects
 
 ```ts
-interface UserServiceHandlers {
-}
+interface UserObjectHandlers {}
 
-type UserServiceApi = RestateObject<'user', UserServiceHandlers>;
+type UserObjectApi = RestateObject<'user', UserObjectHandlers>;
 
-@restate.object<UserServiceApi>()
-class UserService implements UserServiceHandlers {
-}
+@restate.object<UserObjectApi>()
+class UserObject implements UserObjectHandlers {}
 ```
-you can define shared handlers by using the `@restate.shared().handler()` decorator (obs: there is no type safety for the shared context, it uses the same `RestateObjectContext`, so beware that `set` cannot be used at runtime)
 
-now, if you want to call another service from within a handler, you can do so by injecting the client and proxy api into your service, and use the client and proxy to call the service
+Use `@restate.object()` to define virtual objects.
+
+> Shared handlers can be declared using `@restate.shared().handler()`.
+> **Note:** Shared handlers use the object context, which is not type-safe. Avoid using `ctx.set()` at runtime in shared handlers.
+
+---
+
+## Dependency Injection: Calling Other Services
+
+You can inject the client and proxy APIs into a service:
+
 ```ts
 @restate.service<UserServiceApi>()
-class UserService implements PaymentServiceInterface {
+class UserService {
   constructor(
     private readonly client: RestateClient,
-    // the proxy api will be injected into the service
     private readonly payment: PaymentServiceApi,
   ) {}
 
   @restate.handler()
   async create(user: User): Promise<void> {
-    const payment = await this.client.call(this.payment.create('Test', user));
+    await this.client.call(this.payment.create('Test', user));
   }
 }
 ```
 
-when calling objects, you have to specify the key for the object
+For objects, remember to provide a key:
+
 ```ts
-await this.client.call('key', this.payment.create('Test'));
+await this.client.call('payment-id', this.payment.create('Test'));
 ```
 
-using run blocks inside invocations
-this also works with serde out of the box. if you provide a type argument to the run function, then it'll serde the return value. 
+---
+
+## Durable Helpers
+
+### `run` blocks
+
+The `ctx.run()` helper ensures a block is executed durably:
+
 ```ts
 const user = await this.ctx.run<User>('create user', () => new User(username));
 ```
-however, if you do not provide a type argument and return a value, then it'll return void (future improvement: throw an error instead).
+
+Without a type argument, the return value is ignored:
+
 ```ts
-const none = await this.ctx.run('create user', () => new User(username));
+await this.ctx.run('log something', () => console.log('hello'));
 ```
 
-the same for awakeables
+### Awakeables
+
+Used to pause and resume execution:
+
 ```ts
 const awakeable = this.ctx.awakeable<User>();
 ```
+
+To resume:
+
 ```ts
-const awakeable = this.ctx.resolveAwakeable<User>();
+this.ctx.resolveAwakeable<User>();
 ```
 
-### events
+### Durable State
 
-there is also support for a pub/sub implementation in restate
+Store and retrieve durable state using the context:
+```ts
+await this.ctx.set<User>('user', user);
+```
+```ts
+const user = await this.ctx.get<User>('user');
 
-it is preferred to use a separate application for the events server.
-in a new application, setup the events server. it requires ingress, server and event to be cocnfigured
+```
+
+---
+
+## Events
+
+### Server Setup
+
+Set up a dedicated application for handling events. Requires the `event`, `server`, and `ingress` configurations:
 
 ```ts
 import { App } from '@deepkit/app';
 import { FrameworkModule } from '@deepkit/framework';
-import { RestateEventsServerModule } from 'deepkit-restate';
+import { RestateEventsServerModule, RestateModule } from 'deepkit-restate';
 
 await new App({
   imports: [
-    new FrameworkModule({
-      port: 9090,
-    }),
+    new FrameworkModule({ port: 9090 }),
     new RestateModule({
-      event: {
-        cluster: 'example',
-        host: 'localhost',
-        port: 9090,
-      },
-      server: {
-        host: 'http://localhost',
-        port: 9080,
-      },
-      ingress: {
-        url: 'http://localhost:8080',
-      },
+      server: { host: 'http://localhost', port: 9080 },
+      ingress: { url: 'http://localhost:8080' },
+      event: { cluster: 'example', host: 'localhost', port: 9090 },
     }),
     new RestateEventsServerModule(),
   ],
 }).run();
 ```
 
-you can then in your providers, inject the publisher.
-it works both within the invocation context
-```ts
-import { RestateEventsPublisher } from 'deepkit-restate';
+### Publishing Events
 
-@restate.service<UserServiceApi>()
-export class UserService {
-  constructor(private readonly publisher: RestateEventsPublisher) {}
+Inside a service handler (durable):
 
-  @restate.handler()
-  async create(): Promise<void> {
-    const user = new User();
-    await this.publisher.publish([new UserCreatedEvent(user)]);
-  }
-}
-```
-and outside it. however publishing events outside of invocation context is not durable
 ```ts
-const publisher = app.get<RestateEventsPublisher>();
-const user = new User();
+constructor(private readonly publisher: RestateEventsPublisher) {}
+
 await this.publisher.publish([new UserCreatedEvent(user)]);
 ```
 
-only classes are supported.
-all events are versioned by hashing the type structure
+Outside of invocation (non-durable):
 
-you can then in any service (only services), define an event handler
+```ts
+const publisher = app.get<RestateEventsPublisher>();
+await publisher.publish([new UserCreatedEvent(user)]);
+```
+
+> Only classes are supported as events.
+> Events are versioned by hashing their structure.
+
+---
+
+### Handling Events
+
+Only services can define event handlers:
+
 ```ts
 @restate.service<UserServiceApi>()
-export class UserService {
+class UserService {
   @restate.event<UserCreatedEvent>().handler()
   async onUserCreated(event: UserCreatedEvent): Promise<void> {
     // handle event
   }
 }
 ```
-it is also possible to subscribe to events outside of the invocation context, such as when you want to forward events to the frontend from within a deepkit rpc controller action. it uses server-sent events (todo: deepkit broker bus) for this.
-you can subscribe to a single event or multiple by providing `subscribe` with a union as type argument
+
+---
+
+### Subscribing Outside of Services
+
+Subscribe to events from contexts like HTTP or RPC controllers using Server-Sent Events:
+
 ```ts
 const subscriber = app.get<RestateEventsSubscriber>();
+
 const unsubscribe = await subscriber.subscribe<UserCreatedEvent>(event => {
   // handle event
 });
@@ -269,8 +320,185 @@ const unsubscribe = await subscriber.subscribe<UserCreatedEvent>(event => {
 await unsubscribe();
 ```
 
+You can also use union types to subscribe to multiple events.
 
-normal workflows are not yet supported.
+# Sagas
 
-the library also has built in support for sagas.
+Sagas provide a powerful way to orchestrate complex, long-running workflows that involve multiple services. They support **stepwise execution**, **compensation (rollback)**, **reply handling**, and **waiting for external events** (via awakeables).
+
+---
+
+## What is a Saga?
+
+A **Saga** is a workflow pattern that manages distributed transactions and side effects in a coordinated way, including compensations for failures. In Deepkit Restate, you define sagas by extending the `Saga<T>` class and using the `@restate.saga<Api>()` decorator.
+
+---
+
+## Defining a Saga Workflow
+
+Sagas are defined using a fluent builder pattern in the `definition` property:
+
+* `step()`: Defines a new step in the saga.
+* `invoke(handler)`: Calls a method in your saga class to perform an action or service call.
+* `compensate(handler)`: Defines a rollback method if the step fails or the saga is aborted.
+* `onReply<EventType>(handler)`: Registers an event handler for replies to invoked actions.
+* `build()`: Finalizes the saga definition.
+
+---
+
+## Awakeables
+
+Awakeables are special constructs to **wait for asynchronous external events**. They provide a promise you can `await` to pause saga execution until an event occurs.
+
+Create awakeables with the saga context inside your saga methods:
+
+```ts
+this.confirmTicketAwakeable = this.ctx.awakeable<TicketConfirmed>();
+```
+
+---
+
+## Using the Saga Context
+
+The `RestateSagaContext` (`this.ctx`) provides utilities like:
+
+* `awakeable<T>()`: Creates an awakeable to wait for events.
+* `set<T>(key, value)`: Persist state data during saga execution.
+* `get<T>(key)`: Retrieve persisted state.
+
+---
+
+## Calling Other Services
+
+All service calls inside invocation handlers automatically use the underlying `client.call`. This means:
+
+* You **do not need to manually call `client.call`** within your saga handlers.
+* Only **service calls** are supported currently (no direct calls to objects).
+* The framework handles communication and reply handling.
+
+---
+
+## Example: Simplified CreateOrderSaga
+
+```ts
+import { restate, Saga, RestateSagaContext, RestateAwakeable } from 'deepkit-restate';
+
+@restate.saga<CreateOrderSagaApi>()
+export class CreateOrderSaga extends Saga<CreateOrderSagaData> {
+  confirmTicketAwakeable?: RestateAwakeable<TicketConfirmed>;
+
+  readonly definition = this.step()
+    .invoke(this.create)
+    .compensate(this.reject)
+    .step()
+    .invoke(this.createTicket)
+    .onReply<TicketCreated>(this.handleTicketCreated)
+    .step()
+    .invoke(this.waitForTicketConfirmation)
+    .build();
+
+  constructor(
+    private readonly order: OrderServiceApi,
+    private readonly kitchen: KitchenServiceApi,
+    private readonly ctx: RestateSagaContext,
+  ) {
+    super();
+  }
+
+  create(data: CreateOrderSagaData) {
+    return this.order.create(data.orderId, data.orderDetails);
+  }
+
+  reject(data: CreateOrderSagaData) {
+    return this.order.reject(data.orderId);
+  }
+
+  createTicket(data: CreateOrderSagaData) {
+    this.confirmTicketAwakeable = this.ctx.awakeable<TicketConfirmed>();
+    return this.kitchen.createTicket(
+      data.orderDetails.restaurantId,
+      data.orderId,
+      data.orderDetails.lineItems,
+      this.confirmTicketAwakeable.id,
+    );
+  }
+
+  handleTicketCreated(data: CreateOrderSagaData, event: TicketCreated) {
+    data.ticketId = event.ticketId;
+  }
+
+  async waitForTicketConfirmation(data: CreateOrderSagaData) {
+    await this.confirmTicketAwakeable!.promise;
+  }
+}
+```
+
+Sure! Here’s the added documentation explaining how to start a saga and retrieve its state, including your example:
+
+---
+
+## Starting a Saga and Retrieving Its State
+
+After defining your saga, you typically want to **start** an instance of it and later **query its state** to track progress or outcome.
+
+### Creating a Saga Client
+
+Use the client to create a saga instance:
+
+```ts
+const createOrderSaga = client.saga<CreateOrderSagaApi>();
+```
+
+This creates a handle to interact with the saga.
+
+---
+
+### Starting a Saga Instance
+
+To start a saga, call `start` with the saga’s unique ID and initial input data:
+
+```ts
+const startStatus = await createOrderSaga.start(orderId, {
+  id: orderId,
+  orderTotal: 10.5,
+  customerId,
+});
+console.log({ startStatus });
+```
+
+* `orderId` uniquely identifies the saga instance.
+* The second argument is the initial data payload to pass to the saga.
+* `start` returns the initial status of saga execution.
+
+---
+
+### Querying the Saga State
+
+At any time, you can query the current state of the saga instance by its ID using `state`:
+
+```ts
+const state = await createOrderSaga.state(orderId);
+console.log({ state });
+```
+
+This returns the persisted saga data reflecting its current progress, e.g., which step it is on, and any state variables updated along the way.
+
+---
+
+### Notes
+
+* The saga `start` call triggers the first step of your saga workflow.
+* The saga state reflects all persisted data and progress, useful for monitoring or troubleshooting.
+* You can invoke `start` only once per unique saga instance ID.
+* Subsequent state changes happen asynchronously as the saga progresses.
+
+### Summary
+
+* Sagas manage multi-step distributed workflows with clear compensation.
+* Steps can invoke service calls, wait for replies, or wait for external events.
+* Awakeables let you asynchronously wait inside sagas for external confirmations.
+* Saga state can be persisted and retrieved with the saga context.
+* Invocation handlers automatically handle calling services; no manual client calls needed.
+* Currently, only service calls are supported, no direct object calls with keys.
+* Compensation methods help rollback on failure or abort scenarios.
 
