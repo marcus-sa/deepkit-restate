@@ -51,7 +51,10 @@ export class RestateEventsSubscriber {
   //   };
   // }
 
-  subscribe<T>(type?: ReceiveType<T>): Observable<T> {
+  async subscribe<T>(
+    callback: (event: T) => Promise<unknown> | unknown,
+    type?: ReceiveType<T>,
+  ): Promise<() => Promise<void>> {
     type = resolveReceiveType(type);
     const types = type.kind === ReflectionKind.union ? type.types : [type];
     for (const type of types) {
@@ -62,28 +65,23 @@ export class RestateEventsSubscriber {
     const events = new Map(
       types.map(type => [`${getTypeName(type)}:${getTypeHash(type)}`, type]),
     );
-    return new Observable<T>(observer => {
-      const eventSource = new EventSource(
-        `http://${this.config.host}:${this.config.port}/events/subscribe/${events.keys().toArray().join(',')}`,
-      );
-      for (const [id, type] of events.entries()) {
-        eventSource.addEventListener(id, event => {
-          observer.next(
-            deserializeBSON(
-              new Uint8Array(Buffer.from(event.data, 'base64')),
-              undefined,
-              undefined,
-              type,
-            ),
-          );
-        });
-      }
-      eventSource.addEventListener('error', error => {
-        observer.error(error);
+    const eventSource = new EventSource(
+      `http://${this.config.host}:${this.config.port}/events/subscribe/${events.keys().toArray().join(',')}`,
+    );
+    for (const [id, type] of events.entries()) {
+      eventSource.addEventListener(id, event => {
+        callback(
+          deserializeBSON(
+            new Uint8Array(Buffer.from(event.data, 'base64')),
+            undefined,
+            undefined,
+            type,
+          ),
+        );
       });
+    }
 
-      return () => eventSource.close();
-    });
+    return async () => eventSource.close();
   }
 
   /** @internal */
