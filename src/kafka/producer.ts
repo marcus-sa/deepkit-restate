@@ -14,6 +14,7 @@ import {
   getRestateKafkaTopicArgsType,
   getRestateKafkaTopicSource,
 } from '../metadata.js';
+import { RestatePromise } from '@restatedev/restate-sdk';
 
 export type KafkaProducerPublishOptions = Pick<
   ProducerRecord,
@@ -53,11 +54,11 @@ export class RestateKafkaProducer {
   }
 
   // TODO: add key parameter
-  async produce<T extends RestateKafkaTopic<string, any[]>>(
+  produce<T extends RestateKafkaTopic<string, any[]>>(
     args: T['args'],
     options?: KafkaProducerPublishOptions,
     type?: ReceiveType<T>,
-  ): Promise<readonly RecordMetadata[]> {
+  ): RestatePromise<readonly RecordMetadata[]> {
     type = resolveReceiveType(type);
 
     const topic = getRestateKafkaTopicSource(type);
@@ -66,7 +67,7 @@ export class RestateKafkaProducer {
     const serialize = getBSONSerializer(undefined, argsType);
     const value = Buffer.from(serialize(args));
 
-    return await this.#ctx.run<readonly RecordMetadata[]>(() =>
+    return this.#ctx.run<readonly RecordMetadata[]>('produce', () =>
       this.#producer.send({
         topic,
         messages: [

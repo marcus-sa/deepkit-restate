@@ -334,6 +334,7 @@ export class RestateServer {
     return [...metadata.handlers].reduce(
       (handlers, handler) => ({
         ...handlers,
+        // @ts-expect-error: types mismatch
         [handler.name]: (handler.shared
           ? restate.handlers.object.shared
           : restate.handlers.object.exclusive)(
