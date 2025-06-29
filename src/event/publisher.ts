@@ -1,11 +1,5 @@
 import { serializeBSON } from '@deepkit/bson';
-import {
-  ReflectionKind,
-  resolveRuntimeType,
-  TypeClass,
-  TypeTuple,
-  TypeUnion,
-} from '@deepkit/type';
+import { resolveRuntimeType } from '@deepkit/type';
 import { isClassInstance } from '@deepkit/core';
 
 import { RestateContextStorage } from '../restate-context-storage.js';
@@ -13,15 +7,12 @@ import { RestateClient } from '../restate-client.js';
 import { EventServerApi, PublishEvent, PublishOptions } from './types.js';
 import { RestateEventConfig } from './config.js';
 import { getTypeHash, getTypeName } from '../utils.js';
-import { BrokerBus } from '@deepkit/broker';
-import { RestatePromise } from '@restatedev/restate-sdk';
 
-export class RestateEventsPublisher {
+export class RestateEventPublisher {
   constructor(
     private readonly config: RestateEventConfig,
     private readonly contextStorage: RestateContextStorage,
     private readonly client: RestateClient,
-    private readonly bus: BrokerBus,
     private readonly server: EventServerApi,
   ) {}
 
@@ -49,7 +40,8 @@ export class RestateEventsPublisher {
     if (ctx && 'send' in ctx) {
       ctx.send(
         this.config.cluster,
-        this.server.publish(eventsToPublish, options),
+        this.server.publish(eventsToPublish, { sse: options?.sse }),
+        { delay: options?.delay },
       );
       // await RestatePromise.all(
       //   eventsToPublish.map((event, i) => {
@@ -65,7 +57,8 @@ export class RestateEventsPublisher {
     } else {
       await this.client.send(
         this.config.cluster,
-        this.server.publish(eventsToPublish, options),
+        this.server.publish(eventsToPublish, { sse: options?.sse }),
+        { delay: options?.delay },
       );
       // await Promise.all(
       //   eventsToPublish.map(async (event, i) => {

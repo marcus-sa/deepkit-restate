@@ -22,7 +22,7 @@ export interface RestateApiInvocation {
 }
 
 export interface RestateSendOptions {
-  readonly delay?: string;
+  readonly delay?: number;
   readonly idempotencyKey?: string;
 }
 

@@ -12,6 +12,7 @@ import {
   EventHandlers,
 } from '../types.js';
 import { RestateEventConfig } from '../config.js';
+import { RestateEventsServerConfig } from './config.js';
 
 const HANDLERS_STATE_KEY = 'handlers';
 
@@ -20,6 +21,7 @@ export class RestateEventsServer implements EventServerHandlers {
   constructor(
     private readonly ctx: RestateObjectContext,
     private readonly config: RestateEventConfig,
+    private readonly serverConfig: RestateEventsServerConfig,
   ) {}
 
   async #getHandlers(): Promise<EventHandlers> {
@@ -50,35 +52,27 @@ export class RestateEventsServer implements EventServerHandlers {
           method: handler.method,
           parameter: new Uint8Array(event.data),
           inputSerde: serde.binary,
-          ...options,
         });
       }
     }
 
-    await this.fanOutServerSentEvents(events);
+    if (this.serverConfig.hosts && (options?.sse ?? this.serverConfig.sse)) {
+      await this.fanOutServerSentEvents(this.serverConfig.hosts, events);
+    }
   }
 
-  private async fanOutServerSentEvents(events: readonly PublishEvent[]) {
-    const ips = await this.ctx.run<string[]>('resolve targets', async () => {
-      try {
-        // TODO: move this to startup
-        return await dns.resolve4(this.config.host!);
-      } catch (error) {
-        if ((error as Error).message.includes('ENOTFOUND')) {
-          return [this.config.host!];
-        }
-        throw error;
-      }
-    });
-
+  private async fanOutServerSentEvents(
+    hosts: string[],
+    events: readonly PublishEvent[],
+  ) {
     await RestatePromise.all(
-      ips.map(ip =>
+      hosts.map(host =>
         this.ctx.run(
-          `fan-out server-sent events to target "${ip}"`,
+          `fan-out server-sent events to host "${host}"`,
           async () => {
             // TODO: only publish to controllers that do have active subscriptions
             const response = await fetch(
-              `http://${ip}:${this.config.port}/events/publish`,
+              `http://${host}:${this.config.port}/events/publish`,
               {
                 method: 'POST',
                 body: JSON.stringify(events),

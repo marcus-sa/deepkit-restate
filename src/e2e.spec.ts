@@ -67,7 +67,7 @@ describe('e2e', () => {
       type UserServiceApi = RestateService<'user', UserService>;
 
       @restate.service<UserServiceApi>()
-      class UserController implements UserService {
+      class UserService implements UserService {
         constructor(
           private readonly ctx: RestateServiceContext,
           private readonly account: AccountServiceApi,
@@ -88,17 +88,18 @@ describe('e2e', () => {
           new RestateModule({
             server: {
               host: 'http://host.docker.internal',
-              port: 9083,
+              port: 9063,
             },
             admin: {
               url: 'http://0.0.0.0:9070',
+              deployOnStartup: true,
             },
             ingress: {
               url: 'http://0.0.0.0:8080',
             },
           }),
         ],
-        controllers: [UserController],
+        controllers: [AccountService, UserService],
       });
       await app.startServer();
 
@@ -154,6 +155,7 @@ describe('e2e', () => {
             },
             admin: {
               url: 'http://0.0.0.0:9070',
+              deployOnStartup: true,
             },
             ingress: {
               url: 'http://0.0.0.0:8080',
@@ -214,6 +216,7 @@ describe('e2e', () => {
             },
             admin: {
               url: 'http://0.0.0.0:9070',
+              deployOnStartup: true,
             },
             ingress: {
               url: 'http://0.0.0.0:8080',
@@ -280,6 +283,7 @@ describe('e2e', () => {
             },
             admin: {
               url: 'http://0.0.0.0:9070',
+              deployOnStartup: true,
             },
             ingress: {
               url: 'http://0.0.0.0:8080',
@@ -314,6 +318,7 @@ describe('e2e', () => {
             },
             admin: {
               url: 'http://0.0.0.0:9070',
+              deployOnStartup: true,
             },
             ingress: {
               url: 'http://0.0.0.0:8080',

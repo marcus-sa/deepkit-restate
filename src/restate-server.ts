@@ -6,7 +6,7 @@ import { hasTypeInformation, ReceiveType, ReflectionKind } from '@deepkit/type';
 
 import { SagaManager } from './saga/saga-manager.js';
 import { SAGA_STATE_KEY } from './saga/saga-instance.js';
-import { RestateEventsSubscriber } from './event/subscriber.js';
+import { RestateEventSubscriber } from './event/subscriber.js';
 import { EventHandlers } from './event/types.js';
 import { InjectorService, InjectorServices } from './services.js';
 import { InjectorObject, InjectorObjects } from './objects.js';
@@ -104,7 +104,7 @@ export class RestateServer {
   }
 
   private async registerEventHandlers() {
-    const events = this.injectorContext.get(RestateEventsSubscriber);
+    const events = this.injectorContext.get(RestateEventSubscriber);
     let handlers: EventHandlers = [];
     for (const { metadata } of this.services) {
       for (const handler of metadata.handlers) {
@@ -166,7 +166,13 @@ export class RestateServer {
           }) as restate.RestatePromise<T>;
         }
 
-        return _run(name, action, options) as restate.RestatePromise<never>;
+        return _run(
+          name,
+          async () => {
+            await action();
+          },
+          options,
+        ) as restate.RestatePromise<never>;
       },
       send(...args: readonly any[]): void {
         const [key, { service, method, data }, options] =

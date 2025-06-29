@@ -18,6 +18,7 @@ export interface PublishEvent {
 
 export interface PublishOptions {
   readonly delay?: number;
+  readonly sse?: boolean;
 }
 
 export interface EventServerHandlers {

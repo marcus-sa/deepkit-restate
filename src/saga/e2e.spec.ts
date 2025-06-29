@@ -15,6 +15,7 @@ import { RestateClient } from '../restate-client.js';
 import { Saga } from './saga.js';
 import { SagaManager } from './saga-manager.js';
 import { getRestateSagaMetadata } from '../metadata.js';
+import { success } from '../utils.js';
 
 interface RestateTestContext extends RestateSagaContext {
   invoke: Mock<(...args: any[]) => any>;
@@ -146,6 +147,7 @@ test('e2e', async () => {
         },
         admin: {
           url: 'http://0.0.0.0:9070',
+          deployOnStartup: true,
         },
         ingress: {
           url: 'http://0.0.0.0:8080',

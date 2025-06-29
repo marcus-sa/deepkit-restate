@@ -1,24 +1,16 @@
-import {
-  assertType,
-  ReceiveType,
-  ReflectionKind,
-  resolveReceiveType,
-  TypeUnion,
-} from '@deepkit/type';
+import { ReceiveType, ReflectionKind, resolveReceiveType } from '@deepkit/type';
 import { EventSource } from 'eventsource';
+import { deserializeBSON } from '@deepkit/bson';
+
 import { RestateClient } from '../restate-client.js';
 import { EventHandlers, EventServerApi } from './types.js';
 import { RestateEventConfig } from './config.js';
 import { getTypeHash, getTypeName } from '../utils.js';
-import { BrokerBus } from '@deepkit/broker';
-import { Observable } from 'rxjs';
-import { deserializeBSON } from '@deepkit/bson';
 
-export class RestateEventsSubscriber {
+export class RestateEventSubscriber {
   constructor(
     private readonly config: RestateEventConfig,
     private readonly client: RestateClient,
-    private readonly bus: BrokerBus,
     private readonly server: EventServerApi,
   ) {}
 
@@ -66,7 +58,7 @@ export class RestateEventsSubscriber {
       types.map(type => [`${getTypeName(type)}:${getTypeHash(type)}`, type]),
     );
     const eventSource = new EventSource(
-      `//${this.config.host}:${this.config.port}/events/subscribe/${events.keys().toArray().join(',')}`,
+      `http://${this.config.host}:${this.config.port}/events/subscribe/${events.keys().toArray().join(',')}`,
     );
     for (const [id, type] of events.entries()) {
       eventSource.addEventListener(id, event => {

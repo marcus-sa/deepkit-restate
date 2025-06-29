@@ -1,15 +1,38 @@
 import { http, HttpBody, HttpRequest, HttpResponse } from '@deepkit/http';
 import { ScopedLogger } from '@deepkit/logger';
+import { eventDispatcher } from '@deepkit/event';
+import { onServerMainBootstrapDone } from '@deepkit/framework';
+import * as dns from 'node:dns/promises';
+
 import { PublishEvent } from '../types.js';
 import { EventsSubject } from './types.js';
 import { fastHash } from '../../utils.js';
+import { RestateEventsServerConfig } from './config.js';
+import { RestateEventConfig } from '../config.js';
 
 @http.controller('events')
 export class EventsController {
   constructor(
     private readonly subject: EventsSubject,
+    private readonly serverConfig: RestateEventsServerConfig,
+    private readonly eventConfig: RestateEventConfig,
     private readonly logger: ScopedLogger,
   ) {}
+
+  @eventDispatcher.listen(onServerMainBootstrapDone)
+  async autoDiscoverServers() {
+    if (!this.serverConfig.hosts && !this.eventConfig.host) {
+      throw new Error('Hosts are not configured');
+    }
+    const hosts = this.serverConfig.hosts
+      ? (
+          await Promise.all(
+            this.serverConfig.hosts.map(host => dns.resolve4(host)),
+          )
+        ).flat()
+      : await dns.resolve4(this.eventConfig.host!);
+    Object.assign(this.serverConfig, { hosts });
+  }
 
   @http.POST('publish')
   async publish(events: HttpBody<PublishEvent[]>) {
@@ -46,7 +69,7 @@ export class EventsController {
           response.write(`event: ${id}\n`);
           const data = new Uint8Array(event.data);
           response.write(`id: ${fastHash(data)}\n`);
-          response.write(`data: ${Buffer.from(data).toString('utf8')}\n\n`);
+          response.write(`data: ${Buffer.from(data).toString('base64')}\n\n`);
         }
       });
 

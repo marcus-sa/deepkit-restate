@@ -18,6 +18,9 @@ export default defineConfig(({ mode }) => {
     ],
     test: {
       globals: true,
+      sequence: {
+        concurrent: false,
+      },
       passWithNoTests: true,
       environment: 'node',
       include: ['**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
