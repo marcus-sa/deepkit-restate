@@ -301,9 +301,43 @@ const publisher = app.get<RestateEventsPublisher>();
 await publisher.publish([new UserCreatedEvent(user)]);
 ```
 
+> Only classes are supported as events.
+
+> Events are versioned by hashing their structure.
+
+### Handling Events
+
+Only services can define event handlers:
+
+```ts
+@restate.service<UserServiceApi>()
+class UserService {
+  @restate.event<UserCreatedEvent>().handler()
+  async onUserCreated(event: UserCreatedEvent): Promise<void> {
+    // handle event
+  }
+}
+```
+
 ### SSE Delivery
 
 Server-Sent Events (SSE) allow real-time delivery of events to connected subscribers.
+
+#### Subscribing to Events Outside of Services
+Subscribe to events from contexts like HTTP or RPC controllers:
+
+```ts
+const subscriber = app.get<RestateEventsSubscriber>();
+
+const unsubscribe = await subscriber.subscribe<UserCreatedEvent>(event => {
+  // handle event
+});
+
+await unsubscribe();
+```
+
+You can also use union types to subscribe to multiple events.
+
 
 #### Configuration (Global)
 
@@ -347,38 +381,6 @@ Behavior summary:
 * When `autoDiscover` is enabled, the event will fan out to all DNS-discovered peers.
 
 > Only events published with SSE enabled will be streamed to subscribers.
-
-### Handling Events
-
-Only services can define event handlers:
-
-```ts
-@restate.service<UserServiceApi>()
-class UserService {
-  @restate.event<UserCreatedEvent>().handler()
-  async onUserCreated(event: UserCreatedEvent): Promise<void> {
-    // handle event
-  }
-}
-```
-
----
-
-### Subscribing Outside of Services
-
-Subscribe to events from contexts like HTTP or RPC controllers using Server-Sent Events:
-
-```ts
-const subscriber = app.get<RestateEventsSubscriber>();
-
-const unsubscribe = await subscriber.subscribe<UserCreatedEvent>(event => {
-  // handle event
-});
-
-await unsubscribe();
-```
-
-You can also use union types to subscribe to multiple events.
 
 # Sagas
 
