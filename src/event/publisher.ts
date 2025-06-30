@@ -4,7 +4,12 @@ import { isClassInstance } from '@deepkit/core';
 
 import { RestateContextStorage } from '../restate-context-storage.js';
 import { RestateClient } from '../restate-client.js';
-import { EventServerApi, PublishEvent, PublishOptions } from './types.js';
+import {
+  EventProcessorApi,
+  EventServerApi,
+  PublishEvent,
+  PublishOptions,
+} from './types.js';
 import { RestateEventConfig } from './config.js';
 import { getTypeHash, getTypeName } from '../utils.js';
 
@@ -13,6 +18,7 @@ export class RestateEventPublisher {
     private readonly config: RestateEventConfig,
     private readonly contextStorage: RestateContextStorage,
     private readonly client: RestateClient,
+    private readonly processor: EventProcessorApi,
     private readonly server: EventServerApi,
   ) {}
 
@@ -39,35 +45,39 @@ export class RestateEventPublisher {
     const ctx = this.contextStorage.getStore();
     if (ctx && 'send' in ctx) {
       ctx.send(
-        this.config.cluster,
-        this.server.publish(eventsToPublish, { sse: options?.sse }),
+        this.processor.process(eventsToPublish, {
+          stream: options?.stream || this.config.defaultStream,
+          cluster: this.config.cluster,
+          sse: options?.sse,
+        }),
         { delay: options?.delay },
       );
-      // await RestatePromise.all(
-      //   eventsToPublish.map((event, i) => {
-      //     return ctx.run(`publish ${event.name}`, async () => {
-      //       await this.bus.adapter.publish(
-      //         `restate-event:${event.name}:${event.version}`,
-      //         events[i],
-      //         eventTypes[i],
-      //       );
-      //     });
+      // ctx.send(
+      //   this.config.cluster,
+      //   this.server.publish(eventsToPublish, {
+      //     stream: options?.stream || this.config.defaultStream,
+      //     cluster: this.config.cluster,
+      //     sse: options?.sse,
       //   }),
+      //   { delay: options?.delay },
       // );
     } else {
       await this.client.send(
-        this.config.cluster,
-        this.server.publish(eventsToPublish, { sse: options?.sse }),
+        this.processor.process(eventsToPublish, {
+          stream: options?.stream || this.config.defaultStream,
+          cluster: this.config.cluster,
+          sse: options?.sse,
+        }),
         { delay: options?.delay },
       );
-      // await Promise.all(
-      //   eventsToPublish.map(async (event, i) => {
-      //     await this.bus.adapter.publish(
-      //       `restate-event:${event.name}:${event.version}`,
-      //       events[i],
-      //       eventTypes[i],
-      //     );
+      // await this.client.send(
+      //   this.config.cluster,
+      //   this.server.publish(eventsToPublish, {
+      //     stream: options?.stream || this.config.defaultStream,
+      //     cluster: this.config.cluster,
+      //     sse: options?.sse,
       //   }),
+      //   { delay: options?.delay },
       // );
     }
   }

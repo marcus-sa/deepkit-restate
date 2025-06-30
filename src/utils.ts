@@ -115,6 +115,9 @@ export function unwrapType(type: Type): Type {
     case ReflectionKind.promise:
       return type.type;
 
+    case ReflectionKind.void:
+      return type;
+
     default:
       return type;
   }

@@ -50,6 +50,7 @@ export class RestateEventsServer implements EventServerHandlers {
         this.ctx.genericSend({
           service: handler.service,
           method: handler.method,
+          // TODO: provide stream as second argument
           parameter: new Uint8Array(event.data),
           inputSerde: serde.binary,
         });
@@ -57,11 +58,18 @@ export class RestateEventsServer implements EventServerHandlers {
     }
 
     if (this.sseConfig.hosts && (options?.sse ?? this.sseConfig.all)) {
-      await this.fanOutServerSentEvents(this.sseConfig.hosts, events);
+      await this.fanOutServerSentEvents(
+        this.ctx.key,
+        options?.stream || this.config.defaultStream,
+        this.sseConfig.hosts,
+        events,
+      );
     }
   }
 
   private async fanOutServerSentEvents(
+    cluster: string,
+    stream: string,
     hosts: string[],
     events: readonly PublishEvent[],
   ) {
@@ -72,7 +80,7 @@ export class RestateEventsServer implements EventServerHandlers {
           async () => {
             // TODO: only publish to controllers that do have active subscriptions
             const response = await fetch(
-              `http://${host}:${this.config.port}/events/publish`,
+              `http://${host}:${this.config.port}/sse/${cluster}/${stream}`,
               {
                 method: 'POST',
                 body: JSON.stringify(events),

@@ -92,7 +92,12 @@ export function getResponseDataSerializer<T>(
   type = resolveReceiveType(type);
   const serializableType = toSerializableDataType(type);
   const serialize = getBSONSerializer(undefined, serializableType);
-  return (value: T) => serialize({ [VALUE_KEY]: value });
+  // return (value: T) =>
+  //   type.kind !== ReflectionKind.void && type.kind !== ReflectionKind.undefined
+  //     ? serialize({ [VALUE_KEY]: value })
+  //     : new Uint8Array();
+  return (value: T) =>
+    value !== undefined ? serialize({ [VALUE_KEY]: value }) : new Uint8Array();
 }
 
 export function serializeResponseData<T>(
@@ -112,7 +117,12 @@ export function getResponseDataDeserializer<T>(
     undefined,
     serializableType,
   );
-  return (bson: Uint8Array) => deserialize(bson)[VALUE_KEY];
+  // return (bson: Uint8Array) =>
+  //   type.kind !== ReflectionKind.void && type.kind !== ReflectionKind.undefined
+  //     ? deserialize(bson)[VALUE_KEY]
+  //     : (undefined as T);
+  return (bson: Uint8Array) =>
+    bson.length > 0 ? deserialize(bson)[VALUE_KEY] : (undefined as T);
 }
 
 export function deserializeResponseData<T>(

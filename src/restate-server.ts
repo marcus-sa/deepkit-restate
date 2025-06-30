@@ -7,13 +7,14 @@ import { hasTypeInformation, ReceiveType, ReflectionKind } from '@deepkit/type';
 import { SagaManager } from './saga/saga-manager.js';
 import { SAGA_STATE_KEY } from './saga/saga-instance.js';
 import { RestateEventSubscriber } from './event/subscriber.js';
-import { EventHandlers } from './event/types.js';
+import { EventHandlers, EventServerApi, EventStoreApi } from './event/types.js';
 import { InjectorService, InjectorServices } from './services.js';
 import { InjectorObject, InjectorObjects } from './objects.js';
 import { InjectorSaga, InjectorSagas } from './sagas.js';
 import { RestateHandlerMetadata } from './decorator.js';
 import { RestateConfig } from './config.js';
 import {
+  createClassProxy,
   decodeRestateServiceMethodResponse,
   getTypeHash,
   getTypeName,
@@ -37,6 +38,8 @@ import {
   SCOPE,
 } from './types.js';
 import { RunOptions } from '@restatedev/restate-sdk';
+import { RestateClient } from './restate-client.js';
+import { RestateEventConfig } from './event/config.js';
 
 const DEFAULT_HANDLER_OPTS = {
   input: restate.serde.binary,
@@ -50,6 +53,7 @@ export class RestateServer {
     private readonly config: RestateConfig,
     private readonly services: InjectorServices,
     private readonly objects: InjectorObjects,
+    private readonly client: RestateClient,
     private readonly sagas: InjectorSagas,
     private readonly injectorContext: InjectorContext,
     private readonly contextStorage: RestateContextStorage,
@@ -99,12 +103,11 @@ export class RestateServer {
     }
 
     if (this.config.event) {
-      await this.registerEventHandlers();
+      await this.registerEventHandlers(this.config.event);
     }
   }
 
-  private async registerEventHandlers() {
-    const events = this.injectorContext.get(RestateEventSubscriber);
+  private async registerEventHandlers(config: RestateEventConfig) {
     let handlers: EventHandlers = [];
     for (const { metadata } of this.services) {
       for (const handler of metadata.handlers) {
@@ -122,7 +125,10 @@ export class RestateServer {
       }
     }
     if (handlers.length) {
-      await events.registerHandlers(handlers);
+      const eventStore = this.injectorContext.get<EventStoreApi>();
+      // const eventStore = this.injectorContext.get<EventServerApi>();
+      const client = this.injectorContext.get(RestateClient);
+      await client.send(config.cluster, eventStore.registerHandlers(handlers));
     }
   }
 

@@ -149,6 +149,7 @@ export interface RestateKafkaHandlerMetadata {
 
 export interface RestateEventHandlerMetadata {
   readonly type: TypeClass | TypeObjectLiteral;
+  readonly stream?: string;
 }
 
 export class RestateHandlerMetadata<T = readonly unknown[]> {
@@ -198,11 +199,11 @@ export class RestateHandlerDecorator {
   handler() {}
 
   // FIXME: options and type are somehow required
-  event<T>(type?: ReceiveType<T>) {
+  event<T>(type?: ReceiveType<T>, stream?: string) {
     type = resolveReceiveType(type);
     const deserialize = getBSONDeserializer(undefined, type);
     Object.assign(this.t, {
-      event: { type },
+      event: { type, stream },
       deserializeArgs: (bson: Uint8Array) => [deserialize(bson)],
     });
   }

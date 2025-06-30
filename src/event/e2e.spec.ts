@@ -15,6 +15,12 @@ import { RestateClient } from '../restate-client.js';
 import { RestateEventPublisher } from './publisher.js';
 import { RestateEventServerModule } from './server/module.js';
 import { RestateEventSubscriber } from './subscriber.js';
+import {
+  HttpMiddleware,
+  HttpRequest,
+  HttpResponse,
+  HttpUnauthorizedError,
+} from '@deepkit/http';
 
 describe('event', () => {
   describe('handler', () => {
@@ -79,11 +85,9 @@ describe('event', () => {
             ingress: {
               url: 'http://0.0.0.0:8080',
             },
-            event: {
-              cluster: 'e2e',
-            },
+            event: {},
           }),
-          new RestateEventServerModule({ autoDiscover: false, sse: false }),
+          new RestateEventServerModule(),
         ],
         controllers: [CustomerService, AccountService],
       });
@@ -142,11 +146,8 @@ describe('event', () => {
             ingress: {
               url: 'http://0.0.0.0:8080',
             },
-            event: {
-              cluster: 'e2e',
-            },
           }),
-          new RestateEventServerModule({ autoDiscover: false, sse: false }),
+          new RestateEventServerModule(),
         ],
         controllers: [AccountService],
       });
@@ -165,7 +166,151 @@ describe('event', () => {
   });
 
   describe('sse', () => {
-    test('publish and subscribe', async () => {
+    describe('middleware', () => {
+      test('restrict stream access', async () => {
+        let requests = 0;
+
+        class EventsMiddleware implements HttpMiddleware {
+          execute(
+            req: HttpRequest,
+            res: HttpResponse,
+            next: (err?: any) => void,
+          ) {
+            requests++;
+            if (requests === 2) {
+              throw new HttpUnauthorizedError('Unauthorized');
+            }
+            next();
+          }
+        }
+
+        const app = new App({
+          imports: [
+            new FrameworkModule({
+              port: 9096,
+            }),
+            new RestateModule({
+              server: {
+                host: 'http://host.docker.internal',
+                port: 9095,
+              },
+              admin: {
+                url: 'http://0.0.0.0:9070',
+                deployOnStartup: true,
+              },
+              ingress: {
+                url: 'http://0.0.0.0:8080',
+              },
+              event: {
+                host: 'localhost',
+                port: 9096,
+              },
+            }),
+            new RestateEventServerModule({
+              sse: {
+                hosts: ['localhost'],
+              },
+            }).configureMiddlewareForServerSentEvents(EventsMiddleware),
+          ],
+        });
+        const server = app.get<ApplicationServer>();
+        await server.start();
+
+        const publisher = app.get<RestateEventPublisher>();
+        const subscriber = app.get<RestateEventSubscriber>();
+
+        class User {
+          readonly id: UUID = uuid();
+        }
+
+        class UserCreatedEvent {
+          constructor(public user: User) {}
+        }
+
+        const fn1 = vi.fn();
+
+        await subscriber.subscribe<UserCreatedEvent>(fn1, {
+          stream: 'company1',
+        });
+
+        const fn2 = vi.fn();
+
+        await subscriber.subscribe<UserCreatedEvent>(fn2, {
+          stream: 'company1',
+        });
+
+        await publisher.publish([new UserCreatedEvent(new User())], {
+          stream: 'company1',
+        });
+
+        await sleep(1);
+
+        expect(fn1).toHaveBeenCalled();
+        expect(fn2).not.toHaveBeenCalled();
+      });
+    });
+
+    test('subscribers only receive events from their stream', async () => {
+      const app = new App({
+        imports: [
+          new FrameworkModule({
+            port: 9096,
+          }),
+          new RestateModule({
+            server: {
+              host: 'http://host.docker.internal',
+              port: 9095,
+            },
+            admin: {
+              url: 'http://0.0.0.0:9070',
+              deployOnStartup: true,
+            },
+            ingress: {
+              url: 'http://0.0.0.0:8080',
+            },
+            event: {
+              host: 'localhost',
+              port: 9096,
+            },
+          }),
+          new RestateEventServerModule(),
+        ],
+      });
+      const server = app.get<ApplicationServer>();
+      await server.start();
+
+      const publisher = app.get<RestateEventPublisher>();
+      const subscriber = app.get<RestateEventSubscriber>();
+
+      class User {
+        readonly id: UUID = uuid();
+      }
+
+      class UserCreatedEvent {
+        constructor(public user: User) {}
+      }
+
+      const fn1 = vi.fn();
+      await subscriber.subscribe<UserCreatedEvent>(fn1, {
+        stream: 'company1',
+      });
+
+      const fn2 = vi.fn();
+      await subscriber.subscribe<UserCreatedEvent>(fn2, {
+        stream: 'company2',
+      });
+
+      await publisher.publish([new UserCreatedEvent(new User())], {
+        stream: 'company1',
+      });
+
+      await sleep(1);
+
+      expect(fn1).toHaveBeenCalled();
+      expect(fn2).not.toHaveBeenCalled();
+    });
+
+    test('publish and subscribe works outside invocation context', async () => {
       const app = new App({
         imports: [
           new FrameworkModule({
@@ -184,12 +329,15 @@ describe('event', () => {
               url: 'http://0.0.0.0:8080',
             },
             event: {
-              cluster: 'e2e',
               host: 'localhost',
               port: 9090,
             },
           }),
-          new RestateEventServerModule(),
+          new RestateEventServerModule({
+            sse: {
+              hosts: ['localhost'],
+            },
+          }),
         ],
       });
       const server = app.get<ApplicationServer>();

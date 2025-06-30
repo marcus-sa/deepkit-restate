@@ -133,7 +133,7 @@ export class RestateClient {
       key,
       { service, method, data, deserializeReturn, entities },
       options,
-    ] = args.length === 1 ? [undefined, ...args] : args;
+    ] = typeof args[0] !== 'string' ? [undefined, ...args] : args;
 
     const url = new URL(
       key
@@ -181,7 +181,7 @@ export class RestateClient {
   ): Promise<RestateStatus>;
   async send(...args: readonly any[]): Promise<RestateStatus> {
     const [key, { service, method, data }, options] =
-      args.length === 1 ? [undefined, ...args] : args;
+      typeof args[0] !== 'string' ? [undefined, ...args] : args;
 
     const url = new URL(
       key
@@ -205,6 +205,10 @@ export class RestateClient {
       headers,
       body: data,
     } as RequestInit);
+    if (!response.ok) {
+      const { message } = (await response.json()) as RestateApiResponseError;
+      throw new Error(message);
+    }
 
     return (await response.json()) as RestateStatus;
   }

@@ -2,49 +2,16 @@ import { ReceiveType, ReflectionKind, resolveReceiveType } from '@deepkit/type';
 import { EventSource } from 'eventsource';
 import { deserializeBSON } from '@deepkit/bson';
 
-import { RestateClient } from '../restate-client.js';
-import { EventHandlers, EventServerApi } from './types.js';
+import { SubscribeOptions } from './types.js';
 import { RestateEventConfig } from './config.js';
 import { getTypeHash, getTypeName } from '../utils.js';
 
 export class RestateEventSubscriber {
-  constructor(
-    private readonly config: RestateEventConfig,
-    private readonly client: RestateClient,
-    private readonly server: EventServerApi,
-  ) {}
-
-  // TODO: use deepkit broker when it supports high-availability (multiple servers)
-  // async subscribe<T>(
-  //   callback: (event: T) => void,
-  //   type?: ReceiveType<T>,
-  // ): Promise<() => Promise<void>> {
-  //   type = resolveReceiveType(type);
-  //   if (type.kind === ReflectionKind.union) {
-  //     for (const item of type.types) {
-  //       if (item.kind !== ReflectionKind.class) {
-  //         throw new Error('Only classes are supported');
-  //       }
-  //     }
-  //   }
-  //   const types = type.kind === ReflectionKind.union ? type.types : [type];
-  //   const releases = await Promise.all(
-  //     types.map(async type => {
-  //       return await this.bus.adapter.subscribe(
-  //         `restate-event:${getTypeName(type)}:${getTypeHash(type)}`,
-  //         callback,
-  //         type,
-  //       );
-  //     }),
-  //   );
-  //
-  //   return async () => {
-  //     await Promise.all(releases.map(release => release()));
-  //   };
-  // }
+  constructor(private readonly config: RestateEventConfig) {}
 
   async subscribe<T>(
     callback: (event: T) => Promise<unknown> | unknown,
+    options?: SubscribeOptions,
     type?: ReceiveType<T>,
   ): Promise<() => Promise<void>> {
     type = resolveReceiveType(type);
@@ -57,8 +24,9 @@ export class RestateEventSubscriber {
     const events = new Map(
       types.map(type => [`${getTypeName(type)}:${getTypeHash(type)}`, type]),
     );
+    const stream = options?.stream || this.config.defaultStream;
     const eventSource = new EventSource(
-      `http://${this.config.host}:${this.config.port}/events/subscribe/${events.keys().toArray().join(',')}`,
+      `http://${this.config.host}:${this.config.port}/sse/${this.config.cluster}/${stream}/${events.keys().toArray().join(',')}`,
     );
     for (const [id, type] of events.entries()) {
       eventSource.addEventListener(id, event => {
@@ -74,13 +42,5 @@ export class RestateEventSubscriber {
     }
 
     return async () => eventSource.close();
-  }
-
-  /** @internal */
-  async registerHandlers(handlers: EventHandlers): Promise<void> {
-    await this.client.send(
-      this.config.cluster,
-      this.server.registerHandlers(handlers),
-    );
   }
 }
