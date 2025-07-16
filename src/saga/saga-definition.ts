@@ -90,11 +90,12 @@ export class SagaDefinition<Data> {
     return await this.handleActions(
       instance.currentState,
       instance.sagaData,
-      response.success,
+      !!response.success,
       response.typeName,
     );
   }
 
+  // TODO: handle terminal errors
   private deserializeReply<T>(
     request: RestateHandlerRequest,
     response: RestateHandlerResponse,
@@ -109,21 +110,7 @@ export class SagaDefinition<Data> {
         errorCode: 400,
       });
     }
-    if (response.success) {
-      return request.deserializeReturn(response.data);
-    }
-    const entity =
-      request.entities.get(response.typeName) ||
-      getRegisteredEntity(response.typeName);
-    if (!entity) {
-      if (response.typeName === restateTerminalErrorType.typeName) {
-        return deserializeRestateTerminalErrorType(response.data);
-      }
-      throw new TerminalError(`Missing entity for reply ${response.typeName}`, {
-        errorCode: 500,
-      });
-    }
-    return deserializeResponseData<T>(response.data, entity);
+    return request.deserializeReturn(response.data);
   }
 
   async handleActions(

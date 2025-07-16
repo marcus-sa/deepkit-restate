@@ -1,5 +1,4 @@
-import { RestateObject } from '../types.js';
-import { SubscriptionNotFound, SubscriptionTypeNoMatch } from './errors.js';
+import { RestateObject, RestateService } from '../types.js';
 
 export interface EventHandler {
   readonly service: string;
@@ -12,28 +11,40 @@ export type EventHandlers = readonly EventHandler[];
 
 export interface PublishEvent {
   readonly data: number[];
+  readonly id: string;
   readonly name: string;
   readonly version: string;
 }
 
 export interface PublishOptions {
   readonly delay?: number;
+  // defaults to `default`
+  readonly cluster?: string;
+  // defaults to `all`
+  readonly stream?: string;
   readonly sse?: boolean;
 }
 
-export interface EventServerHandlers {
+export interface SubscribeOptions {
+  // defaults to `all`
+  readonly stream?: string;
+}
+
+export interface EventStoreHandlers {
   getHandlers(): Promise<EventHandlers>;
-  // TODO: store all processed events
-  // getEvents(): Promise<Events>;
-  registerHandlers(subscriptions: EventHandlers): Promise<void>;
-  publish(
+  registerHandlers(handlers: EventHandlers): Promise<void>;
+}
+
+export type EventStoreApi = RestateObject<'event-store', EventStoreHandlers>;
+
+export interface EventProcessorHandlers {
+  process(
     events: readonly PublishEvent[],
     options?: PublishOptions,
   ): Promise<void>;
 }
 
-export type EventServerApi = RestateObject<
-  'Event',
-  EventServerHandlers,
-  [SubscriptionNotFound, SubscriptionTypeNoMatch]
+export type EventProcessorApi = RestateService<
+  'event-processor',
+  EventProcessorHandlers
 >;

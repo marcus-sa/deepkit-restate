@@ -119,6 +119,7 @@ export class SagaTestManager<D, S extends Saga<D>> extends SagaManager<D> {
 
       if (!handler) continue;
 
+      // TODO: use enttiy name instead
       this.replies.set(getTypeName(handler.type), {
         name: method,
         called: false,

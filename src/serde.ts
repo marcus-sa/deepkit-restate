@@ -8,16 +8,19 @@ import {
   Type,
   TypeObjectLiteral,
   TypePropertySignature,
+  typeSettings,
 } from '@deepkit/type';
 import {
   BSONDeserializer,
   BSONSerializer,
+  deserializeBSON,
   getBSONDeserializer,
   getBSONSerializer,
 } from '@deepkit/bson';
 
 import { getSagaDataType } from './metadata.js';
 import {
+  RestateCustomTerminalErrorMessage,
   RestateHandlerResponse,
   restateHandlerResponseType,
   restateTerminalErrorType,
@@ -26,6 +29,15 @@ import {
 export function createBSONSerde<T>(type?: ReceiveType<T>) {
   type = resolveReceiveType(type);
   return new BSONSerde<T>(type);
+}
+
+export function createJSONSerde<T>(type?: ReceiveType<T>) {
+  type = resolveReceiveType(type);
+  return new JSONSerde<T>(type);
+}
+
+export function createSerde<T>(type?: ReceiveType<T>) {
+  return createBSONSerde(type);
 }
 
 export class BSONSerde<T> implements Serde<T> {
@@ -86,13 +98,31 @@ function toSerializableDataType(type: Type): TypeObjectLiteral {
   return parent;
 }
 
+export function deserializeAndThrowCustomTerminalError(message: string): never {
+  const response = deserializeBSON<RestateCustomTerminalErrorMessage>(
+    Buffer.from(message, 'base64'),
+  );
+  const entity = typeSettings.registeredEntities[response.entityName];
+  if (!entity) {
+    throw new TerminalError(`Unknown entity "${response.entityName}"`, {
+      errorCode: 500,
+    });
+  }
+  throw deserializeBSON(response.data, undefined, undefined, entity);
+}
+
 export function getResponseDataSerializer<T>(
   type?: ReceiveType<T>,
 ): BSONSerializer {
   type = resolveReceiveType(type);
   const serializableType = toSerializableDataType(type);
   const serialize = getBSONSerializer(undefined, serializableType);
-  return (value: T) => serialize({ [VALUE_KEY]: value });
+  // return (value: T) =>
+  //   type.kind !== ReflectionKind.void && type.kind !== ReflectionKind.undefined
+  //     ? serialize({ [VALUE_KEY]: value })
+  //     : new Uint8Array();
+  return (value: T) =>
+    value !== undefined ? serialize({ [VALUE_KEY]: value }) : new Uint8Array();
 }
 
 export function serializeResponseData<T>(
@@ -112,7 +142,12 @@ export function getResponseDataDeserializer<T>(
     undefined,
     serializableType,
   );
-  return (bson: Uint8Array) => deserialize(bson)[VALUE_KEY];
+  // return (bson: Uint8Array) =>
+  //   type.kind !== ReflectionKind.void && type.kind !== ReflectionKind.undefined
+  //     ? deserialize(bson)[VALUE_KEY]
+  //     : (undefined as T);
+  return (bson: Uint8Array) =>
+    bson.length > 0 ? deserialize(bson)[VALUE_KEY] : (undefined as T);
 }
 
 export function deserializeResponseData<T>(
@@ -140,6 +175,11 @@ export const deserializeRestateHandlerResponse =
     undefined,
     restateHandlerResponseType,
   );
+
+export const serializeCustomError = getBSONSerializer(
+  undefined,
+  restateHandlerResponseType,
+);
 
 export const serializeRestateHandlerResponse = getBSONSerializer(
   undefined,

@@ -21,7 +21,7 @@ interface InMemoryAwakeable<T> {
 }
 
 export class RestateInMemoryContext
-  implements Omit<RestateCustomContext, 'call' | 'send'>
+  implements Omit<RestateCustomContext, 'call' | 'send' | 'attach'>
 {
   readonly #awakeables = new Map<string, InMemoryAwakeable<unknown>>();
   readonly #store = new Map<string, any>();
@@ -63,7 +63,7 @@ export class RestateInMemoryContext
 }
 
 export class RestateInMemoryContextStorage {
-  getStore(): Omit<RestateCustomContext, 'call' | 'send'> {
+  getStore(): Omit<RestateCustomContext, 'call' | 'send' | 'attach'> {
     return new RestateInMemoryContext();
   }
 }

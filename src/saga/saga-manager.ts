@@ -1,18 +1,28 @@
-import { serde, Serde, TerminalError } from '@restatedev/restate-sdk';
+import {
+  RestatePromise,
+  serde,
+  Serde,
+  TerminalError,
+} from '@restatedev/restate-sdk';
 
 import { Saga } from './saga.js';
 import { SagaInstance } from './saga-instance.js';
 import { SagaActions } from './saga-actions.js';
 import { RestateSagaMetadata } from '../decorator.js';
 import {
+  deserializeAndThrowCustomTerminalError,
   deserializeRestateHandlerResponse,
-  serializeRestateTerminalErrorType,
 } from '../serde.js';
 import {
+  RestateCustomTerminalErrorMessage,
   RestateHandlerRequest,
   RestateHandlerResponse,
   RestateSagaContext,
 } from '../types.js';
+import { CUSTOM_TERMINAL_ERROR_CODE } from '../config.js';
+import { deserializeBSON } from '@deepkit/bson';
+import { typeSettings } from '@deepkit/type';
+import { getTypeName } from '../utils.js';
 
 export class SagaManager<Data> {
   #processActionsPromise?: Promise<void>;
@@ -23,33 +33,47 @@ export class SagaManager<Data> {
     private readonly metadata: RestateSagaMetadata<Data>,
   ) {}
 
-  protected async invokeParticipant(
+  protected invokeParticipant(
     instance: SagaInstance<Data>,
     { service, method, data }: RestateHandlerRequest,
     // TODO: this has not yet been implemented
     key?: string,
   ): Promise<RestateHandlerResponse> {
-    try {
-      const response = await this.ctx.genericCall({
+    return this.ctx
+      .genericCall({
         service,
         method,
         parameter: data,
         key,
         outputSerde: serde.binary,
-      });
+      })
+      .map((value, failure) => {
+        if (value) {
+          const response = deserializeRestateHandlerResponse(value);
+          return {
+            success: true,
+            ...response,
+          };
+        }
 
-      return deserializeRestateHandlerResponse(response);
-    } catch (err: unknown) {
-      // TODO: should terminal errors stop execution?
-      if (err instanceof TerminalError) {
-        return {
-          success: false,
-          data: serializeRestateTerminalErrorType(err),
-          typeName: 'TerminalError',
-        };
-      }
-      throw err;
-    }
+        if (failure?.code === CUSTOM_TERMINAL_ERROR_CODE) {
+          const response = deserializeBSON<RestateCustomTerminalErrorMessage>(
+            Buffer.from(failure.message, 'base64'),
+          );
+          const classType =
+            typeSettings.registeredEntities[response.entityName];
+          if (!classType) {
+            throw new Error(`Entity ${response.entityName} not found`);
+          }
+          return {
+            success: false,
+            typeName: classType.name,
+            ...response,
+          };
+        }
+
+        throw failure;
+      });
   }
 
   protected async performEndStateActions(

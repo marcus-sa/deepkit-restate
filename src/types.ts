@@ -1,9 +1,10 @@
 import { ReceiveType, typeOf } from '@deepkit/type';
-import { ClassType } from '@deepkit/core';
 import { BSONDeserializer } from '@deepkit/bson';
 import {
   Context as ServiceContext,
+  InvocationId,
   type ObjectContext,
+  ObjectSharedContext,
   RestatePromise,
   RunOptions,
   TerminalError,
@@ -30,8 +31,6 @@ export interface RestateCallOptions {
   readonly idempotencyKey?: string;
 }
 
-export type Entities = Map<string, ClassType<unknown>>;
-
 type RestateHandlerType = 'object' | 'service';
 
 export interface RestateHandlerRequest<
@@ -39,7 +38,6 @@ export interface RestateHandlerRequest<
   A extends any[] = [],
   T extends RestateHandlerType = any,
 > {
-  readonly entities: Entities;
   readonly service: string;
   readonly method: string;
   readonly data: Uint8Array;
@@ -73,21 +71,13 @@ export type RestateObjectHandler<F> = RestateHandler<F, 'object'>;
 
 export type RestateServiceHandler<F> = RestateHandler<F, 'service'>;
 
-export type RestateService<
-  Name extends string,
-  Interface,
-  Entities extends any[] = [],
-> = {
+export type RestateService<Name extends string, Interface> = {
   [Method in keyof Interface as Interface[Method] extends never
     ? never
     : Method]: RestateServiceHandler<Interface[Method]>;
 };
 
-export type RestateObject<
-  Name extends string,
-  Interface,
-  Entities extends any[] = [],
-> = {
+export type RestateObject<Name extends string, Interface> = {
   [Method in keyof Interface as Interface[Method] extends never
     ? never
     : Method]: RestateObjectHandler<Interface[Method]>;
@@ -104,8 +94,6 @@ export interface RestateAwakeable<T> {
 }
 
 export interface RestateCustomContext {
-  get<T>(name: string, type?: ReceiveType<T>): Promise<T | null>;
-  set<T>(name: string, value: T, type?: ReceiveType<T>): void;
   awakeable<T>(type?: ReceiveType<T>): RestateAwakeable<T>;
   resolveAwakeable<T>(
     id: string,
@@ -113,6 +101,10 @@ export interface RestateCustomContext {
     type?: ReceiveType<T>,
   ): void;
   rejectAwakeable(id: string, reason: string): void;
+  attach<T>(
+    invocationId: InvocationId,
+    type?: ReceiveType<T>,
+  ): RestatePromise<T>;
   // run should only return a value if a generic is provided
   run(
     name: string,
@@ -155,6 +147,7 @@ type ContextWithoutClients<T> = Omit<
   | 'serviceSendClient'
   | 'objectClient'
   | 'objectSendClient'
+  | 'attach'
   | 'run'
   | 'get'
   | 'set'
@@ -163,28 +156,46 @@ type ContextWithoutClients<T> = Omit<
 >;
 
 export interface RestateServiceContext
-  extends Omit<RestateCustomContext, 'get' | 'set'>,
+  extends RestateCustomContext,
     ContextWithoutClients<ServiceContext> {}
 
 export interface RestateObjectContext
   extends RestateCustomContext,
-    ContextWithoutClients<ObjectContext> {}
+    ContextWithoutClients<ObjectContext> {
+  get<T>(name: string, type?: ReceiveType<T>): Promise<T | null>;
+  set<T>(name: string, value: T, type?: ReceiveType<T>): void;
+}
+
+export interface RestateSharedObjectContext
+  extends RestateCustomContext,
+    ContextWithoutClients<ObjectSharedContext> {
+  get<T>(name: string, type?: ReceiveType<T>): Promise<T | null>;
+}
+
+export interface RestateWorkflowContext
+  extends RestateObjectContext,
+    ContextWithoutClients<WorkflowContext> {}
 
 export interface RestateHandlerResponse {
-  readonly success: boolean;
+  readonly success?: boolean;
   readonly data?: Uint8Array;
   readonly typeName?: string;
 }
 
+export interface RestateCustomTerminalErrorMessage {
+  readonly data: Uint8Array;
+  readonly entityName: string;
+}
+
 export interface RestateSagaContext
-  extends Omit<RestateCustomContext, 'call' | 'send'>,
+  extends Omit<RestateWorkflowContext, 'call' | 'send'>,
     ContextWithoutClients<WorkflowContext> {}
 
-export const restateServiceType = typeOf<RestateService<string, any, any[]>>();
+export const restateServiceType = typeOf<RestateService<string, any>>();
 
 export const restateHandlerResponseType = typeOf<RestateHandlerResponse>();
 
-export const restateObjectType = typeOf<RestateObject<string, any, any[]>>();
+export const restateObjectType = typeOf<RestateObject<string, any>>();
 
 export const restateSagaType = typeOf<RestateSaga<string, any>>();
 

@@ -14,7 +14,7 @@ export {
   RestateContextStorage,
   RestateInMemoryContext,
   RestateInMemoryContextStorage,
-} from './restate-context-storage.js';
+} from './context-storage.js';
 export {
   success,
   failure,

@@ -8,8 +8,7 @@ import {
   TypeTuple,
 } from '@deepkit/type';
 
-import { Entities } from './types.js';
-import { getTypeArgument, getTypeName } from './utils.js';
+import { getTypeArgument } from './utils.js';
 import {
   restateObjectDecorator,
   RestateObjectMetadata,
@@ -34,19 +33,6 @@ export function getSagaDataType(sagaType: Type): TypeObjectLiteral | TypeClass {
     throw new Error('Invalid saga data type');
   }
   return typeArgument;
-}
-
-export function getRestateClassEntities(serviceType: Type): Entities {
-  const typeArgument = getTypeArgument(serviceType, 2);
-  if (!typeArgument) return new Map();
-  assertType(typeArgument, ReflectionKind.tuple);
-
-  return new Map(
-    typeArgument.types
-      .map(type => type.type)
-      .filter((type): type is TypeClass => type.kind === ReflectionKind.class)
-      .map(type => [getTypeName(type), type.classType]),
-  );
 }
 
 export function getRestateServiceMetadata(

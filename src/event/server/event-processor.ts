@@ -1,44 +1,33 @@
-import { RestatePromise, serde, TerminalError } from '@restatedev/restate-sdk';
-import * as dns from 'node:dns/promises';
+import { RestatePromise, serde } from '@restatedev/restate-sdk';
 
 import { restate } from '../../decorator.js';
-import { RestateObjectContext } from '../../types.js';
+import { RestateServiceContext } from '../../types.js';
 import {
-  EventServerApi,
-  EventServerHandlers,
   PublishEvent,
   PublishOptions,
-  EventHandler,
-  EventHandlers,
+  EventProcessorHandlers,
+  EventProcessorApi,
+  EventStoreApi,
 } from '../types.js';
 import { RestateEventConfig } from '../config.js';
-import { RestateEventsServerConfig, RestateSseConfig } from './config.js';
+import { RestateSseConfig } from './config.js';
 
-const HANDLERS_STATE_KEY = 'handlers';
-
-@restate.object<EventServerApi>()
-export class RestateEventsServer implements EventServerHandlers {
+@restate.service<EventProcessorApi>()
+export class RestateEventProcessor implements EventProcessorHandlers {
   constructor(
-    private readonly ctx: RestateObjectContext,
+    private readonly ctx: RestateServiceContext,
+    private readonly store: EventStoreApi,
     private readonly config: RestateEventConfig,
     private readonly sseConfig: RestateSseConfig,
   ) {}
 
-  async #getHandlers(): Promise<EventHandlers> {
-    return (await this.ctx.get<EventHandlers>(HANDLERS_STATE_KEY)) || [];
-  }
-
-  @(restate.shared().handler())
-  async getHandlers(): Promise<EventHandlers> {
-    return await this.#getHandlers();
-  }
-
-  @(restate.shared().handler())
-  async publish(
+  @restate.handler()
+  async process(
     events: readonly PublishEvent[],
     options?: PublishOptions,
   ): Promise<void> {
-    const allHandlers = await this.#getHandlers();
+    const cluster = options?.cluster || this.config.cluster;
+    const allHandlers = await this.ctx.call(cluster, this.store.getHandlers());
 
     for (const event of events) {
       const eventHandlers = allHandlers.filter(
@@ -50,18 +39,27 @@ export class RestateEventsServer implements EventServerHandlers {
         this.ctx.genericSend({
           service: handler.service,
           method: handler.method,
+          // TODO: provide stream as second argument
           parameter: new Uint8Array(event.data),
           inputSerde: serde.binary,
+          idempotencyKey: event.id,
         });
       }
     }
 
     if (this.sseConfig.hosts && (options?.sse ?? this.sseConfig.all)) {
-      await this.fanOutServerSentEvents(this.sseConfig.hosts, events);
+      await this.fanOutServerSentEvents(
+        cluster,
+        options?.stream || this.config.defaultStream,
+        this.sseConfig.hosts,
+        events,
+      );
     }
   }
 
   private async fanOutServerSentEvents(
+    cluster: string,
+    stream: string,
     hosts: string[],
     events: readonly PublishEvent[],
   ) {
@@ -72,7 +70,7 @@ export class RestateEventsServer implements EventServerHandlers {
           async () => {
             // TODO: only publish to controllers that do have active subscriptions
             const response = await fetch(
-              `http://${host}:${this.config.port}/events/publish`,
+              `http://${host}:${this.config.port}/sse/${cluster}/${stream}`,
               {
                 method: 'POST',
                 body: JSON.stringify(events),
@@ -92,30 +90,6 @@ export class RestateEventsServer implements EventServerHandlers {
           },
         ),
       ),
-    );
-  }
-
-  @restate.handler()
-  async registerHandlers(newHandlers: EventHandlers): Promise<void> {
-    const currentHandlers = await this.#getHandlers();
-    const allHandlers = new Map<string, EventHandler>();
-
-    const generateKey = (sub: EventHandler) =>
-      `${sub.service}-${sub.method}-${sub.eventName}:${sub.eventVersion}`;
-
-    currentHandlers.forEach(sub => {
-      const key = generateKey(sub);
-      allHandlers.set(key, sub);
-    });
-
-    newHandlers.forEach(sub => {
-      const key = generateKey(sub);
-      allHandlers.set(key, sub);
-    });
-
-    this.ctx.set<EventHandlers>(
-      HANDLERS_STATE_KEY,
-      allHandlers.values().toArray(),
     );
   }
 }

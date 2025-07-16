@@ -5,15 +5,15 @@ import { onServerMainBootstrapDone } from '@deepkit/framework';
 import * as dns from 'node:dns/promises';
 
 import { PublishEvent } from '../types.js';
-import { EventsSubject } from './types.js';
+import { Clusters, Streams } from './types.js';
 import { fastHash } from '../../utils.js';
-import { RestateEventsServerConfig, RestateSseConfig } from './config.js';
+import { RestateSseConfig } from './config.js';
 import { RestateEventConfig } from '../config.js';
 
-@http.controller('events')
-export class EventsController {
+@http.controller('sse/:cluster/:stream')
+export class ServerSentEventsController {
   constructor(
-    private readonly subject: EventsSubject,
+    private readonly clusters: Clusters,
     private readonly sseConfig: RestateSseConfig,
     private readonly eventConfig: RestateEventConfig,
     private readonly logger: ScopedLogger,
@@ -34,15 +34,22 @@ export class EventsController {
     Object.assign(this.sseConfig, { hosts });
   }
 
-  @http.POST('publish')
-  async publish(events: HttpBody<PublishEvent[]>) {
+  // TODO: publish should be internal only
+  @http.POST('')
+  async publish(
+    cluster: string,
+    stream: string,
+    events: HttpBody<PublishEvent[]>,
+  ) {
     for (const event of events) {
-      this.subject.next(event);
+      this.clusters.get(cluster).get(stream).next(event);
     }
   }
 
-  @http.GET('subscribe/:events')
+  @http.GET(':events')
   subscribe(
+    cluster: string,
+    stream: string,
     events: string | string[],
     request: HttpRequest,
     response: HttpResponse,
@@ -63,15 +70,18 @@ export class EventsController {
     response.flushHeaders();
 
     for (const id of events) {
-      const subscription = this.subject.subscribe(event => {
-        if (`${event.name}:${event.version}` === id) {
-          this.logger.log('publish', event);
-          response.write(`event: ${id}\n`);
-          const data = new Uint8Array(event.data);
-          response.write(`id: ${fastHash(data)}\n`);
-          response.write(`data: ${Buffer.from(data).toString('base64')}\n\n`);
-        }
-      });
+      const subscription = this.clusters
+        .get(cluster)
+        .get(stream)
+        .subscribe(event => {
+          if (`${event.name}:${event.version}` === id) {
+            this.logger.log('publish', event);
+            response.write(`event: ${id}\n`);
+            const data = new Uint8Array(event.data);
+            response.write(`id: ${fastHash(data)}\n`);
+            response.write(`data: ${Buffer.from(data).toString('base64')}\n\n`);
+          }
+        });
 
       request.on('close', () => {
         subscription.unsubscribe();

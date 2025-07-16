@@ -1,3 +1,8 @@
+workers = 10
+
+[worker.invoker]
+concurrent-invocations-limit = 1000
+
 [worker.invoker.retry-policy]
 initial-interval = "150ms"
 max-attempts = 3
