@@ -2,44 +2,36 @@ import { eventDispatcher } from '@deepkit/event';
 import { onServerMainBootstrap } from '@deepkit/framework';
 import { InjectorContext } from '@deepkit/injector';
 import * as restate from '@restatedev/restate-sdk';
-import { hasTypeInformation, ReceiveType, ReflectionKind } from '@deepkit/type';
+import { entity, ReflectionKind } from '@deepkit/type';
 
 import { SagaManager } from './saga/saga-manager.js';
 import { SAGA_STATE_KEY } from './saga/saga-instance.js';
-import { RestateEventSubscriber } from './event/subscriber.js';
-import { EventHandlers, EventServerApi, EventStoreApi } from './event/types.js';
+import { EventHandlers, EventStoreApi } from './event/types.js';
 import { InjectorService, InjectorServices } from './services.js';
 import { InjectorObject, InjectorObjects } from './objects.js';
 import { InjectorSaga, InjectorSagas } from './sagas.js';
 import { RestateHandlerMetadata } from './decorator.js';
-import { RestateConfig } from './config.js';
-import {
-  createClassProxy,
-  decodeRestateServiceMethodResponse,
-  getTypeHash,
-  getTypeName,
-} from './utils.js';
+import { CUSTOM_TERMINAL_ERROR_CODE, RestateConfig } from './config.js';
+import { getTypeHash, getTypeName } from './utils.js';
 import { RestateAdminClient } from './restate-admin-client.js';
-import { RestateContextStorage } from './restate-context-storage.js';
+import { RestateContextStorage } from './context-storage.js';
+import { serializeRestateHandlerResponse } from './serde.js';
 import {
-  createBSONSerde,
-  serializeResponseData,
-  serializeRestateHandlerResponse,
-} from './serde.js';
-import {
-  RestateAwakeable,
-  RestateObjectContext,
+  RestateCustomTerminalErrorMessage,
   restateObjectContextType,
-  RestateRunAction,
-  RestateSagaContext,
   restateSagaContextType,
-  RestateServiceContext,
   restateServiceContextType,
   SCOPE,
 } from './types.js';
-import { RunOptions } from '@restatedev/restate-sdk';
 import { RestateClient } from './restate-client.js';
 import { RestateEventConfig } from './event/config.js';
+import { serializeBSON } from '@deepkit/bson';
+import {
+  createObjectContext,
+  createSagaContext,
+  createServiceContext,
+  createSharedObjectContext,
+} from './context.js';
 
 const DEFAULT_HANDLER_OPTS = {
   input: restate.serde.binary,
@@ -126,7 +118,6 @@ export class RestateServer {
     }
     if (handlers.length) {
       const eventStore = this.injectorContext.get<EventStoreApi>();
-      // const eventStore = this.injectorContext.get<EventServerApi>();
       const client = this.injectorContext.get(RestateClient);
       await client.send(config.cluster, eventStore.registerHandlers(handlers));
     }
@@ -134,121 +125,6 @@ export class RestateServer {
 
   private createScopedInjector(): InjectorContext {
     return this.injectorContext.createChildScope(SCOPE);
-  }
-
-  private createContext<
-    T extends RestateObjectContext | RestateSagaContext | RestateServiceContext,
-  >(ctx: restate.ObjectContext | restate.WorkflowContext | restate.Context): T {
-    const _resolveAwakeable = ctx.resolveAwakeable.bind(ctx);
-    const _awakeable = ctx.awakeable.bind(ctx);
-    const _run = ctx.run.bind(ctx);
-
-    const newCtx = Object.assign(ctx, {
-      serviceClient: undefined,
-      serviceSendClient: undefined,
-      objectSendClient: undefined,
-      objectClient: undefined,
-      workflowClient: undefined,
-      workflowSendClient: undefined,
-      resolveAwakeable<T>(id: string, payload?: T, type?: ReceiveType<T>) {
-        const serde = createBSONSerde(type);
-        _resolveAwakeable(id, payload, serde);
-      },
-      awakeable<T>(type?: ReceiveType<T>): RestateAwakeable<T> {
-        const serde = createBSONSerde<T>(type);
-        return _awakeable<T>(serde) as RestateAwakeable<T>;
-      },
-      run<T = void>(
-        name: string,
-        action: RestateRunAction<T>,
-        options: RunOptions<unknown> = {},
-        type?: ReceiveType<T>,
-      ): restate.RestatePromise<T> {
-        if (type) {
-          const serde = createBSONSerde<T>(type);
-          return _run(name, action, {
-            serde,
-            ...options,
-          }) as restate.RestatePromise<T>;
-        }
-
-        return _run(
-          name,
-          async () => {
-            await action();
-          },
-          options,
-        ) as restate.RestatePromise<never>;
-      },
-      send(...args: readonly any[]): void {
-        const [key, { service, method, data }, options] =
-          args.length === 1 ? [undefined, ...args] : args;
-
-        ctx.genericSend({
-          service,
-          method,
-          parameter: data,
-          delay: options?.delay,
-          key,
-        });
-      },
-      async call<T>(...args: readonly any[]): Promise<T> {
-        const [key, { service, method, data, deserializeReturn, entities }] =
-          args.length === 1 ? [undefined, ...args] : args;
-
-        const response = await ctx.genericCall({
-          service,
-          method,
-          parameter: data,
-          key,
-          outputSerde: restate.serde.binary,
-        });
-
-        // TODO: make into restate promise
-        return decodeRestateServiceMethodResponse(
-          response,
-          deserializeReturn,
-          entities,
-        );
-      },
-    }) as T;
-
-    if ('key' in ctx) {
-      const _set = ctx.set.bind(ctx);
-      const _get = ctx.get.bind(ctx);
-
-      Object.assign(newCtx, {
-        set<T>(name: string, value: T, type?: ReceiveType<T>) {
-          const serde = createBSONSerde<T>(type);
-          _set(name, value, serde);
-        },
-        async get<T>(name: string, type?: ReceiveType<T>): Promise<T | null> {
-          const serde = createBSONSerde<T>(type);
-          return await _get<T>(name, serde);
-        },
-      });
-    }
-
-    return newCtx;
-  }
-
-  private createObjectContext(
-    ctx: restate.ObjectContext,
-  ): RestateObjectContext {
-    return this.createContext<RestateObjectContext>(ctx);
-  }
-
-  private createServiceContext(ctx: restate.Context): RestateServiceContext {
-    return this.createContext<RestateServiceContext>(ctx);
-  }
-
-  private createSagaContext(
-    ctx: restate.WorkflowContext | restate.WorkflowSharedContext,
-  ): RestateSagaContext {
-    return Object.assign(this.createContext<RestateSagaContext>(ctx), {
-      send: undefined,
-      call: undefined,
-    });
   }
 
   private async addKafkaHandlerSubscriptions(
@@ -291,7 +167,7 @@ export class RestateServer {
             data: Uint8Array,
           ): Promise<Uint8Array> => {
             const injector = this.createScopedInjector();
-            const ctx = this.createServiceContext(rsCtx);
+            const ctx = createServiceContext(rsCtx);
             injector.set(restateServiceContextType, ctx);
             const instance = injector.get(classType, module);
             return await this.contextStorage.run(ctx, () =>
@@ -310,7 +186,7 @@ export class RestateServer {
         DEFAULT_HANDLER_OPTS,
         async (rsCtx: restate.WorkflowContext, request: Uint8Array) => {
           const injector = this.createScopedInjector();
-          const ctx = this.createSagaContext(rsCtx);
+          const ctx = createSagaContext(rsCtx);
           injector.set(restateSagaContextType, ctx);
           const restateSaga = injector.get(classType, module);
           const sagaManager = new SagaManager(ctx, restateSaga, metadata);
@@ -356,7 +232,9 @@ export class RestateServer {
             data: Uint8Array,
           ): Promise<Uint8Array> => {
             const injector = this.createScopedInjector();
-            const ctx = this.createObjectContext(rsCtx);
+            const ctx = handler.shared
+              ? createSharedObjectContext(rsCtx)
+              : createObjectContext(rsCtx);
             injector.set(restateObjectContextType, ctx);
             const instance = injector.get(classType, module);
             return await this.contextStorage.run(ctx, () =>
@@ -384,15 +262,24 @@ export class RestateServer {
           handler.returnType.kind !== ReflectionKind.undefined
             ? handler.serializeReturn(result)
             : new Uint8Array(),
+        // TODO: use entity name
         typeName: handler.returnType.typeName,
       });
     } catch (error: any) {
-      if (hasTypeInformation(error.constructor)) {
-        return serializeRestateHandlerResponse({
-          success: false,
-          data: serializeResponseData(error, error.constructor),
-          typeName: error.constructor.name,
-        });
+      const entityData = entity._fetch(error.constructor);
+      if (entityData?.name) {
+        throw new restate.TerminalError(
+          Buffer.from(
+            serializeBSON<RestateCustomTerminalErrorMessage>({
+              data: serializeBSON(error, undefined, error.constructor),
+              entityName: entityData.name,
+            }),
+          ).toString('base64'),
+          {
+            cause: error,
+            errorCode: CUSTOM_TERMINAL_ERROR_CODE,
+          },
+        );
       }
       if (error instanceof TypeError) {
         throw new restate.TerminalError(error.message, {

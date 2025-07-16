@@ -2,6 +2,9 @@ import { RestateIngressClientOptions } from './restate-client.js';
 import { RestateAdminClientOptions } from './restate-admin-client.js';
 import { RestateEventConfig } from './event/config.js';
 
+// indicates that it is a custom error that has to be deserialized
+export const CUSTOM_TERMINAL_ERROR_CODE = 1001;
+
 export class RestateKafkaConfig {
   readonly clusterName: string;
 }

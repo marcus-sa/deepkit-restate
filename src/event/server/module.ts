@@ -12,7 +12,6 @@ import {
 } from '@deepkit/http';
 import { ClassType } from '@deepkit/core';
 import { RestateEventProcessor } from './event-processor.js';
-import { RestateEventsServer } from './event-server.js';
 
 export class RestateEventServerModule extends createModuleClass({
   config: RestateEventsServerConfig,
@@ -20,7 +19,6 @@ export class RestateEventServerModule extends createModuleClass({
     RestateEventStore,
     RestateEventProcessor,
     ServerSentEventsController,
-    RestateEventsServer,
   ],
   providers: [Clusters],
   forRoot: true,

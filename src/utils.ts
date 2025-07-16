@@ -29,9 +29,8 @@ import {
   TypeTupleMember,
 } from '@deepkit/type';
 
-import { getRestateClassEntities, getRestateClassName } from './metadata.js';
+import { getRestateClassName } from './metadata.js';
 import {
-  Entities,
   RestateHandlerRequest,
   RestateHandlerResponse,
   RestateObject,
@@ -41,7 +40,6 @@ import {
   restateServiceType,
 } from './types.js';
 import {
-  deserializeResponseData,
   deserializeRestateHandlerResponse,
   getResponseDataDeserializer,
   serializeResponseData,
@@ -161,14 +159,11 @@ export function getUnwrappedReflectionFunctionReturnType(
 }
 
 export function createClassProxy<
-  T extends
-    | RestateService<string, any, any[]>
-    | RestateObject<string, any, any[]>,
+  T extends RestateService<string, any> | RestateObject<string, any>,
 >(type?: ReceiveType<T>): T {
   type = resolveReceiveType(type);
 
   const service = getRestateClassName(type);
-  const entities = getRestateClassEntities(type);
 
   const classType = getTypeArgument(type, 1);
 
@@ -197,7 +192,6 @@ export function createClassProxy<
         return (...args: readonly unknown[]): RestateHandlerRequest => {
           const data = serializeArgs(args);
           return {
-            entities,
             service,
             method,
             data,
@@ -234,7 +228,7 @@ export function createClassProxy<
 // }
 
 export function provideRestateServiceProxy<
-  T extends RestateService<string, any, any[]>,
+  T extends RestateService<string, any>,
 >(type?: ReceiveType<T>): FactoryProvider<T> {
   type = resolveReceiveType(type);
   return {
@@ -243,9 +237,9 @@ export function provideRestateServiceProxy<
   };
 }
 
-export function provideRestateObjectProxy<
-  T extends RestateObject<string, any, any[]>,
->(type?: ReceiveType<T>): FactoryProvider<T> {
+export function provideRestateObjectProxy<T extends RestateObject<string, any>>(
+  type?: ReceiveType<T>,
+): FactoryProvider<T> {
   type = resolveReceiveType(type);
   return {
     provide: type,
@@ -262,37 +256,11 @@ export function getRegisteredEntity(className: string): ClassType | undefined {
 export function decodeRestateServiceMethodResponse<T>(
   response: Uint8Array,
   deserialize: BSONDeserializer<T>,
-  entities: Entities,
 ): T {
   const internalResponse = deserializeRestateHandlerResponse(response);
-  if (internalResponse.success) {
-    return internalResponse.data
-      ? deserialize(internalResponse.data)
-      : (undefined as T);
-  }
-  if (!internalResponse.typeName) {
-    throw new TerminalError('Missing typeName');
-  }
-  const entity =
-    entities.get(internalResponse.typeName) ||
-    getRegisteredEntity(internalResponse.typeName);
-  if (!entity) {
-    // if (internalResponse.typeName === restateTerminalErrorType.typeName) {
-    //   throw deserializeRestateTerminalErrorType(internalResponse.data);
-    // }
-    throw new TerminalError(`Unknown type ${internalResponse.typeName}`, {
-      errorCode: 500,
-    });
-  }
-  if (!internalResponse.data) {
-    throw new TerminalError(
-      `Missing response data for error ${internalResponse.typeName}`,
-      {
-        errorCode: 500,
-      },
-    );
-  }
-  throw deserializeResponseData(internalResponse.data, entity);
+  return internalResponse.data
+    ? deserialize(internalResponse.data)
+    : (undefined as T);
 }
 
 export function assertValidKafkaTopicName(topicName: string): void {
@@ -301,14 +269,6 @@ export function assertValidKafkaTopicName(topicName: string): void {
       `Invalid topic name validation pattern ^[a-zA-Z0-9._-]+$ failed for ${topicName}`,
     );
   }
-}
-
-export interface InvokeOneWayOptions {
-  readonly service: string;
-  readonly method: string;
-  readonly data: Uint8Array;
-  readonly delay?: number;
-  readonly key?: string;
 }
 
 export function success<T>(
@@ -320,14 +280,10 @@ export function success<T>(
     return {
       success: true,
       data: serializeResponseData(reply, type),
-      typeName: type.typeName,
     };
   }
 
-  return {
-    success: true,
-    data: new Uint8Array([]),
-  };
+  return { success: true };
 }
 
 export function failure<T>(
@@ -339,14 +295,10 @@ export function failure<T>(
     return {
       success: false,
       data: serializeResponseData(reply, type),
-      typeName: type.typeName,
     };
   }
 
-  return {
-    success: false,
-    data: new Uint8Array([]),
-  };
+  return { success: false };
 }
 
 export function waitUntil(

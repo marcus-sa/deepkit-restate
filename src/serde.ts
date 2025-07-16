@@ -8,16 +8,19 @@ import {
   Type,
   TypeObjectLiteral,
   TypePropertySignature,
+  typeSettings,
 } from '@deepkit/type';
 import {
   BSONDeserializer,
   BSONSerializer,
+  deserializeBSON,
   getBSONDeserializer,
   getBSONSerializer,
 } from '@deepkit/bson';
 
 import { getSagaDataType } from './metadata.js';
 import {
+  RestateCustomTerminalErrorMessage,
   RestateHandlerResponse,
   restateHandlerResponseType,
   restateTerminalErrorType,
@@ -26,6 +29,15 @@ import {
 export function createBSONSerde<T>(type?: ReceiveType<T>) {
   type = resolveReceiveType(type);
   return new BSONSerde<T>(type);
+}
+
+export function createJSONSerde<T>(type?: ReceiveType<T>) {
+  type = resolveReceiveType(type);
+  return new JSONSerde<T>(type);
+}
+
+export function createSerde<T>(type?: ReceiveType<T>) {
+  return createBSONSerde(type);
 }
 
 export class BSONSerde<T> implements Serde<T> {
@@ -84,6 +96,19 @@ function toSerializableDataType(type: Type): TypeObjectLiteral {
   parent.types = [newType];
 
   return parent;
+}
+
+export function deserializeAndThrowCustomTerminalError(message: string): never {
+  const response = deserializeBSON<RestateCustomTerminalErrorMessage>(
+    Buffer.from(message, 'base64'),
+  );
+  const entity = typeSettings.registeredEntities[response.entityName];
+  if (!entity) {
+    throw new TerminalError(`Unknown entity "${response.entityName}"`, {
+      errorCode: 500,
+    });
+  }
+  throw deserializeBSON(response.data, undefined, undefined, entity);
 }
 
 export function getResponseDataSerializer<T>(
@@ -150,6 +175,11 @@ export const deserializeRestateHandlerResponse =
     undefined,
     restateHandlerResponseType,
   );
+
+export const serializeCustomError = getBSONSerializer(
+  undefined,
+  restateHandlerResponseType,
+);
 
 export const serializeRestateHandlerResponse = getBSONSerializer(
   undefined,

@@ -1,7 +1,7 @@
 import { RestatePromise, serde } from '@restatedev/restate-sdk';
 
 import { restate } from '../../decorator.js';
-import { RestateObjectContext, RestateServiceContext } from '../../types.js';
+import { RestateServiceContext } from '../../types.js';
 import {
   PublishEvent,
   PublishOptions,
@@ -42,6 +42,7 @@ export class RestateEventProcessor implements EventProcessorHandlers {
           // TODO: provide stream as second argument
           parameter: new Uint8Array(event.data),
           inputSerde: serde.binary,
+          idempotencyKey: event.id,
         });
       }
     }

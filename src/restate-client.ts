@@ -1,11 +1,21 @@
-import { BSONDeserializer, BSONSerializer } from '@deepkit/bson';
-import { ReceiveType, resolveReceiveType, Type } from '@deepkit/type';
+import {
+  BSONDeserializer,
+  BSONSerializer,
+  deserializeBSON,
+} from '@deepkit/bson';
+import {
+  ReceiveType,
+  resolveReceiveType,
+  Type,
+  typeSettings,
+} from '@deepkit/type';
 
 import { SagaState } from './saga/saga-instance.js';
 import {
   deserializeResponseData,
   getSagaDataDeserializer,
   getSagaDataSerializer,
+  deserializeAndThrowCustomTerminalError,
 } from './serde.js';
 import { getRestateClassName } from './metadata.js';
 import {
@@ -21,7 +31,9 @@ import {
   RestateService,
   RestateServiceHandlerRequest,
   RestateStatus,
+  RestateCustomTerminalErrorMessage,
 } from './types.js';
+import { CUSTOM_TERMINAL_ERROR_CODE } from './config.js';
 
 interface RestateApiResponseError {
   readonly code: string;
@@ -100,15 +112,11 @@ export class RestateSagaClient<Data> {
 export class RestateClient {
   constructor(private readonly opts: RestateIngressClientOptions) {}
 
-  service<T extends RestateService<string, any, any[]>>(
-    type?: ReceiveType<T>,
-  ): T {
+  service<T extends RestateService<string, any>>(type?: ReceiveType<T>): T {
     return createClassProxy<T>(type);
   }
 
-  object<T extends RestateObject<string, any, any[]>>(
-    type?: ReceiveType<T>,
-  ): T {
+  object<T extends RestateObject<string, any>>(type?: ReceiveType<T>): T {
     return createClassProxy<T>(type);
   }
 
@@ -129,11 +137,8 @@ export class RestateClient {
     options?: RestateCallOptions,
   ): Promise<R>;
   async call<R>(...args: readonly any[]): Promise<R> {
-    const [
-      key,
-      { service, method, data, deserializeReturn, entities },
-      options,
-    ] = typeof args[0] !== 'string' ? [undefined, ...args] : args;
+    const [key, { service, method, data, deserializeReturn }, options] =
+      typeof args[0] !== 'string' ? [undefined, ...args] : args;
 
     const url = new URL(
       key
@@ -156,6 +161,10 @@ export class RestateClient {
     } as RequestInit);
 
     if (!response.ok) {
+      if (response.status === CUSTOM_TERMINAL_ERROR_CODE) {
+        const failure = (await response.json()) as { message: string };
+        deserializeAndThrowCustomTerminalError(failure.message);
+      }
       const { code, message } =
         (await response.json()) as RestateApiResponseError;
       throw new RestateApiError(code, message);
@@ -163,20 +172,16 @@ export class RestateClient {
 
     const result = new Uint8Array(await response.arrayBuffer());
 
-    return decodeRestateServiceMethodResponse(
-      result,
-      deserializeReturn,
-      entities,
-    );
+    return decodeRestateServiceMethodResponse(result, deserializeReturn);
   }
 
   send(
     key: string,
-    request: RestateObjectHandlerRequest,
+    request: Omit<RestateObjectHandlerRequest, 'deserializeReturn'>,
     options?: RestateSendOptions,
   ): Promise<RestateStatus>;
   send(
-    request: RestateServiceHandlerRequest,
+    request: Omit<RestateServiceHandlerRequest, 'deserializeReturn'>,
     options?: RestateSendOptions,
   ): Promise<RestateStatus>;
   async send(...args: readonly any[]): Promise<RestateStatus> {

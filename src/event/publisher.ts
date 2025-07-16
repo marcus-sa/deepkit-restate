@@ -2,16 +2,11 @@ import { serializeBSON } from '@deepkit/bson';
 import { resolveRuntimeType } from '@deepkit/type';
 import { isClassInstance } from '@deepkit/core';
 
-import { RestateContextStorage } from '../restate-context-storage.js';
+import { RestateContextStorage } from '../context-storage.js';
 import { RestateClient } from '../restate-client.js';
-import {
-  EventProcessorApi,
-  EventServerApi,
-  PublishEvent,
-  PublishOptions,
-} from './types.js';
+import { EventProcessorApi, PublishEvent, PublishOptions } from './types.js';
 import { RestateEventConfig } from './config.js';
-import { getTypeHash, getTypeName } from '../utils.js';
+import { fastHash, getTypeHash, getTypeName } from '../utils.js';
 
 export class RestateEventPublisher {
   constructor(
@@ -19,7 +14,6 @@ export class RestateEventPublisher {
     private readonly contextStorage: RestateContextStorage,
     private readonly client: RestateClient,
     private readonly processor: EventProcessorApi,
-    private readonly server: EventServerApi,
   ) {}
 
   async publish<E extends any[]>(
@@ -35,14 +29,17 @@ export class RestateEventPublisher {
         throw new Error('Event must be a class instance');
       }
       const type = eventTypes[i];
+      const data = serializeBSON(event, undefined, type);
       return {
         name: getTypeName(type),
         version: getTypeHash(type),
-        data: Array.from(serializeBSON(event, undefined, type)),
+        id: fastHash(data),
+        data: Array.from(data),
       };
     });
 
     const ctx = this.contextStorage.getStore();
+    const idempotencyKey = eventsToPublish.map(e => e.id).join('-');
     if (ctx && 'send' in ctx) {
       ctx.send(
         this.processor.process(eventsToPublish, {
@@ -50,17 +47,11 @@ export class RestateEventPublisher {
           cluster: this.config.cluster,
           sse: options?.sse,
         }),
-        { delay: options?.delay },
+        {
+          delay: options?.delay,
+          idempotencyKey,
+        },
       );
-      // ctx.send(
-      //   this.config.cluster,
-      //   this.server.publish(eventsToPublish, {
-      //     stream: options?.stream || this.config.defaultStream,
-      //     cluster: this.config.cluster,
-      //     sse: options?.sse,
-      //   }),
-      //   { delay: options?.delay },
-      // );
     } else {
       await this.client.send(
         this.processor.process(eventsToPublish, {
@@ -68,17 +59,11 @@ export class RestateEventPublisher {
           cluster: this.config.cluster,
           sse: options?.sse,
         }),
-        { delay: options?.delay },
+        {
+          delay: options?.delay,
+          idempotencyKey,
+        },
       );
-      // await this.client.send(
-      //   this.config.cluster,
-      //   this.server.publish(eventsToPublish, {
-      //     stream: options?.stream || this.config.defaultStream,
-      //     cluster: this.config.cluster,
-      //     sse: options?.sse,
-      //   }),
-      //   { delay: options?.delay },
-      // );
     }
   }
 }

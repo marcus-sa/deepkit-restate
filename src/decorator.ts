@@ -33,7 +33,6 @@ import {
   getSagaDataSerializer,
 } from './serde.js';
 import {
-  Entities,
   RestateKafkaTopic,
   RestateObject,
   RestateSaga,
@@ -45,7 +44,6 @@ import {
   getUnwrappedReflectionFunctionReturnType,
 } from './utils.js';
 import {
-  getRestateClassEntities,
   getRestateClassName,
   getRestateKafkaTopicArgsType,
   getRestateKafkaTopicSource,
@@ -54,7 +52,6 @@ import {
 export class RestateClassMetadata {
   readonly name: string;
   readonly classType: ClassType;
-  readonly entities: Entities = new Map();
   readonly type: TypeObjectLiteral | TypeClass;
   readonly handlers = new Set<RestateHandlerMetadata>();
 }
@@ -79,12 +76,10 @@ export class RestateServiceDecorator {
     this.t.handlers.add(action);
   }
 
-  service<T extends RestateService<string, any, any[]>>(type?: ReceiveType<T>) {
+  service<T extends RestateService<string, any>>(type?: ReceiveType<T>) {
     type = resolveReceiveType(type);
     const name = getRestateClassName(type);
-    const entities = getRestateClassEntities(type);
     Object.assign(this.t, {
-      entities,
       name,
       type,
     });
@@ -102,12 +97,10 @@ export class RestateObjectDecorator {
     this.t.handlers.add(action);
   }
 
-  object<T extends RestateObject<string, any, any[]>>(type?: ReceiveType<T>) {
+  object<T extends RestateObject<string, any>>(type?: ReceiveType<T>) {
     type = resolveReceiveType(type);
     const name = getRestateClassName(type);
-    const entities = getRestateClassEntities(type);
     Object.assign(this.t, {
-      entities,
       name,
       type,
     });
@@ -250,11 +243,7 @@ export class RestateHandlerDecorator {
 
 type RestateClassFluidDecorator<T, D extends Function> = {
   [K in keyof T]: K extends 'service' | 'object'
-    ? <
-        For extends
-          | RestateService<string, any, any[]>
-          | RestateObject<string, any, any[]>,
-      >(
+    ? <For extends RestateService<string, any> | RestateObject<string, any>>(
         type?: ReceiveType<For>,
       ) => D & RestateClassFluidDecorator<T, D>
     : K extends 'saga'
@@ -299,11 +288,7 @@ export const restateSagaDecorator = createClassDecoratorContext(
 
 type RestateMerge<U> = {
   [K in keyof U]: K extends 'service' | 'object'
-    ? <
-        For extends
-          | RestateService<string, any, any[]>
-          | RestateObject<any, any, any[]>,
-      >(
+    ? <For extends RestateService<string, any> | RestateObject<any, any>>(
         type?: ReceiveType<For>,
       ) => (PropertyDecoratorFn | ClassDecoratorFn) & U
     : K extends 'saga'

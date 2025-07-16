@@ -12,7 +12,7 @@ import { RestateEventModule } from './event/module.js';
 import {
   RestateInMemoryContextStorage,
   RestateContextStorage,
-} from './restate-context-storage.js';
+} from './context-storage.js';
 import {
   RestateObjectMetadata,
   RestateSagaMetadata,

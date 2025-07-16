@@ -11,6 +11,7 @@ export type EventHandlers = readonly EventHandler[];
 
 export interface PublishEvent {
   readonly data: number[];
+  readonly id: string;
   readonly name: string;
   readonly version: string;
 }
@@ -47,14 +48,3 @@ export type EventProcessorApi = RestateService<
   'event-processor',
   EventProcessorHandlers
 >;
-
-export interface EventServerHandlers {
-  getHandlers(): Promise<EventHandlers>;
-  registerHandlers(subscriptions: EventHandlers): Promise<void>;
-  publish(
-    events: readonly PublishEvent[],
-    options?: PublishOptions,
-  ): Promise<void>;
-}
-
-export type EventServerApi = RestateObject<'event-server', EventServerHandlers>;
