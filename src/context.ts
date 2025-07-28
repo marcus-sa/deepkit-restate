@@ -84,7 +84,7 @@ export function createServiceContext(
       });
     },
     call<T>(...args: readonly any[]): RestatePromise<T> {
-      const [key, { service, method, data }, options] =
+      const [key, { service, method, data, deserializeReturn }, options] =
         typeof args[0] !== 'string' ? [undefined, ...args] : args;
 
       return ctx
