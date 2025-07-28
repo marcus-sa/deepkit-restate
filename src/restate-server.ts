@@ -1,8 +1,13 @@
 import { eventDispatcher } from '@deepkit/event';
-import { onServerMainBootstrap } from '@deepkit/framework';
+import {
+  ApplicationServer,
+  onServerMainBootstrap,
+  onServerMainShutdown,
+} from '@deepkit/framework';
 import { InjectorContext } from '@deepkit/injector';
 import * as restate from '@restatedev/restate-sdk';
 import { entity, ReflectionKind } from '@deepkit/type';
+import { createServer } from 'node:http2';
 
 import { SagaManager } from './saga/saga-manager.js';
 import { SAGA_STATE_KEY } from './saga/saga-instance.js';
@@ -40,6 +45,7 @@ const DEFAULT_HANDLER_OPTS = {
 
 export class RestateServer {
   readonly endpoint = restate.endpoint();
+  private http2Server?: ReturnType<typeof createServer>;
 
   constructor(
     private readonly config: RestateConfig,
@@ -50,8 +56,15 @@ export class RestateServer {
     private readonly contextStorage: RestateContextStorage,
   ) {}
 
+  @eventDispatcher.listen(onServerMainShutdown)
+  async shutdown() {
+    await new Promise(resolve => {
+      this.http2Server?.close(resolve);
+    });
+  }
+
   @eventDispatcher.listen(onServerMainBootstrap)
-  async listen() {
+  async bootstrap() {
     const config = this.config.server!;
 
     for (const object of this.objects) {
@@ -75,7 +88,10 @@ export class RestateServer {
       );
     }
 
-    await this.endpoint.listen(config.port);
+    await new Promise<void>(resolve => {
+      this.http2Server = createServer(this.endpoint.http2Handler());
+      this.http2Server.listen(this.config.server?.port, resolve);
+    });
 
     if (this.config.admin?.deployOnStartup) {
       const admin = this.injectorContext.get(RestateAdminClient);
@@ -118,6 +134,7 @@ export class RestateServer {
     if (handlers.length) {
       const eventStore = this.injectorContext.get<EventStoreApi>();
       const client = this.injectorContext.get(RestateClient);
+      // TODO: remove old handlers
       await client.send(config.cluster, eventStore.registerHandlers(handlers));
     }
   }
