@@ -73,7 +73,7 @@ export function createServiceContext(
     },
     send(...args: readonly any[]): void {
       const [key, { service, method, data }, options] =
-        args.length === 1 ? [undefined, ...args] : args;
+        typeof args[0] !== 'string' ? [undefined, ...args] : args;
 
       ctx.genericSend({
         service,
@@ -84,8 +84,8 @@ export function createServiceContext(
       });
     },
     call<T>(...args: readonly any[]): RestatePromise<T> {
-      const [key, { service, method, data, deserializeReturn }] =
-        args.length === 1 ? [undefined, ...args] : args;
+      const [key, { service, method, data }, options] =
+        typeof args[0] !== 'string' ? [undefined, ...args] : args;
 
       return ctx
         .genericCall({
