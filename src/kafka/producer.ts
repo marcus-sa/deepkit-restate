@@ -23,11 +23,10 @@ export type KafkaProducerPublishOptions = Pick<
 
 export class RestateKafkaProducer {
   readonly #producer: Producer;
-  readonly #contextStorage: RestateContextStorage;
 
   constructor(
     config: RestateKafkaConfig,
-    contextStorage: RestateContextStorage,
+    private readonly contextStorage: RestateContextStorage,
   ) {
     const kafka = new Kafka(config);
     this.#producer = kafka.producer({
@@ -36,11 +35,10 @@ export class RestateKafkaProducer {
         retries: 0,
       },
     });
-    this.#contextStorage = contextStorage;
   }
 
   get #ctx(): Pick<RestateCustomContext, 'run'> {
-    return this.#contextStorage.getStore()!;
+    return this.contextStorage.getStore()!;
   }
 
   @eventDispatcher.listen(onServerMainBootstrap)

@@ -158,7 +158,7 @@ export function getUnwrappedReflectionFunctionReturnType(
   return unwrapType(reflectionFunction.getReturnType());
 }
 
-export function createClassProxy<
+export function makeInterfaceProxy<
   T extends RestateService<string, any> | RestateObject<string, any>,
 >(type?: ReceiveType<T>): T {
   type = resolveReceiveType(type);
@@ -233,7 +233,7 @@ export function provideRestateServiceProxy<
   type = resolveReceiveType(type);
   return {
     provide: type,
-    useFactory: () => createClassProxy<T>(type),
+    useFactory: () => makeInterfaceProxy<T>(type),
   };
 }
 
@@ -243,7 +243,7 @@ export function provideRestateObjectProxy<T extends RestateObject<string, any>>(
   type = resolveReceiveType(type);
   return {
     provide: type,
-    useFactory: () => createClassProxy<T>(type),
+    useFactory: () => makeInterfaceProxy<T>(type),
   };
 }
 

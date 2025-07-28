@@ -2,7 +2,7 @@ import { AppModule, ControllerConfig, createModuleClass } from '@deepkit/app';
 import { ClassType } from '@deepkit/core';
 
 import { RestateAdminClient } from './restate-admin-client.js';
-import { RestateClient } from './restate-client.js';
+import { RestateIngressClient } from './restate-ingress-client.js';
 import { RestateConfig } from './config.js';
 import { InjectorServices } from './services.js';
 import { InjectorObjects } from './objects.js';
@@ -22,14 +22,15 @@ import {
   restateObjectContextType,
   restateSagaContextType,
   restateServiceContextType,
-  SCOPE,
+  SCOPE, restateClientType,
 } from './types.js';
-import { createClassProxy, getRestateClassDeps } from './utils.js';
+import { makeInterfaceProxy, getRestateClassDeps } from './utils.js';
 import {
   getRestateObjectMetadata,
   getRestateSagaMetadata,
   getRestateServiceMetadata,
 } from './metadata.js';
+import { provide } from '@deepkit/injector';
 
 export class RestateModule extends createModuleClass({
   config: RestateConfig,
@@ -41,15 +42,19 @@ export class RestateModule extends createModuleClass({
 
   override process() {
     if (this.config.ingress) {
-      this.addProvider(RestateClient);
+      this.addProvider(RestateIngressClient);
     } else {
       this.addProvider({
-        provide: RestateClient,
+        provide: RestateIngressClient,
         useFactory() {
           throw new Error('Restate ingress config is missing');
         },
       });
     }
+    this.addProvider({
+      provide: restateClientType,
+      useExisting: RestateIngressClient,
+    });
 
     if (this.config.event) {
       this.addImport(new RestateEventModule(this.config.event));
@@ -87,10 +92,18 @@ export class RestateModule extends createModuleClass({
       });
 
       this.addProvider({
+        provide: restateClientType,
+        scope: SCOPE,
+        useFactory() {
+          throw new Error('Client has not been provided yet');
+        },
+      })
+
+      this.addProvider({
         provide: restateServiceContextType,
         scope: SCOPE,
         useFactory() {
-          throw new Error('You cannot use a service context in an object');
+          throw new Error('You cannot use a context outside a service');
         },
       });
 
@@ -144,7 +157,7 @@ export class RestateModule extends createModuleClass({
         this.addProvider({
           provide: dependency,
           scope: SCOPE,
-          useValue: createClassProxy(dependency),
+          useValue: makeInterfaceProxy(dependency),
         });
       }
     }

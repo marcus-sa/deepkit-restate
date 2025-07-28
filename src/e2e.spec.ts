@@ -3,7 +3,7 @@ import { PrimaryKey, Unique, uuid, UUID } from '@deepkit/type';
 import { sleep } from '@deepkit/core';
 
 import { RestateModule } from './restate.module.js';
-import { RestateClient } from './restate-client.js';
+import { RestateIngressClient } from './restate-ingress-client.js';
 import { restate } from './decorator.js';
 import { RestateService, RestateServiceContext } from './types.js';
 import { RestateTestEnvironment } from '@restatedev/restate-sdk-testcontainers';
@@ -103,7 +103,7 @@ describe('e2e', () => {
       });
       await app.startServer();
 
-      const client = app.app.getInjectorContext().get<RestateClient>();
+      const client = app.app.getInjectorContext().get<RestateIngressClient>();
 
       const user = client.service<UserServiceApi>();
 
@@ -166,7 +166,7 @@ describe('e2e', () => {
       });
       await app.startServer();
 
-      const client = app.app.getInjectorContext().get<RestateClient>();
+      const client = app.app.getInjectorContext().get<RestateIngressClient>();
 
       const user = client.service<UserServiceApi>();
 
@@ -227,7 +227,7 @@ describe('e2e', () => {
       });
       await app.startServer();
 
-      const client = app.app.getInjectorContext().get<RestateClient>();
+      const client = app.app.getInjectorContext().get<RestateIngressClient>();
 
       const user = client.service<UserServiceApi>();
 
@@ -294,7 +294,7 @@ describe('e2e', () => {
       });
       await app.startServer();
 
-      const client = app.app.getInjectorContext().get<RestateClient>();
+      const client = app.app.getInjectorContext().get<RestateIngressClient>();
 
       const user = client.service<UserServiceApi>();
 
@@ -329,7 +329,7 @@ describe('e2e', () => {
       });
       await app.startServer();
 
-      const client = app.app.getInjectorContext().get<RestateClient>();
+      const client = app.app.getInjectorContext().get<RestateIngressClient>();
 
       const user = client.service<UserServiceApi>();
 

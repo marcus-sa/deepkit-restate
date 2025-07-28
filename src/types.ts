@@ -1,7 +1,7 @@
 import { ReceiveType, typeOf } from '@deepkit/type';
 import { BSONDeserializer } from '@deepkit/bson';
 import {
-  Context as ServiceContext,
+  Context,
   InvocationId,
   type ObjectContext,
   ObjectSharedContext,
@@ -11,9 +11,8 @@ import {
   WorkflowContext,
 } from '@restatedev/restate-sdk';
 
-export interface RestateStatus {
+export interface RestateInvocationHandle {
   invocationId: string;
-  status: 'Accepted' | 'PreviouslyAccepted';
 }
 
 export type RestateRunAction<T> = () => Promise<T> | T;
@@ -93,7 +92,30 @@ export interface RestateAwakeable<T> {
   readonly promise: RestatePromise<T>;
 }
 
-export interface RestateCustomContext {
+export interface RestateClient {
+  // used for objects
+  send(
+    key: string,
+    request: RestateObjectHandlerRequest,
+    options?: RestateSendOptions,
+  ): Promise<RestateInvocationHandle> | void;
+  // used for services
+  send(
+    request: RestateServiceHandlerRequest,
+    options?: RestateSendOptions,
+  ): Promise<RestateInvocationHandle> | void;
+  // used for objects
+  call<R, A extends any[]>(
+    key: string,
+    request: RestateObjectHandlerRequest<R, A>,
+  ): Promise<R>;
+  // used for services
+  call<R, A extends any[]>(
+    call: RestateServiceHandlerRequest<R, A>,
+  ): Promise<R>;
+}
+
+export interface RestateCustomContext extends RestateClient {
   awakeable<T>(type?: ReceiveType<T>): RestateAwakeable<T>;
   resolveAwakeable<T>(
     id: string,
@@ -117,26 +139,6 @@ export interface RestateCustomContext {
     options?: Omit<RunOptions<unknown>, 'serde'>,
     type?: ReceiveType<T>,
   ): RestatePromise<T>;
-  // used for objects
-  send(
-    key: string,
-    request: RestateObjectHandlerRequest,
-    options?: RestateSendOptions,
-  ): void; // Promise<RestateStatus>
-  // used for services
-  send(
-    request: RestateServiceHandlerRequest,
-    options?: RestateSendOptions,
-  ): void; // Promise<RestateStatus>
-  // used for objects
-  call<R, A extends any[]>(
-    key: string,
-    request: RestateObjectHandlerRequest<R, A>,
-  ): Promise<R>;
-  // used for services
-  call<R, A extends any[]>(
-    call: RestateServiceHandlerRequest<R, A>,
-  ): Promise<R>;
 }
 
 type ContextWithoutClients<T> = Omit<
@@ -157,7 +159,7 @@ type ContextWithoutClients<T> = Omit<
 
 export interface RestateServiceContext
   extends RestateCustomContext,
-    ContextWithoutClients<ServiceContext> {}
+    ContextWithoutClients<Context> {}
 
 export interface RestateObjectContext
   extends RestateCustomContext,
@@ -200,6 +202,8 @@ export const restateObjectType = typeOf<RestateObject<string, any>>();
 export const restateSagaType = typeOf<RestateSaga<string, any>>();
 
 export const restateServiceContextType = typeOf<RestateServiceContext>();
+
+export const restateClientType = typeOf<RestateClient>();
 
 export const restateObjectContextType = typeOf<RestateObjectContext>();
 

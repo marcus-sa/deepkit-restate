@@ -11,7 +11,7 @@ import { sleep } from '@deepkit/core';
 import { RestateModule } from '../restate.module.js';
 import { RestateService } from '../types.js';
 import { restate } from '../decorator.js';
-import { RestateClient } from '../restate-client.js';
+import { RestateIngressClient } from '../restate-ingress-client.js';
 import { RestateEventPublisher } from './publisher.js';
 import { RestateEventServerModule } from './server/module.js';
 import { RestateEventSubscriber } from './subscriber.js';
@@ -100,7 +100,7 @@ describe('event', () => {
       });
       await app.startServer();
 
-      const client = app.app.getInjectorContext().get<RestateClient>();
+      const client = app.app.getInjectorContext().get<RestateIngressClient>();
 
       const proxy = client.service<CustomerServiceProxy>();
 

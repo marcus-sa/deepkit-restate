@@ -2,16 +2,14 @@ import { serializeBSON } from '@deepkit/bson';
 import { resolveRuntimeType } from '@deepkit/type';
 import { isClassInstance } from '@deepkit/core';
 
-import { RestateContextStorage } from '../context-storage.js';
-import { RestateClient } from '../restate-client.js';
 import { EventProcessorApi, PublishEvent, PublishOptions } from './types.js';
 import { RestateEventConfig } from './config.js';
 import { fastHash, getTypeHash, getTypeName } from '../utils.js';
+import { RestateClient } from '../types.js';
 
 export class RestateEventPublisher {
   constructor(
     private readonly config: RestateEventConfig,
-    private readonly contextStorage: RestateContextStorage,
     private readonly client: RestateClient,
     private readonly processor: EventProcessorApi,
   ) {}
@@ -38,32 +36,18 @@ export class RestateEventPublisher {
       };
     });
 
-    const ctx = this.contextStorage.getStore();
     const idempotencyKey = eventsToPublish.map(e => e.id).join('-');
-    if (ctx && 'send' in ctx) {
-      ctx.send(
-        this.processor.process(eventsToPublish, {
-          stream: options?.stream || this.config.defaultStream,
-          cluster: this.config.cluster,
-          sse: options?.sse,
-        }),
-        {
-          delay: options?.delay,
-          idempotencyKey,
-        },
-      );
-    } else {
-      await this.client.send(
-        this.processor.process(eventsToPublish, {
-          stream: options?.stream || this.config.defaultStream,
-          cluster: this.config.cluster,
-          sse: options?.sse,
-        }),
-        {
-          delay: options?.delay,
-          idempotencyKey,
-        },
-      );
-    }
+
+    await this.client.send(
+      this.processor.process(eventsToPublish, {
+        stream: options?.stream || this.config.defaultStream,
+        cluster: options?.cluster || this.config.cluster,
+        sse: options?.sse,
+      }),
+      {
+        delay: options?.delay,
+        idempotencyKey,
+      },
+    );
   }
 }

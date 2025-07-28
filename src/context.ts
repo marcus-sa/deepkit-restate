@@ -8,7 +8,7 @@ import {
 } from './serde.js';
 import {
   RestateAwakeable,
-  RestateHandlerRequest,
+  RestateHandlerRequest, RestateInvocationHandle,
   RestateObjectContext,
   RestateRunAction,
   RestateSagaContext,
@@ -71,17 +71,21 @@ export function createServiceContext(
         options,
       ) as RestatePromise<never>;
     },
-    send(...args: readonly any[]): void {
+    send(...args: readonly any[]): Promise<RestateInvocationHandle> {
       const [key, { service, method, data }, options] =
         typeof args[0] !== 'string' ? [undefined, ...args] : args;
 
-      ctx.genericSend({
+      const { invocationId } = ctx.genericSend({
         service,
         method,
         parameter: data,
         delay: options?.delay,
         key,
       });
+
+      return invocationId.then(invocationId => ({
+        invocationId,
+      }));
     },
     call<T>(...args: readonly any[]): RestatePromise<T> {
       const [key, { service, method, data, deserializeReturn }, options] =

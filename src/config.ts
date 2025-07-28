@@ -1,4 +1,4 @@
-import { RestateIngressClientOptions } from './restate-client.js';
+import { RestateIngressClientOptions } from './restate-ingress-client.js';
 import { RestateAdminClientOptions } from './restate-admin-client.js';
 import { RestateEventConfig } from './event/config.js';
 

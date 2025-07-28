@@ -13,7 +13,7 @@ import {
 } from './types.js';
 import {
   assertValidKafkaTopicName,
-  createClassProxy,
+  makeInterfaceProxy,
   getClassConstructorParameters,
   getReflectionFunctionArgsType,
   getRestateClassDeps,
@@ -229,7 +229,7 @@ describe('createRestateProxy', () => {
 
   type PaymentServiceApi = RestateObject<'payment', PaymentServiceInterface>;
 
-  const service = createClassProxy<PaymentServiceApi>();
+  const service = makeInterfaceProxy<PaymentServiceApi>();
 
   test('method', () => {
     const { method } = service.send(new User());

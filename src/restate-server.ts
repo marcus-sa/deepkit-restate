@@ -26,9 +26,9 @@ import {
   restateObjectContextType,
   restateSagaContextType,
   restateServiceContextType,
-  SCOPE,
+  SCOPE, restateClientType,
 } from './types.js';
-import { RestateClient } from './restate-client.js';
+import { RestateIngressClient } from './restate-ingress-client.js';
 import { RestateEventConfig } from './event/config.js';
 import { serializeBSON } from '@deepkit/bson';
 import {
@@ -133,7 +133,7 @@ export class RestateServer {
     }
     if (handlers.length) {
       const eventStore = this.injectorContext.get<EventStoreApi>();
-      const client = this.injectorContext.get(RestateClient);
+      const client = this.injectorContext.get(RestateIngressClient);
       // TODO: remove old handlers
       await client.send(config.cluster, eventStore.registerHandlers(handlers));
     }
@@ -184,6 +184,7 @@ export class RestateServer {
           ): Promise<Uint8Array> => {
             const injector = this.createScopedInjector();
             const ctx = createServiceContext(rsCtx);
+            injector.set(restateClientType, ctx);
             injector.set(restateServiceContextType, ctx);
             const instance = injector.get(classType, module);
             return await this.contextStorage.run(ctx, () =>
@@ -203,6 +204,7 @@ export class RestateServer {
         async (rsCtx: restate.WorkflowContext, request: Uint8Array) => {
           const injector = this.createScopedInjector();
           const ctx = createSagaContext(rsCtx);
+          injector.set(restateClientType, ctx);
           injector.set(restateSagaContextType, ctx);
           const restateSaga = injector.get(classType, module);
           const sagaManager = new SagaManager(ctx, restateSaga, metadata);
@@ -251,6 +253,7 @@ export class RestateServer {
             const ctx = handler.shared
               ? createSharedObjectContext(rsCtx)
               : createObjectContext(rsCtx);
+            injector.set(restateClientType, ctx);
             injector.set(restateObjectContextType, ctx);
             const instance = injector.get(classType, module);
             return await this.contextStorage.run(ctx, () =>

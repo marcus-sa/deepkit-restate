@@ -11,7 +11,7 @@ import {
   RestateService,
 } from '../types.js';
 import { RestateModule } from '../restate.module.js';
-import { RestateClient } from '../restate-client.js';
+import { RestateIngressClient } from '../restate-ingress-client.js';
 import { Saga } from './saga.js';
 import { SagaManager } from './saga-manager.js';
 import { getRestateSagaMetadata } from '../metadata.js';
@@ -158,7 +158,7 @@ test('e2e', async () => {
   });
   await app.startServer();
 
-  const client = app.app.getInjectorContext().get<RestateClient>();
+  const client = app.app.getInjectorContext().get<RestateIngressClient>();
 
   const orderId = uuid();
   const customerId = uuid();
