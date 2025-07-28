@@ -85,9 +85,16 @@ describe('event', () => {
             ingress: {
               url: 'http://0.0.0.0:8080',
             },
-            event: {},
+            event: {
+              host: 'localhost',
+              port: 9092,
+            },
           }),
-          new RestateEventServerModule(),
+          new RestateEventServerModule({
+            sse: {
+              hosts: ['localhost'],
+            },
+          }),
         ],
         controllers: [CustomerService, AccountService],
       });
@@ -146,8 +153,16 @@ describe('event', () => {
             ingress: {
               url: 'http://0.0.0.0:8080',
             },
+            event: {
+              host: 'localhost',
+              port: 9093,
+            },
           }),
-          new RestateEventServerModule(),
+          new RestateEventServerModule({
+            sse: {
+              hosts: ['localhost'],
+            },
+          }),
         ],
         controllers: [AccountService],
       });
@@ -254,12 +269,12 @@ describe('event', () => {
       const app = new App({
         imports: [
           new FrameworkModule({
-            port: 9096,
+            port: 10096,
           }),
           new RestateModule({
             server: {
               host: 'http://host.docker.internal',
-              port: 9095,
+              port: 10095,
             },
             admin: {
               url: 'http://0.0.0.0:9070',
@@ -270,10 +285,14 @@ describe('event', () => {
             },
             event: {
               host: 'localhost',
-              port: 9096,
+              port: 10096,
             },
           }),
-          new RestateEventServerModule(),
+          new RestateEventServerModule({
+            sse: {
+              hosts: ['localhost'],
+            },
+          }),
         ],
       });
       const server = app.get<ApplicationServer>();

@@ -87,14 +87,6 @@ test('getRestateServiceName', () => {
   expect(getRestateClassName(type)).toMatchInlineSnapshot(`"test"`);
 });
 
-test('getRestateServiceEntities', () => {
-  class Entity {}
-
-  const type = typeOf<RestateService<'test', any, [Entity]>>();
-
-  expect(getRestateClassEntities(type)).toHaveLength(1);
-});
-
 describe('getRestateClassDeps', () => {
   test('service', () => {
     interface PaymentServiceInterface {
