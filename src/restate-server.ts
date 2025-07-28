@@ -45,7 +45,6 @@ export class RestateServer {
     private readonly config: RestateConfig,
     private readonly services: InjectorServices,
     private readonly objects: InjectorObjects,
-    private readonly client: RestateClient,
     private readonly sagas: InjectorSagas,
     private readonly injectorContext: InjectorContext,
     private readonly contextStorage: RestateContextStorage,
