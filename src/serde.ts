@@ -98,7 +98,9 @@ function toSerializableDataType(type: Type): TypeObjectLiteral {
   return parent;
 }
 
-export function deserializeAndThrowCustomTerminalError(message: string): never {
+export function deserializeBSONAndThrowCustomTerminalError(
+  message: string,
+): never {
   const response = deserializeBSON<RestateCustomTerminalErrorMessage>(
     Buffer.from(message, 'base64'),
   );
@@ -110,6 +112,17 @@ export function deserializeAndThrowCustomTerminalError(message: string): never {
   }
   throw deserializeBSON(response.data, undefined, undefined, entity);
 }
+
+// export function deserializeAndThrowCustomTerminalError(message: string): never {
+//   const response = deserialize<RestateCustomTerminalErrorMessage>(JSON.parse(message));
+//   const entity = typeSettings.registeredEntities[response.entityName];
+//   if (!entity) {
+//     throw new TerminalError(`Unknown entity "${response.entityName}"`, {
+//       errorCode: 500,
+//     });
+//   }
+//   throw deserialize(response.data, undefined, undefined, undefined, entity);
+// }
 
 export function getResponseDataSerializer<T>(
   type?: ReceiveType<T>,

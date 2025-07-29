@@ -10,7 +10,7 @@ import { SagaInstance } from './saga-instance.js';
 import { SagaActions } from './saga-actions.js';
 import { RestateSagaMetadata } from '../decorator.js';
 import {
-  deserializeAndThrowCustomTerminalError,
+  deserializeBSONAndThrowCustomTerminalError,
   deserializeRestateHandlerResponse,
 } from '../serde.js';
 import {

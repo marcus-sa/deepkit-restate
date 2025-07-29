@@ -4,11 +4,11 @@ import { CUSTOM_TERMINAL_ERROR_CODE } from './config.js';
 import { decodeRestateServiceMethodResponse } from './utils.js';
 import {
   createBSONSerde,
-  deserializeAndThrowCustomTerminalError,
+  deserializeBSONAndThrowCustomTerminalError,
 } from './serde.js';
 import {
   RestateAwakeable,
-  RestateHandlerRequest, RestateInvocationHandle,
+  RestateInvocationHandle,
   RestateObjectContext,
   RestateRunAction,
   RestateSagaContext,
@@ -108,7 +108,7 @@ export function createServiceContext(
             failure instanceof restate.TerminalError &&
             failure.code === CUSTOM_TERMINAL_ERROR_CODE
           ) {
-            deserializeAndThrowCustomTerminalError(failure.message);
+            deserializeBSONAndThrowCustomTerminalError(failure.message);
           }
 
           throw failure;

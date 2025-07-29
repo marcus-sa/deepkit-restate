@@ -1,9 +1,9 @@
 export class RestateSseConfig {
   readonly all: boolean = true;
   readonly autoDiscover: boolean = false;
-  readonly hosts?: string[];
+  readonly nodes?: string[];
 }
 
-export class RestateEventsServerConfig {
+export class RestatePubSubServerConfig {
   readonly sse: RestateSseConfig = new RestateSseConfig();
 }

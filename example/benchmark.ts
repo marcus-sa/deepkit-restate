@@ -8,7 +8,7 @@ import {
   RestateService,
 } from '../src/index.js';
 import { UUID, uuid } from '@deepkit/type';
-import { RestateEventServerModule } from '../src/event/server/module.js';
+import { RestatePubSubServerModule } from '../src/event/server/module.js';
 import { sleep } from '@deepkit/core';
 
 class Company {
@@ -108,7 +108,7 @@ const app = new App({
         port: 9096,
       },
     }),
-    new RestateEventServerModule({
+    new RestatePubSubServerModule({
       sse: {
         hosts: ['localhost'],
       },

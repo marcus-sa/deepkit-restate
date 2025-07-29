@@ -5,7 +5,5 @@
     "declarationDir": "lib/types",
     "emitDeclarationOnly": true
   },
-  "exclude": [
-    "**/*.spec.ts"
-  ]
+  "exclude": ["**/*.spec.ts"]
 }

@@ -7,10 +7,10 @@ import {
 import { EventProcessorApi, EventStoreApi } from './types.js';
 import { RestateEventSubscriber } from './subscriber.js';
 import { RestateEventPublisher } from './publisher.js';
-import { RestateEventConfig } from './config.js';
+import { RestatePubSubConfig } from './config.js';
 
 export class RestateEventModule extends createModuleClass({
-  config: RestateEventConfig,
+  config: RestatePubSubConfig,
   providers: [
     provideRestateServiceProxy<EventProcessorApi>(),
     provideRestateObjectProxy<EventStoreApi>(),

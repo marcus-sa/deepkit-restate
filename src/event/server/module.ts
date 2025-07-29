@@ -1,10 +1,9 @@
 import { createModuleClass } from '@deepkit/app';
-import { provide } from '@deepkit/injector';
 
 import { RestateEventStore } from './event-store.js';
 import { ServerSentEventsController } from './sse.controller.js';
-import { Clusters, Streams } from './types.js';
-import { RestateEventsServerConfig } from './config.js';
+import { Clusters } from './types.js';
+import { RestatePubSubServerConfig } from './config.js';
 import {
   HttpMiddleware,
   httpMiddleware,
@@ -13,8 +12,8 @@ import {
 import { ClassType } from '@deepkit/core';
 import { RestateEventProcessor } from './event-processor.js';
 
-export class RestateEventServerModule extends createModuleClass({
-  config: RestateEventsServerConfig,
+export class RestatePubSubServerModule extends createModuleClass({
+  config: RestatePubSubServerConfig,
   controllers: [
     RestateEventStore,
     RestateEventProcessor,

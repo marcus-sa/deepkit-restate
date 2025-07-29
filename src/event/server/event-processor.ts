@@ -9,7 +9,7 @@ import {
   EventProcessorApi,
   EventStoreApi,
 } from '../types.js';
-import { RestateEventConfig } from '../config.js';
+import { RestatePubSubConfig } from '../config.js';
 import { RestateSseConfig } from './config.js';
 
 @restate.service<EventProcessorApi>()
@@ -17,7 +17,7 @@ export class RestateEventProcessor implements EventProcessorHandlers {
   constructor(
     private readonly ctx: RestateServiceContext,
     private readonly store: EventStoreApi,
-    private readonly config: RestateEventConfig,
+    private readonly config: RestatePubSubConfig,
     private readonly sseConfig: RestateSseConfig,
   ) {}
 
@@ -47,11 +47,11 @@ export class RestateEventProcessor implements EventProcessorHandlers {
       }
     }
 
-    if (this.sseConfig.hosts && (options?.sse ?? this.sseConfig.all)) {
+    if (this.sseConfig.nodes && (options?.sse ?? this.sseConfig.all)) {
       await this.fanOutServerSentEvents(
         cluster,
         options?.stream || this.config.defaultStream,
-        this.sseConfig.hosts,
+        this.sseConfig.nodes,
         events,
       );
     }
@@ -60,17 +60,17 @@ export class RestateEventProcessor implements EventProcessorHandlers {
   private async fanOutServerSentEvents(
     cluster: string,
     stream: string,
-    hosts: string[],
+    nodes: string[],
     events: readonly PublishEvent[],
   ) {
     await RestatePromise.all(
-      hosts.map(host =>
+      nodes.map(node =>
         this.ctx.run(
-          `fan-out server-sent events to host "${host}"`,
+          `fan-out server-sent events to node "${node}"`,
           async () => {
             // TODO: only publish to controllers that do have active subscriptions
             const response = await fetch(
-              `http://${host}:${this.config.port}/sse/${cluster}/${stream}`,
+              `http://${node}/sse/${cluster}/${stream}`,
               {
                 method: 'POST',
                 body: JSON.stringify(events),

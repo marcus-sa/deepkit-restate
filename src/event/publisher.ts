@@ -3,13 +3,13 @@ import { resolveRuntimeType } from '@deepkit/type';
 import { isClassInstance } from '@deepkit/core';
 
 import { EventProcessorApi, PublishEvent, PublishOptions } from './types.js';
-import { RestateEventConfig } from './config.js';
+import { RestatePubSubConfig } from './config.js';
 import { fastHash, getTypeHash, getTypeName } from '../utils.js';
 import { RestateClient } from '../types.js';
 
 export class RestateEventPublisher {
   constructor(
-    private readonly config: RestateEventConfig,
+    private readonly config: RestatePubSubConfig,
     private readonly client: RestateClient,
     private readonly processor: EventProcessorApi,
   ) {}

@@ -4,7 +4,5 @@
     "outDir": "lib/cjs",
     "module": "nodenext"
   },
-  "exclude": [
-    "**/*.spec.ts"
-  ]
+  "exclude": ["**/*.spec.ts"]
 }

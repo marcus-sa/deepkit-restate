@@ -15,7 +15,7 @@ import {
   deserializeResponseData,
   getSagaDataDeserializer,
   getSagaDataSerializer,
-  deserializeAndThrowCustomTerminalError,
+  deserializeBSONAndThrowCustomTerminalError,
 } from './serde.js';
 import { getRestateClassName } from './metadata.js';
 import {
@@ -30,7 +30,9 @@ import {
   RestateSendOptions,
   RestateService,
   RestateServiceHandlerRequest,
-  RestateCustomTerminalErrorMessage, RestateClient, RestateInvocationHandle,
+  RestateCustomTerminalErrorMessage,
+  RestateClient,
+  RestateInvocationHandle,
 } from './types.js';
 import { CUSTOM_TERMINAL_ERROR_CODE } from './config.js';
 
@@ -162,7 +164,7 @@ export class RestateIngressClient implements RestateClient {
     if (!response.ok) {
       if (response.status === CUSTOM_TERMINAL_ERROR_CODE) {
         const failure = (await response.json()) as { message: string };
-        deserializeAndThrowCustomTerminalError(failure.message);
+        deserializeBSONAndThrowCustomTerminalError(failure.message);
       }
       const { code, message } =
         (await response.json()) as RestateApiResponseError;

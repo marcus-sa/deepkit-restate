@@ -50,10 +50,10 @@ const app = new App({
 
 You can configure any combination of the following:
 
-* **server**: Starts a Restate server
-* **ingress**: Enables outbound service calls
-* **event**: Enables pub/sub event system
-* **admin**: Registers deployments with the admin interface
+- **server**: Starts a Restate server
+- **ingress**: Enables outbound service calls
+- **event**: Enables pub/sub event system
+- **admin**: Registers deployments with the admin interface
 
 > If a section is not configured, that functionality will not be available.
 
@@ -65,19 +65,19 @@ All serialization and deserialization in Deepkit Restate is handled via **BSON**
 
 This means you can **return** and **accept** any types in your service handlers or saga steps, including:
 
-* Primitives (`string`, `number`, `boolean`, etc.)
-* Plain objects (`{ name: string; age: number }`)
-* Class instances (with properties and methods)
-* Complex nested types and arrays
-* Custom types supported by BSON serialization
+- Primitives (`string`, `number`, `boolean`, etc.)
+- Plain objects (`{ name: string; age: number }`)
+- Class instances (with properties and methods)
+- Complex nested types and arrays
+- Custom types supported by BSON serialization
 
 The serialization system preserves type fidelity and structure when encoding and decoding data across the network.
 
 ### Automatic Error Forwarding and Serialization
 
-* If an error is **thrown** inside a handler or saga step, it is automatically serialized and forwarded to the caller.
-* This allows errors to be **caught** remotely, preserving the error information.
-* **Custom errors with type information** are supported and **will not be retried** automatically by the system, enabling precise control over error handling and retries.
+- If an error is **thrown** inside a handler or saga step, it is automatically serialized and forwarded to the caller.
+- This allows errors to be **caught** remotely, preserving the error information.
+- **Custom errors with type information** are supported and **will not be retried** automatically by the system, enabling precise control over error handling and retries.
 
 > We are actively working on an adapter to support JSON serialization as an alternative to BSON.
 
@@ -168,9 +168,9 @@ class UserService implements UserServiceHandlers {
 }
 ```
 
-* Use `@restate.service()` to define a service.
-* Use `@restate.handler()` define handlers.
-* The context (`RestateServiceContext`) provides durable execution helpers.
+- Use `@restate.service()` to define a service.
+- Use `@restate.handler()` define handlers.
+- The context (`RestateServiceContext`) provides durable execution helpers.
 
 ### Objects
 
@@ -250,12 +250,13 @@ this.ctx.resolveAwakeable<User>();
 ### Durable State
 
 Store and retrieve durable state using the context:
+
 ```ts
 await this.ctx.set<User>('user', user);
 ```
+
 ```ts
 const user = await this.ctx.get<User>('user');
-
 ```
 
 ---
@@ -312,7 +313,7 @@ Only services can define event handlers:
 ```ts
 @restate.service<UserServiceApi>()
 class UserService {
-  @restate.event<UserCreatedEvent>().handler()
+  @(restate.event<UserCreatedEvent>().handler())
   async onUserCreated(event: UserCreatedEvent): Promise<void> {
     // handle event
   }
@@ -324,6 +325,7 @@ class UserService {
 Server-Sent Events (SSE) allow real-time delivery of events to connected subscribers.
 
 #### Subscribing to Events Outside of Services
+
 Subscribe to events from contexts like HTTP or RPC controllers:
 
 ```ts
@@ -338,7 +340,6 @@ await unsubscribe();
 
 You can also use union types to subscribe to multiple events.
 
-
 #### Configuration (Global)
 
 You can configure global SSE delivery behavior in `RestateEventsServerModule`:
@@ -348,19 +349,16 @@ new RestateEventsServerModule({
   sse: {
     all: true,
     autoDiscover: true,
-    hosts: [
-      'http://events-1.internal:9090',
-      'http://events-2.internal:9090',
-    ],
+    hosts: ['http://events-1.internal:9090', 'http://events-2.internal:9090'],
   },
 });
-``` 
+```
 
-| Option             | Type        | Description                                                                   |
-| ------------------ |-------------| ----------------------------------------------------------------------------- |
-| `sse.all`          | `boolean`   | If `true`, all published events will be delivered via SSE by default.         |
-| `sse.autoDiscover` | `boolean`   | When enabled, resolves peer IPs via DNS to fan out SSE events to other nodes. |
-| `sse.hosts`        | `string[]`  | List of peer event server URLs for fan-out (used with `autoDiscover`).        |
+| Option             | Type       | Description                                                                   |
+| ------------------ | ---------- | ----------------------------------------------------------------------------- |
+| `sse.all`          | `boolean`  | If `true`, all published events will be delivered via SSE by default.         |
+| `sse.autoDiscover` | `boolean`  | When enabled, resolves peer IPs via DNS to fan out SSE events to other nodes. |
+| `sse.hosts`        | `string[]` | List of peer event server URLs for fan-out (used with `autoDiscover`).        |
 
 > SSE fan-out is stateless and opportunistic. Each node will attempt to push matching events to other known nodes.
 
@@ -376,9 +374,9 @@ await publisher.publish([new UserCreatedEvent(user)], {
 
 Behavior summary:
 
-* If `sse.all` is **true**, SSE is used by default unless explicitly disabled.
-* If `sse.all` is **false**, SSE is off by default — but you can still enable it by passing `sse: true`.
-* When `autoDiscover` is enabled, the event will fan out to all DNS-discovered peers.
+- If `sse.all` is **true**, SSE is used by default unless explicitly disabled.
+- If `sse.all` is **false**, SSE is off by default — but you can still enable it by passing `sse: true`.
+- When `autoDiscover` is enabled, the event will fan out to all DNS-discovered peers.
 
 > Only events published with SSE enabled will be streamed to subscribers.
 
@@ -398,11 +396,11 @@ A **Saga** is a workflow pattern that manages distributed transactions and side 
 
 Sagas are defined using a fluent builder pattern in the `definition` property:
 
-* `step()`: Defines a new step in the saga.
-* `invoke(handler)`: Calls a method in your saga class to perform an action or service call.
-* `compensate(handler)`: Defines a rollback method if the step fails or the saga is aborted.
-* `onReply<EventType>(handler)`: Registers an event handler for replies to invoked actions.
-* `build()`: Finalizes the saga definition.
+- `step()`: Defines a new step in the saga.
+- `invoke(handler)`: Calls a method in your saga class to perform an action or service call.
+- `compensate(handler)`: Defines a rollback method if the step fails or the saga is aborted.
+- `onReply<EventType>(handler)`: Registers an event handler for replies to invoked actions.
+- `build()`: Finalizes the saga definition.
 
 ---
 
@@ -422,9 +420,9 @@ this.confirmTicketAwakeable = this.ctx.awakeable<TicketConfirmed>();
 
 The `RestateSagaContext` (`this.ctx`) provides utilities like:
 
-* `awakeable<T>()`: Creates an awakeable to wait for events.
-* `set<T>(key, value)`: Persist state data during saga execution.
-* `get<T>(key)`: Retrieve persisted state.
+- `awakeable<T>()`: Creates an awakeable to wait for events.
+- `set<T>(key, value)`: Persist state data during saga execution.
+- `get<T>(key)`: Retrieve persisted state.
 
 ---
 
@@ -432,16 +430,21 @@ The `RestateSagaContext` (`this.ctx`) provides utilities like:
 
 All service calls inside invocation handlers automatically use the underlying `client.call`. This means:
 
-* You **do not need to manually call `client.call`** within your saga handlers.
-* Only **service calls** are supported currently (no direct calls to objects).
-* The framework handles communication and reply handling.
+- You **do not need to manually call `client.call`** within your saga handlers.
+- Only **service calls** are supported currently (no direct calls to objects).
+- The framework handles communication and reply handling.
 
 ---
 
 ## Example: Simplified CreateOrderSaga
 
 ```ts
-import { restate, Saga, RestateSagaContext, RestateAwakeable } from 'deepkit-restate';
+import {
+  restate,
+  Saga,
+  RestateSagaContext,
+  RestateAwakeable,
+} from 'deepkit-restate';
 
 @restate.saga<CreateOrderSagaApi>()
 export class CreateOrderSaga extends Saga<CreateOrderSagaData> {
@@ -521,9 +524,9 @@ const startStatus = await createOrderSaga.start(orderId, {
 });
 ```
 
-* `orderId` uniquely identifies the saga instance.
-* The second argument is the initial data payload to pass to the saga.
-* `start` returns the initial status of saga execution.
+- `orderId` uniquely identifies the saga instance.
+- The second argument is the initial data payload to pass to the saga.
+- `start` returns the initial status of saga execution.
 
 ---
 
@@ -541,18 +544,17 @@ This returns the persisted saga data reflecting its current progress, e.g., whic
 
 ### Notes
 
-* The saga `start` call triggers the first step of your saga workflow.
-* The saga state reflects all persisted data and progress, useful for monitoring or troubleshooting.
-* You can invoke `start` only once per unique saga instance ID.
-* Subsequent state changes happen asynchronously as the saga progresses.
+- The saga `start` call triggers the first step of your saga workflow.
+- The saga state reflects all persisted data and progress, useful for monitoring or troubleshooting.
+- You can invoke `start` only once per unique saga instance ID.
+- Subsequent state changes happen asynchronously as the saga progresses.
 
 ### Summary
 
-* Sagas manage multi-step distributed workflows with clear compensation.
-* Steps can invoke service calls, wait for replies, or wait for external events.
-* Awakeables let you asynchronously wait inside sagas for external confirmations.
-* Saga state can be persisted and retrieved with the saga context.
-* Invocation handlers automatically handle calling services; no manual client calls needed.
-* Currently, only service calls are supported, no direct object calls with keys.
-* Compensation methods help rollback on failure or abort scenarios.
-
+- Sagas manage multi-step distributed workflows with clear compensation.
+- Steps can invoke service calls, wait for replies, or wait for external events.
+- Awakeables let you asynchronously wait inside sagas for external confirmations.
+- Saga state can be persisted and retrieved with the saga context.
+- Invocation handlers automatically handle calling services; no manual client calls needed.
+- Currently, only service calls are supported, no direct object calls with keys.
+- Compensation methods help rollback on failure or abort scenarios.

@@ -1,6 +1,6 @@
 import { RestateIngressClientOptions } from './restate-ingress-client.js';
 import { RestateAdminClientOptions } from './restate-admin-client.js';
-import { RestateEventConfig } from './event/config.js';
+import { RestatePubSubConfig } from './event/config.js';
 
 // indicates that it is a custom error that has to be deserialized
 export const CUSTOM_TERMINAL_ERROR_CODE = 1001;
@@ -17,7 +17,7 @@ export class RestateServerConfig {
 export class RestateConfig {
   readonly server?: RestateServerConfig;
   readonly ingress?: RestateIngressClientOptions;
-  readonly event?: RestateEventConfig;
+  readonly pubsub?: RestatePubSubConfig;
   readonly admin?: RestateAdminClientOptions;
   readonly kafka?: RestateKafkaConfig;
 }

@@ -22,7 +22,8 @@ import {
   restateObjectContextType,
   restateSagaContextType,
   restateServiceContextType,
-  SCOPE, restateClientType,
+  SCOPE,
+  restateClientType,
 } from './types.js';
 import { makeInterfaceProxy, getRestateClassDeps } from './utils.js';
 import {
@@ -56,8 +57,8 @@ export class RestateModule extends createModuleClass({
       useExisting: RestateIngressClient,
     });
 
-    if (this.config.event) {
-      this.addImport(new RestateEventModule(this.config.event));
+    if (this.config.pubsub) {
+      this.addImport(new RestateEventModule(this.config.pubsub));
     }
 
     if (this.config.admin) {
@@ -91,13 +92,13 @@ export class RestateModule extends createModuleClass({
         useValue: this.sagas,
       });
 
-      this.addProvider({
-        provide: restateClientType,
-        scope: SCOPE,
-        useFactory() {
-          throw new Error('Client has not been provided yet');
-        },
-      })
+      // this.addProvider({
+      //   provide: restateClientType,
+      //   scope: SCOPE,
+      //   useFactory() {
+      //     throw new Error('Client has not been provided yet');
+      //   },
+      // })
 
       this.addProvider({
         provide: restateServiceContextType,

@@ -1,6 +1,9 @@
-export class RestateEventConfig {
+export class RestateSseConfig {
+  readonly url: string;
+}
+
+export class RestatePubSubConfig {
   readonly defaultStream: string = 'all';
   readonly cluster: string = 'default';
-  readonly host?: string;
-  readonly port?: number;
+  readonly sse?: RestateSseConfig;
 }

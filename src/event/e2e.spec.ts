@@ -13,7 +13,7 @@ import { RestateService } from '../types.js';
 import { restate } from '../decorator.js';
 import { RestateIngressClient } from '../restate-ingress-client.js';
 import { RestateEventPublisher } from './publisher.js';
-import { RestateEventServerModule } from './server/module.js';
+import { RestatePubSubServerModule } from './server/module.js';
 import { RestateEventSubscriber } from './subscriber.js';
 import {
   HttpMiddleware,
@@ -71,12 +71,15 @@ describe('event', () => {
         }
       }
 
-      const app = createTestingApp({
+      const app = new App({
         imports: [
+          new FrameworkModule({
+            port: 9083,
+          }),
           new RestateModule({
             server: {
               host: 'http://host.docker.internal',
-              port: 9092,
+              port: 9084,
             },
             admin: {
               url: 'http://0.0.0.0:9070',
@@ -85,22 +88,23 @@ describe('event', () => {
             ingress: {
               url: 'http://0.0.0.0:8080',
             },
-            event: {
-              host: 'localhost',
-              port: 9092,
+            pubsub: {
+              sse: {
+                url: 'http://localhost:9093',
+              },
             },
           }),
-          new RestateEventServerModule({
+          new RestatePubSubServerModule({
             sse: {
-              hosts: ['localhost'],
+              nodes: ['localhost:9083'],
             },
           }),
         ],
         controllers: [CustomerService, AccountService],
       });
-      await app.startServer();
+      await app.get<ApplicationServer>().start();
 
-      const client = app.app.getInjectorContext().get<RestateIngressClient>();
+      const client = app.get<RestateIngressClient>();
 
       const proxy = client.service<CustomerServiceProxy>();
 
@@ -139,8 +143,11 @@ describe('event', () => {
         }
       }
 
-      const app = createTestingApp({
+      const app = new App({
         imports: [
+          new FrameworkModule({
+            port: 9092,
+          }),
           new RestateModule({
             server: {
               host: 'http://host.docker.internal',
@@ -153,24 +160,23 @@ describe('event', () => {
             ingress: {
               url: 'http://0.0.0.0:8080',
             },
-            event: {
-              host: 'localhost',
-              port: 9093,
+            pubsub: {
+              sse: {
+                url: 'http://localhost:7092',
+              },
             },
           }),
-          new RestateEventServerModule({
+          new RestatePubSubServerModule({
             sse: {
-              hosts: ['localhost'],
+              nodes: ['localhost:9092'],
             },
           }),
         ],
         controllers: [AccountService],
       });
-      await app.startServer();
+      await app.get<ApplicationServer>().start();
 
-      const publisher = app.app
-        .getInjectorContext()
-        .get<RestateEventPublisher>();
+      const publisher = app.get<RestateEventPublisher>();
 
       await publisher.publish([new CustomerCreated(new Customer('Test'))]);
 
@@ -216,20 +222,20 @@ describe('event', () => {
               ingress: {
                 url: 'http://0.0.0.0:8080',
               },
-              event: {
-                host: 'localhost',
-                port: 9096,
+              pubsub: {
+                sse: {
+                  url: 'http://localhost:9096',
+                },
               },
             }),
-            new RestateEventServerModule({
+            new RestatePubSubServerModule({
               sse: {
-                hosts: ['localhost'],
+                nodes: ['localhost:9096'],
               },
             }).configureMiddlewareForServerSentEvents(EventsMiddleware),
           ],
         });
-        const server = app.get<ApplicationServer>();
-        await server.start();
+        await app.get<ApplicationServer>().start();
 
         const publisher = app.get<RestateEventPublisher>();
         const subscriber = app.get<RestateEventSubscriber>();
@@ -283,20 +289,20 @@ describe('event', () => {
             ingress: {
               url: 'http://0.0.0.0:8080',
             },
-            event: {
-              host: 'localhost',
-              port: 10096,
+            pubsub: {
+              sse: {
+                url: 'http://localhost:10096',
+              },
             },
           }),
-          new RestateEventServerModule({
+          new RestatePubSubServerModule({
             sse: {
-              hosts: ['localhost'],
+              nodes: ['localhost:10096'],
             },
           }),
         ],
       });
-      const server = app.get<ApplicationServer>();
-      await server.start();
+      await app.get<ApplicationServer>().start();
 
       const publisher = app.get<RestateEventPublisher>();
       const subscriber = app.get<RestateEventSubscriber>();
@@ -333,12 +339,12 @@ describe('event', () => {
       const app = new App({
         imports: [
           new FrameworkModule({
-            port: 9090,
+            port: 9081,
           }),
           new RestateModule({
             server: {
               host: 'http://host.docker.internal',
-              port: 9091,
+              port: 9082,
             },
             admin: {
               url: 'http://0.0.0.0:9070',
@@ -347,20 +353,20 @@ describe('event', () => {
             ingress: {
               url: 'http://0.0.0.0:8080',
             },
-            event: {
-              host: 'localhost',
-              port: 9090,
+            pubsub: {
+              sse: {
+                url: 'http://localhost:9081',
+              },
             },
           }),
-          new RestateEventServerModule({
+          new RestatePubSubServerModule({
             sse: {
-              hosts: ['localhost'],
+              nodes: ['localhost:9081'],
             },
           }),
         ],
       });
-      const server = app.get<ApplicationServer>();
-      await server.start();
+      await app.get<ApplicationServer>().start();
 
       const publisher = app.get<RestateEventPublisher>();
       const subscriber = app.get<RestateEventSubscriber>();

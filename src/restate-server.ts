@@ -26,10 +26,11 @@ import {
   restateObjectContextType,
   restateSagaContextType,
   restateServiceContextType,
-  SCOPE, restateClientType,
+  SCOPE,
+  restateClientType,
 } from './types.js';
 import { RestateIngressClient } from './restate-ingress-client.js';
-import { RestateEventConfig } from './event/config.js';
+import { RestatePubSubConfig } from './event/config.js';
 import { serializeBSON } from '@deepkit/bson';
 import {
   createObjectContext,
@@ -109,12 +110,12 @@ export class RestateServer {
       ]);
     }
 
-    if (this.config.event) {
-      await this.registerEventHandlers(this.config.event);
+    if (this.config.pubsub) {
+      await this.registerEventHandlers(this.config.pubsub);
     }
   }
 
-  private async registerEventHandlers(config: RestateEventConfig) {
+  private async registerEventHandlers(config: RestatePubSubConfig) {
     let handlers: EventHandlers = [];
     for (const { metadata } of this.services) {
       for (const handler of metadata.handlers) {

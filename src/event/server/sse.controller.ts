@@ -8,30 +8,26 @@ import { PublishEvent } from '../types.js';
 import { Clusters, Streams } from './types.js';
 import { fastHash } from '../../utils.js';
 import { RestateSseConfig } from './config.js';
-import { RestateEventConfig } from '../config.js';
+import { RestatePubSubConfig } from '../config.js';
 
 @http.controller('sse/:cluster/:stream')
 export class ServerSentEventsController {
   constructor(
     private readonly clusters: Clusters,
     private readonly sseConfig: RestateSseConfig,
-    private readonly eventConfig: RestateEventConfig,
+    private readonly eventConfig: RestatePubSubConfig,
     private readonly logger: ScopedLogger,
   ) {}
 
   @eventDispatcher.listen(onServerMainBootstrapDone)
   async autoDiscoverServers() {
-    if (!this.sseConfig.hosts && !this.eventConfig.host) {
-      throw new Error('Hosts are not configured');
+    if (!this.sseConfig.nodes) {
+      throw new Error('Nodes are not configured');
     }
-    const hosts = this.sseConfig.hosts
-      ? (
-          await Promise.all(
-            this.sseConfig.hosts.map(host => dns.resolve4(host)),
-          )
-        ).flat()
-      : await dns.resolve4(this.eventConfig.host!);
-    Object.assign(this.sseConfig, { hosts });
+    const nodes = (
+      await Promise.all(this.sseConfig.nodes.map(host => dns.resolve4(host)))
+    ).flat();
+    Object.assign(this.sseConfig, { nodes });
   }
 
   // TODO: publish should be internal only
