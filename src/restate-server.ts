@@ -96,6 +96,9 @@ export class RestateServer {
 
     if (this.config.admin?.deployOnStartup) {
       const admin = this.injectorContext.get(RestateAdminClient);
+      if (!config.host) {
+        throw new Error('Restate server host is missing');
+      }
       await admin.deployments.create(`${config.host}:${config.port}`);
     }
 

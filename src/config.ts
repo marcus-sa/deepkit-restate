@@ -10,7 +10,7 @@ export class RestateKafkaConfig {
 }
 
 export class RestateServerConfig {
-  readonly host: string = '0.0.0.0';
+  readonly host?: string;
   readonly port: number = 9080;
 }
 

@@ -1,6 +1,6 @@
 export class RestateSseConfig {
-  readonly all: boolean = true;
-  readonly autoDiscover: boolean = false;
+  readonly all?: boolean = true;
+  readonly autoDiscover?: boolean = false;
   readonly nodes?: string[];
 }
 
