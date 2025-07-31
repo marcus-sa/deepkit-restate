@@ -2,7 +2,7 @@
 
 **Deepkit Restate** is a seamless [Restate](https://restate.dev) integration for [Deepkit](https://deepkit.io). It enables effortless communication between distributed services using durable invocations, service interfaces, and event-driven architecture.
 
-> This documentation assumes familiarity with Restate's concepts and lifecycle.
+> This documentation assumes familiarity with Deepkit **and** Restate's concepts and lifecycle.
 
 ---
 
@@ -34,10 +34,12 @@ const app = new App({
       ingress: {
         url: 'http://localhost:8080',
       },
-      event: {
-        cluster: 'example',
-        host: 'localhost',
-        port: 9090,
+      pubsub: {
+        cluster: 'default',
+        defaultStream: 'all',
+        sse: {
+          url: 'http://localhost:3000',
+        },
       },
       admin: {
         url: 'http://0.0.0.0:9070',
@@ -52,7 +54,7 @@ You can configure any combination of the following:
 
 - **server**: Starts a Restate server
 - **ingress**: Enables outbound service calls
-- **event**: Enables pub/sub event system
+- **pubsub**: Enables pub/sub event system
 - **admin**: Registers deployments with the admin interface
 
 > If a section is not configured, that functionality will not be available.
@@ -89,12 +91,12 @@ The serialization system preserves type fidelity and structure when encoding and
 
 The `RestateClient` handles communication between services and objects. It behaves differently depending on whether it is used within or outside an invocation context.
 
-You can create a client manually:
+You can create an ingress client manually:
 
 ```ts
-import { RestateClient } from 'deepkit-restate';
+import { RestateIngressClient } from 'deepkit-restate';
 
-const client = new RestateClient({ url: 'http://localhost:9080' });
+const client = new RestateIngressClient({ url: 'http://localhost:9080' });
 ```
 
 Or retrieve the configured instance via DI:
@@ -230,7 +232,7 @@ const user = await this.ctx.run<User>('create user', () => new User(username));
 Without a type argument, the return value is ignored:
 
 ```ts
-await this.ctx.run('log something', () => console.log('hello'));
+const none = await this.ctx.run('create user', () => new User(username));
 ```
 
 ### Awakeables
@@ -261,26 +263,29 @@ const user = await this.ctx.get<User>('user');
 
 ---
 
-## Events
+## Pub/Sub
 
 ### Server Setup
 
-Set up a dedicated application for handling events. Requires the `event`, `server`, and `ingress` configurations:
+Set up a dedicated application for handling events.
 
 ```ts
 import { App } from '@deepkit/app';
 import { FrameworkModule } from '@deepkit/framework';
-import { RestateEventsServerModule, RestateModule } from 'deepkit-restate';
+import { RestateModule } from 'deepkit-restate';
+import { RestatePubsubServerModule } from 'deepkit-restate/pubsub-server';
 
 await new App({
   imports: [
     new FrameworkModule({ port: 9090 }),
-    new RestateModule({
-      server: { host: 'http://localhost', port: 9080 },
-      ingress: { url: 'http://localhost:8080' },
-      event: { cluster: 'example', host: 'localhost', port: 9090 },
+    new RestateModule({ server: { port: 9080 } }),
+    new RestatePubSubServerModule({
+      sse: {
+        all: true,
+        autoDiscover: true,
+        nodes: ['localhost:9090'],
+      },
     }),
-    new RestateEventsServerModule(),
   ],
 }).run();
 ```
@@ -290,7 +295,7 @@ await new App({
 Inside a service handler (durable):
 
 ```ts
-constructor(private readonly publisher: RestateEventsPublisher) {}
+constructor(private readonly publisher: RestateEventPublisher) {}
 
 await this.publisher.publish([new UserCreatedEvent(user)]);
 ```
@@ -298,7 +303,7 @@ await this.publisher.publish([new UserCreatedEvent(user)]);
 Outside of invocation (non-durable):
 
 ```ts
-const publisher = app.get<RestateEventsPublisher>();
+const publisher = app.get<RestateEventPublisher>();
 await publisher.publish([new UserCreatedEvent(user)]);
 ```
 
@@ -329,7 +334,7 @@ Server-Sent Events (SSE) allow real-time delivery of events to connected subscri
 Subscribe to events from contexts like HTTP or RPC controllers:
 
 ```ts
-const subscriber = app.get<RestateEventsSubscriber>();
+const subscriber = app.get<RestateEventSubscriber>();
 
 const unsubscribe = await subscriber.subscribe<UserCreatedEvent>(event => {
   // handle event
@@ -342,23 +347,23 @@ You can also use union types to subscribe to multiple events.
 
 #### Configuration (Global)
 
-You can configure global SSE delivery behavior in `RestateEventsServerModule`:
+You can configure global SSE delivery behavior in `RestatePubSubServerModule`:
 
 ```ts
-new RestateEventsServerModule({
+new RestatePubSubServerModule({
   sse: {
     all: true,
     autoDiscover: true,
-    hosts: ['http://events-1.internal:9090', 'http://events-2.internal:9090'],
+    nodes: ['events-1.internal:9090', 'events-2.internal:9090'],
   },
 });
 ```
 
 | Option             | Type       | Description                                                                   |
-| ------------------ | ---------- | ----------------------------------------------------------------------------- |
+|--------------------| ---------- |-------------------------------------------------------------------------------|
 | `sse.all`          | `boolean`  | If `true`, all published events will be delivered via SSE by default.         |
 | `sse.autoDiscover` | `boolean`  | When enabled, resolves peer IPs via DNS to fan out SSE events to other nodes. |
-| `sse.hosts`        | `string[]` | List of peer event server URLs for fan-out (used with `autoDiscover`).        |
+| `sse.nodes`        | `string[]` | List of peer server URLs for fan-out.                                         |
 
 > SSE fan-out is stateless and opportunistic. Each node will attempt to push matching events to other known nodes.
 
@@ -376,7 +381,6 @@ Behavior summary:
 
 - If `sse.all` is **true**, SSE is used by default unless explicitly disabled.
 - If `sse.all` is **false**, SSE is off by default — but you can still enable it by passing `sse: true`.
-- When `autoDiscover` is enabled, the event will fan out to all DNS-discovered peers.
 
 > Only events published with SSE enabled will be streamed to subscribers.
 
