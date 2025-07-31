@@ -26,7 +26,7 @@ export class RestateEventProcessor implements EventProcessorHandlers {
     events: readonly PublishEvent[],
     options?: PublishOptions,
   ): Promise<void> {
-    const cluster = options?.cluster || this.config.cluster;
+    const cluster = options?.cluster || this.config.cluster!;
     const allHandlers = await this.ctx.call(cluster, this.store.getHandlers());
 
     for (const event of events) {
@@ -50,7 +50,7 @@ export class RestateEventProcessor implements EventProcessorHandlers {
     if (this.sseConfig.nodes && (options?.sse ?? this.sseConfig.all)) {
       await this.fanOutServerSentEvents(
         cluster,
-        options?.stream || this.config.defaultStream,
+        options?.stream || this.config.defaultStream!,
         this.sseConfig.nodes,
         events,
       );

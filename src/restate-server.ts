@@ -91,7 +91,7 @@ export class RestateServer {
 
     await new Promise<void>(resolve => {
       this.http2Server = createServer(this.endpoint.http2Handler());
-      this.http2Server.listen(this.config.server?.port, resolve);
+      this.http2Server.listen(this.config.server?.port!, resolve);
     });
 
     if (this.config.admin?.deployOnStartup) {
@@ -139,7 +139,7 @@ export class RestateServer {
       const eventStore = this.injectorContext.get<EventStoreApi>();
       const client = this.injectorContext.get(RestateIngressClient);
       // TODO: remove old handlers
-      await client.send(config.cluster, eventStore.registerHandlers(handlers));
+      await client.send(config.cluster!, eventStore.registerHandlers(handlers));
     }
   }
 
