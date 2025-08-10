@@ -40,8 +40,6 @@ export class RestateEventStore implements EventStoreHandlers {
       allHandlers.set(key, sub);
     });
 
-    console.log(allHandlers.values().toArray());
-
     this.ctx.set<EventHandlers>(
       HANDLERS_STATE_KEY,
       allHandlers.values().toArray(),

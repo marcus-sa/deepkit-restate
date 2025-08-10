@@ -51,7 +51,7 @@ export class ServerSentEventsController {
     response: HttpResponse,
   ) {
     events = (events as string).split(',') as string[];
-    this.logger.log('subscribe', events);
+    this.logger.debug('subscribe', events);
 
     // TODO: replay from last event id upon reconnection
     // const lastEventId = request.headers['last-event-id'];
@@ -71,7 +71,7 @@ export class ServerSentEventsController {
         .get(stream)
         .subscribe(event => {
           if (`${event.name}:${event.version}` === id) {
-            this.logger.log('publish', event);
+            this.logger.debug('publish', event);
             response.write(`event: ${id}\n`);
             const data = new Uint8Array(event.data);
             response.write(`id: ${fastHash(data)}\n`);

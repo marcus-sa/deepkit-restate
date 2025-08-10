@@ -3,7 +3,6 @@ export * from './restate.module.js';
 export * from './restate-admin-client.js';
 export * from './restate-ingress-client.js';
 export * from './config.js';
-export * from './context-storage.js';
 export * from './utils.js';
 export * from './event/index.js';
 export * from './types.js';

@@ -1,6 +1,6 @@
 import * as restate from '@restatedev/restate-sdk';
 import { ReceiveType } from '@deepkit/type';
-import { CUSTOM_TERMINAL_ERROR_CODE } from './config.js';
+import { CUSTOM_TERMINAL_ERROR_CODE, RestateConfig } from './config.js';
 import { decodeRestateServiceMethodResponse } from './utils.js';
 import {
   createBSONSerde,
@@ -23,8 +23,15 @@ import {
 
 export function createServiceContext(
   ctx: restate.Context,
+  config?: RestateConfig,
 ): RestateServiceContext {
   return {
+    workflowClient: ctx.workflowClient.bind(ctx),
+    workflowSendClient: ctx.workflowSendClient.bind(ctx),
+    serviceClient: ctx.serviceClient.bind(ctx),
+    objectClient: ctx.objectClient.bind(ctx),
+    objectSendClient: ctx.objectSendClient.bind(ctx),
+    serviceSendClient: ctx.serviceSendClient.bind(ctx),
     rand: ctx.rand,
     date: ctx.date,
     console: ctx.console,
@@ -75,11 +82,19 @@ export function createServiceContext(
       const [key, { service, method, data }, options] =
         typeof args[0] !== 'string' ? [undefined, ...args] : args;
 
+      const headers = config?.server?.propagateIncomingHeaders
+        ? {
+            ...ctx.request().headers,
+            ...options?.headers,
+          }
+        : options?.headers;
+
       const { invocationId } = ctx.genericSend({
         service,
         method,
         parameter: data,
         delay: options?.delay,
+        headers,
         key,
       });
 
@@ -91,11 +106,19 @@ export function createServiceContext(
       const [key, { service, method, data, deserializeReturn }, options] =
         typeof args[0] !== 'string' ? [undefined, ...args] : args;
 
+      const headers = config?.server?.propagateIncomingHeaders
+        ? {
+            ...ctx.request().headers,
+            ...options?.headers,
+          }
+        : options?.headers;
+
       return ctx
         .genericCall({
           service,
           method,
           parameter: data,
+          headers,
           key,
           outputSerde: restate.serde.binary,
         })
@@ -119,8 +142,9 @@ export function createServiceContext(
 
 export function createSharedObjectContext(
   ctx: restate.ObjectSharedContext,
+  config?: RestateConfig,
 ): RestateSharedObjectContext {
-  return Object.assign(createServiceContext(ctx), {
+  return Object.assign(createServiceContext(ctx, config), {
     key: ctx.key,
     stateKeys: ctx.stateKeys.bind(ctx),
     async get<T>(name: string, type?: ReceiveType<T>): Promise<T | null> {
@@ -132,8 +156,9 @@ export function createSharedObjectContext(
 
 export function createObjectContext(
   ctx: restate.ObjectContext,
+  config?: RestateConfig,
 ): RestateObjectContext {
-  return Object.assign(createSharedObjectContext(ctx), {
+  return Object.assign(createSharedObjectContext(ctx, config), {
     clearAll: ctx.clearAll.bind(ctx),
     clear: ctx.clear.bind(ctx),
     set<T>(name: string, value: T, type?: ReceiveType<T>) {
@@ -145,8 +170,9 @@ export function createObjectContext(
 
 export function createSagaContext(
   ctx: restate.WorkflowContext | restate.WorkflowSharedContext,
+  config?: RestateConfig,
 ): RestateSagaContext {
-  return Object.assign(createObjectContext(ctx as any), {
+  return Object.assign(createObjectContext(ctx as any, config), {
     send: undefined,
     call: undefined,
   });

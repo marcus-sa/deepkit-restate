@@ -30,6 +30,7 @@ const app = new App({
       server: {
         host: 'http://localhost',
         port: 9080,
+        propagateIncomingHeaders: true, // Forward all incoming headers to service calls
       },
       ingress: {
         url: 'http://localhost:8080',
@@ -58,6 +59,45 @@ You can configure any combination of the following:
 - **admin**: Registers deployments with the admin interface
 
 > If a section is not configured, that functionality will not be available.
+
+## Server Configuration
+
+The `server` configuration section supports the following options:
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `host` | `string` | - | The host address for the Restate server |
+| `port` | `number` | `9080` | The port number for the Restate server |
+| `propagateIncomingHeaders` | `true \| string[]` | `undefined` | Controls header propagation to downstream service calls |
+
+### Header Propagation
+
+The `propagateIncomingHeaders` option controls whether incoming request headers are forwarded when making service-to-service calls:
+
+```ts
+// Forward all incoming headers
+server: {
+  propagateIncomingHeaders: true
+}
+
+// Forward only specific headers
+server: {
+  propagateIncomingHeaders: ['authorization', 'x-correlation-id', 'x-tenant-id']
+}
+
+// No header propagation (default)
+server: {
+  // propagateIncomingHeaders not specified
+}
+```
+
+This is particularly useful for:
+- **Authentication**: Forwarding authorization tokens through the service call chain
+- **Tracing**: Propagating correlation IDs for distributed tracing
+- **Multi-tenancy**: Passing tenant identifiers to downstream services
+- **Custom context**: Forwarding application-specific headers
+
+> **Note**: When `propagateIncomingHeaders` is enabled, the incoming headers are merged with any explicitly provided headers in the service call options. Explicitly provided headers take precedence over incoming headers.
 
 ---
 

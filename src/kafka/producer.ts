@@ -8,8 +8,7 @@ import {
 } from '@deepkit/framework';
 
 import { RestateKafkaConfig } from './module.js';
-import { RestateContextStorage } from '../context-storage.js';
-import { RestateCustomContext, RestateKafkaTopic } from '../types.js';
+import { RestateBaseContext, RestateKafkaTopic } from '../types.js';
 import {
   getRestateKafkaTopicArgsType,
   getRestateKafkaTopicSource,
@@ -26,7 +25,7 @@ export class RestateKafkaProducer {
 
   constructor(
     config: RestateKafkaConfig,
-    private readonly contextStorage: RestateContextStorage,
+    private readonly ctx: RestateBaseContext,
   ) {
     const kafka = new Kafka(config);
     this.#producer = kafka.producer({
@@ -35,10 +34,6 @@ export class RestateKafkaProducer {
         retries: 0,
       },
     });
-  }
-
-  get #ctx(): Pick<RestateCustomContext, 'run'> {
-    return this.contextStorage.getStore()!;
   }
 
   @eventDispatcher.listen(onServerMainBootstrap)
@@ -65,7 +60,7 @@ export class RestateKafkaProducer {
     const serialize = getBSONSerializer(undefined, argsType);
     const value = Buffer.from(serialize(args));
 
-    return this.#ctx.run<readonly RecordMetadata[]>('produce', () =>
+    return this.ctx.run<readonly RecordMetadata[]>('produce', () =>
       this.#producer.send({
         topic,
         messages: [

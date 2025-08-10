@@ -10,10 +10,6 @@ import { InjectorSagas } from './sagas.js';
 import { RestateServer } from './restate-server.js';
 import { RestateEventModule } from './event/module.js';
 import {
-  RestateInMemoryContextStorage,
-  RestateContextStorage,
-} from './context-storage.js';
-import {
   RestateObjectMetadata,
   RestateSagaMetadata,
   RestateServiceMetadata,
@@ -24,6 +20,7 @@ import {
   restateServiceContextType,
   SCOPE,
   restateClientType,
+  restateBaseContextType,
 } from './types.js';
 import { makeInterfaceProxy, getRestateClassDeps } from './utils.js';
 import {
@@ -31,7 +28,6 @@ import {
   getRestateSagaMetadata,
   getRestateServiceMetadata,
 } from './metadata.js';
-import { provide } from '@deepkit/injector';
 
 export class RestateModule extends createModuleClass({
   config: RestateConfig,
@@ -66,15 +62,6 @@ export class RestateModule extends createModuleClass({
     }
 
     if (this.config.server) {
-      this.addProvider(RestateContextStorage);
-    } else {
-      this.addProvider({
-        provide: RestateContextStorage,
-        useClass: RestateInMemoryContextStorage,
-      });
-    }
-
-    if (this.config.server) {
       this.addListener(RestateServer);
 
       this.addProvider({
@@ -99,6 +86,14 @@ export class RestateModule extends createModuleClass({
       //     throw new Error('Client has not been provided yet');
       //   },
       // })
+
+      this.addProvider({
+        provide: restateBaseContextType,
+        scope: SCOPE,
+        useFactory() {
+          throw new Error('You cannot use a context outside a service');
+        },
+      });
 
       this.addProvider({
         provide: restateServiceContextType,

@@ -1,6 +1,5 @@
 import { eventDispatcher } from '@deepkit/event';
 import {
-  ApplicationServer,
   onServerMainBootstrap,
   onServerMainShutdown,
 } from '@deepkit/framework';
@@ -19,7 +18,6 @@ import { RestateHandlerMetadata } from './decorator.js';
 import { CUSTOM_TERMINAL_ERROR_CODE, RestateConfig } from './config.js';
 import { getTypeHash, getTypeName } from './utils.js';
 import { RestateAdminClient } from './restate-admin-client.js';
-import { RestateContextStorage } from './context-storage.js';
 import { serializeRestateHandlerResponse } from './serde.js';
 import {
   RestateCustomTerminalErrorMessage,
@@ -28,6 +26,7 @@ import {
   restateServiceContextType,
   SCOPE,
   restateClientType,
+  restateBaseContextType,
 } from './types.js';
 import { RestateIngressClient } from './restate-ingress-client.js';
 import { RestatePubSubConfig } from './event/config.js';
@@ -54,7 +53,6 @@ export class RestateServer {
     private readonly objects: InjectorObjects,
     private readonly sagas: InjectorSagas,
     private readonly injectorContext: InjectorContext,
-    private readonly contextStorage: RestateContextStorage,
   ) {}
 
   @eventDispatcher.listen(onServerMainShutdown)
@@ -187,13 +185,12 @@ export class RestateServer {
             data: Uint8Array,
           ): Promise<Uint8Array> => {
             const injector = this.createScopedInjector();
-            const ctx = createServiceContext(rsCtx);
+            const ctx = createServiceContext(rsCtx, this.config);
             injector.set(restateClientType, ctx);
+            injector.set(restateBaseContextType, ctx);
             injector.set(restateServiceContextType, ctx);
             const instance = injector.get(classType, module);
-            return await this.contextStorage.run(ctx, () =>
-              this.callHandler(instance, handler, data),
-            );
+            return await this.callHandler(instance, handler, data);
           },
         ),
       }),
@@ -207,16 +204,15 @@ export class RestateServer {
         DEFAULT_HANDLER_OPTS,
         async (rsCtx: restate.WorkflowContext, request: Uint8Array) => {
           const injector = this.createScopedInjector();
-          const ctx = createSagaContext(rsCtx);
+          const ctx = createSagaContext(rsCtx, this.config);
           injector.set(restateClientType, ctx);
+          injector.set(restateBaseContextType, ctx);
           injector.set(restateSagaContextType, ctx);
           const restateSaga = injector.get(classType, module);
           const sagaManager = new SagaManager(ctx, restateSaga, metadata);
           const data = metadata.deserializeData(request);
-          await this.contextStorage.run(ctx, async () => {
-            await sagaManager.start(data);
-            await sagaManager.waitForCompletion();
-          });
+          await sagaManager.start(data);
+          await sagaManager.waitForCompletion();
           return new Uint8Array();
         },
       ),
@@ -255,14 +251,13 @@ export class RestateServer {
           ): Promise<Uint8Array> => {
             const injector = this.createScopedInjector();
             const ctx = handler.shared
-              ? createSharedObjectContext(rsCtx)
-              : createObjectContext(rsCtx);
+              ? createSharedObjectContext(rsCtx, this.config)
+              : createObjectContext(rsCtx, this.config);
             injector.set(restateClientType, ctx);
+            injector.set(restateBaseContextType, ctx);
             injector.set(restateObjectContextType, ctx);
             const instance = injector.get(classType, module);
-            return await this.contextStorage.run(ctx, () =>
-              this.callHandler(instance, handler, data),
-            );
+            return await this.callHandler(instance, handler, data);
           },
         ),
       }),

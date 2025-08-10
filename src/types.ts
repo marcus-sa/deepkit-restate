@@ -17,16 +17,12 @@ export interface RestateInvocationHandle {
 
 export type RestateRunAction<T> = () => Promise<T> | T;
 
-export interface RestateApiInvocation {
-  readonly id: string;
-}
-
-export interface RestateSendOptions {
+export interface RestateSendOptions extends RestateCallOptions {
   readonly delay?: number;
-  readonly idempotencyKey?: string;
 }
 
 export interface RestateCallOptions {
+  readonly headers?: Record<string, string>;
   readonly idempotencyKey?: string;
 }
 
@@ -115,7 +111,7 @@ export interface RestateClient {
   ): Promise<R>;
 }
 
-export interface RestateCustomContext extends RestateClient {
+export interface RestateBaseContext extends RestateClient {
   awakeable<T>(type?: ReceiveType<T>): RestateAwakeable<T>;
   resolveAwakeable<T>(
     id: string,
@@ -141,35 +137,26 @@ export interface RestateCustomContext extends RestateClient {
   ): RestatePromise<T>;
 }
 
+type OmitKeys<T, U> = Omit<T, keyof U>;
+
 type ContextWithoutClients<T> = Omit<
   T,
-  | 'workflowClient'
-  | 'workflowSendClient'
-  | 'serviceClient'
-  | 'serviceSendClient'
-  | 'objectClient'
-  | 'objectSendClient'
-  | 'attach'
-  | 'run'
-  | 'get'
-  | 'set'
-  | 'resolveAwakeable'
-  | 'awakeable'
+  'attach' | 'run' | 'get' | 'set' | 'resolveAwakeable' | 'awakeable'
 >;
 
 export interface RestateServiceContext
-  extends RestateCustomContext,
+  extends RestateBaseContext,
     ContextWithoutClients<Context> {}
 
 export interface RestateObjectContext
-  extends RestateCustomContext,
+  extends RestateBaseContext,
     ContextWithoutClients<ObjectContext> {
   get<T>(name: string, type?: ReceiveType<T>): Promise<T | null>;
   set<T>(name: string, value: T, type?: ReceiveType<T>): void;
 }
 
 export interface RestateSharedObjectContext
-  extends RestateCustomContext,
+  extends RestateBaseContext,
     ContextWithoutClients<ObjectSharedContext> {
   get<T>(name: string, type?: ReceiveType<T>): Promise<T | null>;
 }
@@ -204,6 +191,8 @@ export const restateSagaType = typeOf<RestateSaga<string, any>>();
 export const restateServiceContextType = typeOf<RestateServiceContext>();
 
 export const restateClientType = typeOf<RestateClient>();
+
+export const restateBaseContextType = typeOf<RestateBaseContext>();
 
 export const restateObjectContextType = typeOf<RestateObjectContext>();
 

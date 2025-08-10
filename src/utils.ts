@@ -203,30 +203,6 @@ export function makeInterfaceProxy<
   );
 }
 
-// TODO: wrap client send/rpc calls with ctx.run
-// export function provideRestateServiceProxy<T extends RestateService<string, any, any[]>>(type?: ReceiveType<T>): FactoryProvider<T> {
-//   type = resolveReceiveType(type);
-//
-//   const classType = getTypeArgument(type, 1);
-//   const reflectionClass = ReflectionClass.from(classType);
-//
-//   const proxy = createClassProxy<T>(type);
-//
-//   return {
-//     provide: type,
-//     useFactory: (contextStorage: RestateContextStorage) => {
-//       return new Proxy(proxy, {
-//         get(target: T, method: string) {
-//           return async (...args: readonly any[]) => {
-//             const ctx = contextStorage.getStore()!;
-//             return target[method].apply(args);
-//           }
-//         }
-//       });
-//     },
-//   };
-// }
-
 export function provideRestateServiceProxy<
   T extends RestateService<string, any>,
 >(type?: ReceiveType<T>): FactoryProvider<T> {
