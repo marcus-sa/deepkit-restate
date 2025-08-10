@@ -54,12 +54,14 @@ import {
   getRestateKafkaTopicArgsType,
   getRestateKafkaTopicSource,
 } from './metadata.js';
+import { RestateMiddleware } from './middleware.js';
 
 export class RestateClassMetadata {
   readonly name: string;
   readonly classType: ClassType;
   readonly type: TypeObjectLiteral | TypeClass;
   readonly handlers = new Set<RestateHandlerMetadata>();
+  readonly middlewares: ClassType<RestateMiddleware>[] = [];
 }
 
 // TODO: add enableLazyState for objects
@@ -105,6 +107,10 @@ export class RestateServiceDecorator {
       type,
     });
   }
+
+  middleware(...middlewares: ClassType<RestateMiddleware>[]) {
+    this.t.middlewares.push(...middlewares);
+  }
 }
 
 export class RestateObjectDecorator {
@@ -130,6 +136,10 @@ export class RestateObjectDecorator {
       type,
     });
   }
+
+  middleware(...middlewares: ClassType<RestateMiddleware>[]) {
+    this.t.middlewares.push(...middlewares);
+  }
 }
 
 export class RestateSagaDecorator {
@@ -154,6 +164,10 @@ export class RestateSagaDecorator {
       deserializeData,
       serializeData,
     });
+  }
+
+  middleware(...middlewares: ClassType<RestateMiddleware>[]) {
+    this.t.middlewares.push(...middlewares);
   }
 }
 
@@ -182,6 +196,7 @@ export class RestateHandlerMetadata<T = readonly unknown[]> {
   readonly kafka?: RestateKafkaHandlerMetadata;
   readonly event?: RestateEventHandlerMetadata;
   readonly options?: RestateHandlerOptions;
+  readonly middlewares: ClassType<RestateMiddleware>[] = [];
 }
 
 export class RestateHandlerDecorator {
@@ -266,6 +281,10 @@ export class RestateHandlerDecorator {
       throw new Error('Handler is already marked as shared');
     }
     Object.assign(this.t, { exclusive: true });
+  }
+
+  middleware(...middlewares: ClassType<RestateMiddleware>[]) {
+    this.t.middlewares.push(...middlewares);
   }
 }
 

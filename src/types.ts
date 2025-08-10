@@ -10,15 +10,16 @@ import {
   TerminalError,
   WorkflowContext,
 } from '@restatedev/restate-sdk';
+import type { Duration } from '@restatedev/restate-sdk-core';
 
 export interface RestateInvocationHandle {
-  invocationId: string;
+  readonly invocationId: string;
 }
 
 export type RestateRunAction<T> = () => Promise<T> | T;
 
 export interface RestateSendOptions extends RestateCallOptions {
-  readonly delay?: number;
+  readonly delay?: Duration | number;
 }
 
 export interface RestateCallOptions {
@@ -111,7 +112,9 @@ export interface RestateClient {
   ): Promise<R>;
 }
 
-export interface RestateBaseContext extends RestateClient {
+export interface RestateSharedContext
+  extends RestateClient,
+    Pick<Context, 'request' | 'rand' | 'date' | 'sleep'> {
   awakeable<T>(type?: ReceiveType<T>): RestateAwakeable<T>;
   resolveAwakeable<T>(
     id: string,
@@ -145,18 +148,18 @@ type ContextWithoutClients<T> = Omit<
 >;
 
 export interface RestateServiceContext
-  extends RestateBaseContext,
+  extends RestateSharedContext,
     ContextWithoutClients<Context> {}
 
 export interface RestateObjectContext
-  extends RestateBaseContext,
+  extends RestateSharedContext,
     ContextWithoutClients<ObjectContext> {
   get<T>(name: string, type?: ReceiveType<T>): Promise<T | null>;
   set<T>(name: string, value: T, type?: ReceiveType<T>): void;
 }
 
 export interface RestateSharedObjectContext
-  extends RestateBaseContext,
+  extends RestateSharedContext,
     ContextWithoutClients<ObjectSharedContext> {
   get<T>(name: string, type?: ReceiveType<T>): Promise<T | null>;
 }
@@ -192,7 +195,7 @@ export const restateServiceContextType = typeOf<RestateServiceContext>();
 
 export const restateClientType = typeOf<RestateClient>();
 
-export const restateBaseContextType = typeOf<RestateBaseContext>();
+export const restateSharedContextType = typeOf<RestateSharedContext>();
 
 export const restateObjectContextType = typeOf<RestateObjectContext>();
 

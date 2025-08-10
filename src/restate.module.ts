@@ -10,6 +10,7 @@ import { InjectorSagas } from './sagas.js';
 import { RestateServer } from './restate-server.js';
 import { RestateEventModule } from './event/module.js';
 import {
+  RestateClassMetadata,
   RestateObjectMetadata,
   RestateSagaMetadata,
   RestateServiceMetadata,
@@ -20,7 +21,7 @@ import {
   restateServiceContextType,
   SCOPE,
   restateClientType,
-  restateBaseContextType,
+  restateSharedContextType,
 } from './types.js';
 import { makeInterfaceProxy, getRestateClassDeps } from './utils.js';
 import {
@@ -28,6 +29,7 @@ import {
   getRestateSagaMetadata,
   getRestateServiceMetadata,
 } from './metadata.js';
+import { RestateMiddleware } from './middleware.js';
 
 export class RestateModule extends createModuleClass({
   config: RestateConfig,
@@ -36,6 +38,7 @@ export class RestateModule extends createModuleClass({
   readonly services = new InjectorServices();
   readonly objects = new InjectorObjects();
   readonly sagas = new InjectorSagas();
+  readonly defaultMiddlewares: ClassType<RestateMiddleware>[] = [];
 
   override process() {
     if (this.config.ingress) {
@@ -88,7 +91,7 @@ export class RestateModule extends createModuleClass({
       // })
 
       this.addProvider({
-        provide: restateBaseContextType,
+        provide: restateSharedContextType,
         scope: SCOPE,
         useFactory() {
           throw new Error('You cannot use a context outside a service');
@@ -121,12 +124,26 @@ export class RestateModule extends createModuleClass({
     }
   }
 
+  private provideMiddleware(metadata: RestateClassMetadata): void {
+    for (const middleware of metadata.middlewares) {
+      if (!this.isProvided(middleware))
+        this.addProvider({ provide: middleware, scope: SCOPE });
+    }
+    for (const handler of metadata.handlers) {
+      for (const middleware of handler.middlewares) {
+        if (!this.isProvided(middleware))
+          this.addProvider({ provide: middleware, scope: SCOPE });
+      }
+    }
+  }
+
   private addService(
     module: AppModule<any>,
     classType: ClassType,
     metadata: RestateServiceMetadata,
   ): void {
     this.services.add({ classType, module, metadata });
+    this.provideMiddleware(metadata);
   }
 
   private addObject(
@@ -135,6 +152,7 @@ export class RestateModule extends createModuleClass({
     metadata: RestateObjectMetadata,
   ): void {
     this.objects.add({ classType, module, metadata });
+    this.provideMiddleware(metadata);
   }
 
   private addSaga(
@@ -143,6 +161,7 @@ export class RestateModule extends createModuleClass({
     metadata: RestateSagaMetadata,
   ): void {
     this.sagas.add({ classType, module, metadata });
+    this.provideMiddleware(metadata);
   }
 
   private addDeps(classType: ClassType): void {
@@ -191,5 +210,13 @@ export class RestateModule extends createModuleClass({
     if (!module.isProvided(controller)) {
       module.addProvider({ provide: controller, scope: SCOPE });
     }
+  }
+
+  addDefaultMiddleware(...middlewares: ClassType<RestateMiddleware>[]): this {
+    this.defaultMiddlewares.push(...middlewares);
+    this.addProvider(
+      ...middlewares.map(middleware => ({ provide: middleware, scope: SCOPE })),
+    );
+    return this;
   }
 }

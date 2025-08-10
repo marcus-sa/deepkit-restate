@@ -8,7 +8,7 @@ import {
 } from '@deepkit/framework';
 
 import { RestateKafkaConfig } from './module.js';
-import { RestateBaseContext, RestateKafkaTopic } from '../types.js';
+import { RestateSharedContext, RestateKafkaTopic } from '../types.js';
 import {
   getRestateKafkaTopicArgsType,
   getRestateKafkaTopicSource,
@@ -25,7 +25,7 @@ export class RestateKafkaProducer {
 
   constructor(
     config: RestateKafkaConfig,
-    private readonly ctx: RestateBaseContext,
+    private readonly ctx: RestateSharedContext,
   ) {
     const kafka = new Kafka(config);
     this.#producer = kafka.producer({

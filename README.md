@@ -232,6 +232,272 @@ Use `@restate.object()` to define virtual objects.
 
 ---
 
+## Middleware
+
+Middleware provides a way to execute code before handlers are invoked, enabling cross-cutting concerns like authentication, logging, validation, and request preprocessing.
+
+### Defining Middleware
+
+Create a middleware class that implements the `RestateMiddleware` interface:
+
+```ts
+import {
+  RestateMiddleware,
+  RestateSharedContext,
+  RestateClassMetadata,
+  RestateHandlerMetadata
+} from 'deepkit-restate';
+
+class AuthenticationMiddleware implements RestateMiddleware {
+  async execute(
+    ctx: RestateSharedContext,
+    classMetadata: RestateClassMetadata,
+    handlerMetadata?: RestateHandlerMetadata,
+  ): Promise<void> {
+    // Access context properties like headers, request data, etc.
+    const headers = ctx.request?.headers;
+
+    // Access metadata about the service/object and handler
+    console.log(`Executing ${classMetadata.name}.${handlerMetadata?.name}`);
+    console.log(`Service class: ${classMetadata.classType.name}`);
+
+    // Perform authentication logic
+    if (!headers?.authorization) {
+      throw new Error('Authentication required');
+    }
+
+    // Middleware can modify context or perform side effects
+    console.log('Request authenticated');
+  }
+}
+```
+
+### Applying Middleware
+
+#### Service-Level Middleware
+
+Apply middleware to all handlers in a service:
+
+```ts
+@restate.service<UserServiceApi>().middleware(AuthenticationMiddleware)
+class UserService implements UserServiceHandlers {
+  @restate.handler()
+  async create(username: string): Promise<User> {
+    // AuthenticationMiddleware runs before this handler
+    return new User(username);
+  }
+}
+```
+
+#### Handler-Level Middleware
+
+Apply middleware to specific handlers:
+
+```ts
+@restate.service<UserServiceApi>()
+class UserService implements UserServiceHandlers {
+  @restate.handler().middleware(ValidationMiddleware)
+  async create(username: string): Promise<User> {
+    // ValidationMiddleware runs before this handler
+    return new User(username);
+  }
+}
+```
+
+#### Object Middleware
+
+Middleware works the same way for objects:
+
+```ts
+@restate.object<UserObjectApi>().middleware(LoggingMiddleware)
+class UserObject implements UserObjectHandlers {
+  @restate.handler()
+  async update(data: UserData): Promise<void> {
+    // LoggingMiddleware runs before this handler
+  }
+}
+```
+
+#### Global Middleware
+
+Apply middleware to all services and objects:
+
+```ts
+new RestateModule({
+  // ... other config
+}).addDefaultMiddleware(LoggingMiddleware, MetricsMiddleware);
+```
+
+### Middleware Execution Order
+
+Middleware executes in the following order:
+
+1. **Global middleware** (in registration order)
+2. **Service/Object-level middleware** (in registration order)
+3. **Handler-level middleware** (in registration order)
+4. **Handler execution**
+
+### Middleware Context
+
+Middleware receives three parameters providing comprehensive execution context:
+
+#### 1. `RestateSharedContext`
+Provides access to:
+- **Request information**: Headers, method name, service name
+- **Execution context**: Invocation ID, retry information
+- **Restate utilities**: Random number generation, timing functions
+
+#### 2. `RestateClassMetadata`
+Provides information about the service/object being executed:
+- **Service/Object name**: The registered name
+- **Class type**: The actual TypeScript class
+- **Handlers**: All handlers defined on the service/object
+- **Applied middleware**: Middleware configured at the class level
+
+#### 3. `RestateHandlerMetadata` (optional)
+Provides information about the specific handler being executed:
+- **Handler name**: The method name being invoked
+- **Return type**: TypeScript type information for the return value
+- **Arguments type**: TypeScript type information for the parameters
+- **Handler options**: Configuration options for the handler
+- **Applied middleware**: Middleware configured at the handler level
+
+```ts
+class RequestLoggingMiddleware implements RestateMiddleware {
+  async execute(
+    ctx: RestateSharedContext,
+    classMetadata: RestateClassMetadata,
+    handlerMetadata?: RestateHandlerMetadata,
+  ): Promise<void> {
+    console.log(`Executing ${classMetadata.name}.${handlerMetadata?.name || 'unknown'}`);
+    console.log(`Service class: ${classMetadata.classType.name}`);
+    console.log(`Invocation ID: ${ctx.invocationId}`);
+    console.log(`Headers:`, ctx.request?.headers);
+
+    // Access handler-specific information
+    if (handlerMetadata) {
+      console.log(`Handler return type: ${handlerMetadata.returnType.kind}`);
+      console.log(`Handler middleware count: ${handlerMetadata.middlewares.length}`);
+    }
+
+    // Access class-level information
+    console.log(`Service middleware count: ${classMetadata.middlewares.length}`);
+    console.log(`Total handlers: ${classMetadata.handlers.size}`);
+  }
+}
+```
+
+### Error Handling in Middleware
+
+If middleware throws an error, the handler will not execute and the error will be propagated to the caller:
+
+```ts
+class ValidationMiddleware implements RestateMiddleware {
+  async execute(
+    ctx: RestateSharedContext,
+    classMetadata: RestateClassMetadata,
+    handlerMetadata?: RestateHandlerMetadata,
+  ): Promise<void> {
+    // This error will prevent handler execution
+    if (!this.isValidRequest(ctx, handlerMetadata)) {
+      throw new Error(`Invalid request format for ${classMetadata.name}.${handlerMetadata?.name}`);
+    }
+  }
+
+  private isValidRequest(ctx: RestateSharedContext, handlerMetadata?: RestateHandlerMetadata): boolean {
+    // Validation logic can use both context and metadata
+    return true; // Simplified example
+  }
+}
+```
+
+### Dependency Injection
+
+Middleware classes support dependency injection like any other service:
+
+```ts
+class DatabaseMiddleware implements RestateMiddleware {
+  constructor(private readonly database: Database) {}
+
+  async execute(
+    ctx: RestateSharedContext,
+    classMetadata: RestateClassMetadata,
+    handlerMetadata?: RestateHandlerMetadata,
+  ): Promise<void> {
+    // Use injected dependencies and metadata
+    await this.database.logRequest({
+      invocationId: ctx.invocationId,
+      serviceName: classMetadata.name,
+      handlerName: handlerMetadata?.name,
+      serviceClass: classMetadata.classType.name,
+    });
+  }
+}
+```
+
+Middleware classes are automatically resolved by the dependency injection system when applied to services, objects, or handlers. No manual registration in the providers array is required.
+
+### Using Metadata in Middleware
+
+The metadata parameters enable powerful middleware capabilities:
+
+#### Service-Specific Logic
+```ts
+class ServiceSpecificMiddleware implements RestateMiddleware {
+  async execute(
+    ctx: RestateSharedContext,
+    classMetadata: RestateClassMetadata,
+    handlerMetadata?: RestateHandlerMetadata,
+  ): Promise<void> {
+    // Apply different logic based on service name
+    if (classMetadata.name === 'payment') {
+      await this.validatePaymentSecurity(ctx);
+    } else if (classMetadata.name === 'user') {
+      await this.validateUserPermissions(ctx);
+    }
+  }
+}
+```
+
+#### Handler-Specific Behavior
+```ts
+class HandlerSpecificMiddleware implements RestateMiddleware {
+  async execute(
+    ctx: RestateSharedContext,
+    classMetadata: RestateClassMetadata,
+    handlerMetadata?: RestateHandlerMetadata,
+  ): Promise<void> {
+    // Skip validation for read-only operations
+    if (handlerMetadata?.name?.startsWith('get') || handlerMetadata?.name?.startsWith('list')) {
+      return; // Skip middleware for read operations
+    }
+
+    // Apply strict validation for write operations
+    await this.validateWritePermissions(ctx, classMetadata.name);
+  }
+}
+```
+
+#### Dynamic Configuration
+```ts
+class ConfigurableMiddleware implements RestateMiddleware {
+  async execute(
+    ctx: RestateSharedContext,
+    classMetadata: RestateClassMetadata,
+    handlerMetadata?: RestateHandlerMetadata,
+  ): Promise<void> {
+    // Use handler options for configuration
+    const timeout = handlerMetadata?.options?.timeout || 30000;
+    const retries = handlerMetadata?.options?.retries || 3;
+
+    // Apply configuration-based logic
+    await this.setupTimeoutAndRetries(ctx, timeout, retries);
+  }
+}
+```
+
+---
+
 ## Dependency Injection: Calling Other Services
 
 You can inject the client and proxy APIs into a service:

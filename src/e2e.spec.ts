@@ -5,8 +5,13 @@ import { sleep } from '@deepkit/core';
 import { RestateModule } from './restate.module.js';
 import { RestateIngressClient } from './restate-ingress-client.js';
 import { restate } from './decorator.js';
-import { RestateService, RestateServiceContext } from './types.js';
-import { RestateTestEnvironment } from '@restatedev/restate-sdk-testcontainers';
+import {
+  RestateService,
+  RestateServiceContext,
+  RestateSharedContext,
+} from './types.js';
+import { RestateMiddleware } from './middleware.js';
+import { RestateClassMetadata, RestateHandlerMetadata } from './decorator.js';
 
 describe('e2e', () => {
   describe('context', () => {
@@ -339,6 +344,77 @@ describe('e2e', () => {
           invocationId: expect.any(String),
           status: 'Accepted',
         });
+      }
+    });
+
+    test('middleware', async () => {
+      let middlewareExecuted = false;
+      let contextReceived: RestateSharedContext | undefined;
+      let classMetadataReceived: RestateClassMetadata | undefined;
+      let handlerMetadataReceived: RestateHandlerMetadata | undefined;
+
+      class TestMiddleware implements RestateMiddleware {
+        async execute(
+          ctx: RestateSharedContext,
+          classMetadata: RestateClassMetadata,
+          handlerMetadata?: RestateHandlerMetadata,
+        ): Promise<void> {
+          middlewareExecuted = true;
+          contextReceived = ctx;
+          classMetadataReceived = classMetadata;
+          handlerMetadataReceived = handlerMetadata;
+        }
+      }
+
+      @(restate.service<UserServiceApi>().middleware(TestMiddleware))
+      class UserServiceWithMiddleware implements UserService {
+        constructor(private readonly ctx: RestateServiceContext) {}
+
+        @restate.handler()
+        async create(username: string): Promise<User> {
+          return new User(username);
+        }
+      }
+
+      const app = createTestingApp({
+        imports: [
+          new RestateModule({
+            server: {
+              host: 'http://host.docker.internal',
+              port: 9088,
+            },
+            admin: {
+              url: 'http://0.0.0.0:9070',
+              deployOnStartup: true,
+            },
+            ingress: {
+              url: 'http://0.0.0.0:8080',
+            },
+          }),
+        ],
+        controllers: [UserServiceWithMiddleware],
+      });
+      await app.startServer();
+
+      const client = app.app.getInjectorContext().get<RestateIngressClient>();
+
+      const user = client.service<UserServiceApi>();
+
+      {
+        const result = await client.call(user.create('Test'));
+        expect(result).toBeInstanceOf(User);
+        expect(result).toMatchObject({
+          id: expect.any(String),
+          username: 'Test',
+        });
+        expect(middlewareExecuted).toBe(true);
+        expect(contextReceived).toBeDefined();
+        expect(contextReceived).toHaveProperty('rand');
+        expect(classMetadataReceived).toBeDefined();
+        expect(classMetadataReceived?.name).toBe('user');
+        expect(classMetadataReceived?.classType).toBe(UserServiceWithMiddleware);
+        expect(handlerMetadataReceived).toBeDefined();
+        expect(handlerMetadataReceived?.name).toBe('create');
       }
     });
   });

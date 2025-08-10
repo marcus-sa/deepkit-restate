@@ -11,10 +11,10 @@ import { createServer } from 'node:http2';
 import { SagaManager } from './saga/saga-manager.js';
 import { SAGA_STATE_KEY } from './saga/saga-instance.js';
 import { EventHandlers, EventStoreApi } from './event/types.js';
-import { InjectorService, InjectorServices } from './services.js';
-import { InjectorObject, InjectorObjects } from './objects.js';
-import { InjectorSaga, InjectorSagas } from './sagas.js';
-import { RestateHandlerMetadata } from './decorator.js';
+import { InjectorService } from './services.js';
+import { InjectorObject } from './objects.js';
+import { InjectorSaga } from './sagas.js';
+import { RestateClassMetadata, RestateHandlerMetadata } from './decorator.js';
 import { CUSTOM_TERMINAL_ERROR_CODE, RestateConfig } from './config.js';
 import { getTypeHash, getTypeName } from './utils.js';
 import { RestateAdminClient } from './restate-admin-client.js';
@@ -26,7 +26,8 @@ import {
   restateServiceContextType,
   SCOPE,
   restateClientType,
-  restateBaseContextType,
+  restateSharedContextType,
+  RestateSharedContext,
 } from './types.js';
 import { RestateIngressClient } from './restate-ingress-client.js';
 import { RestatePubSubConfig } from './event/config.js';
@@ -37,6 +38,7 @@ import {
   createServiceContext,
   createSharedObjectContext,
 } from './context.js';
+import { RestateModule } from './restate.module.js';
 
 const DEFAULT_HANDLER_OPTS = {
   input: restate.serde.binary,
@@ -49,9 +51,7 @@ export class RestateServer {
 
   constructor(
     private readonly config: RestateConfig,
-    private readonly services: InjectorServices,
-    private readonly objects: InjectorObjects,
-    private readonly sagas: InjectorSagas,
+    private readonly module: RestateModule,
     private readonly injectorContext: InjectorContext,
   ) {}
 
@@ -66,7 +66,7 @@ export class RestateServer {
   async bootstrap() {
     const config = this.config.server!;
 
-    for (const object of this.objects) {
+    for (const object of this.module.objects) {
       const handlers = this.createObjectHandlers(object);
       this.endpoint.bind(
         restate.object({
@@ -77,7 +77,7 @@ export class RestateServer {
       );
     }
 
-    for (const service of this.services) {
+    for (const service of this.module.services) {
       const handlers = this.createServiceHandlers(service);
       this.endpoint.bind(
         restate.service({
@@ -88,7 +88,7 @@ export class RestateServer {
       );
     }
 
-    for (const saga of this.sagas) {
+    for (const saga of this.module.sagas) {
       const handlers = this.createSagaHandlers(saga);
       this.endpoint.bind(
         restate.workflow({
@@ -118,8 +118,8 @@ export class RestateServer {
       }
       // TODO: filter out handlers by existing subscriptions
       await Promise.all([
-        this.addKafkaHandlerSubscriptions('object', [...this.objects]),
-        this.addKafkaHandlerSubscriptions('service', [...this.services]),
+        this.addKafkaHandlerSubscriptions('object', [...this.module.objects]),
+        this.addKafkaHandlerSubscriptions('service', [...this.module.services]),
       ]);
     }
 
@@ -130,7 +130,7 @@ export class RestateServer {
 
   private async registerEventHandlers(config: RestatePubSubConfig) {
     let handlers: EventHandlers = [];
-    for (const { metadata } of this.services) {
+    for (const { metadata } of this.module.services) {
       for (const handler of metadata.handlers) {
         if (handler.event) {
           handlers = [
@@ -182,6 +182,26 @@ export class RestateServer {
     );
   }
 
+  // TODO: wrap in custom error
+  private async executeMiddlewares(
+    injectorContext: InjectorContext,
+    ctx: RestateSharedContext,
+    classMetadata: RestateClassMetadata,
+    handlerMetadata?: RestateHandlerMetadata,
+  ) {
+    for (const middleware of this.module.defaultMiddlewares) {
+      await injectorContext.get(middleware).execute(ctx, classMetadata, handlerMetadata);
+    }
+    for (const middleware of classMetadata.middlewares) {
+      await injectorContext.get(middleware).execute(ctx, classMetadata, handlerMetadata);
+    }
+    if (handlerMetadata) {
+      for (const middleware of handlerMetadata.middlewares) {
+        await injectorContext.get(middleware).execute(ctx, classMetadata, handlerMetadata);
+      }
+    }
+  }
+
   private createServiceHandlers({
     classType,
     module,
@@ -197,10 +217,12 @@ export class RestateServer {
             data: Uint8Array,
           ): Promise<Uint8Array> => {
             const injector = this.createScopedInjector();
+            injector.set(InjectorContext, injector);
             const ctx = createServiceContext(rsCtx, this.config);
             injector.set(restateClientType, ctx);
-            injector.set(restateBaseContextType, ctx);
+            injector.set(restateSharedContextType, ctx);
             injector.set(restateServiceContextType, ctx);
+            await this.executeMiddlewares(injector, ctx, metadata, handler);
             const instance = injector.get(classType, module);
             return await this.callHandler(instance, handler, data);
           },
@@ -216,10 +238,12 @@ export class RestateServer {
         DEFAULT_HANDLER_OPTS,
         async (rsCtx: restate.WorkflowContext, request: Uint8Array) => {
           const injector = this.createScopedInjector();
+          injector.set(InjectorContext, injector);
           const ctx = createSagaContext(rsCtx, this.config);
           injector.set(restateClientType, ctx);
-          injector.set(restateBaseContextType, ctx);
+          injector.set(restateSharedContextType, ctx);
           injector.set(restateSagaContextType, ctx);
+          await this.executeMiddlewares(injector, ctx as any, metadata);
           const restateSaga = injector.get(classType, module);
           const sagaManager = new SagaManager(ctx, restateSaga, metadata);
           const data = metadata.deserializeData(request);
@@ -262,12 +286,14 @@ export class RestateServer {
             data: Uint8Array,
           ): Promise<Uint8Array> => {
             const injector = this.createScopedInjector();
+            injector.set(InjectorContext, injector);
             const ctx = handler.shared
               ? createSharedObjectContext(rsCtx, this.config)
               : createObjectContext(rsCtx, this.config);
             injector.set(restateClientType, ctx);
-            injector.set(restateBaseContextType, ctx);
+            injector.set(restateSharedContextType, ctx);
             injector.set(restateObjectContextType, ctx);
+            await this.executeMiddlewares(injector, ctx, metadata, handler);
             const instance = injector.get(classType, module);
             return await this.callHandler(instance, handler, data);
           },
