@@ -216,6 +216,19 @@ export class RestateHandlerDecorator {
     const deserializeArgs =
       this.t.deserializeArgs || getBSONDeserializer(undefined, argsType);
 
+    if (this.t.event) {
+      if (argsType.types.length !== 1) {
+        throw new Error('Event handler must have exactly one argument');
+      }
+      if (!isSameType(this.t.event.type, argsType.types[0].type)) {
+        throw new Error(
+          `Event handler argument type ${stringifyType(
+            argsType.types[0].type,
+          )} does not match event type ${stringifyType(this.t.event.type)}`,
+        );
+      }
+    }
+
     Object.assign(this.t, {
       name: property,
       classType,
@@ -234,9 +247,7 @@ export class RestateHandlerDecorator {
     Object.assign(this.t, { options });
   }
 
-  // FIXME: options and type are somehow required
-  event<T>(type?: ReceiveType<T>, stream?: string) {
-    type = resolveReceiveType(type);
+  event<T>(type: ClassType<T>, stream?: string) {
     const deserialize = getBSONDeserializer(undefined, type);
     Object.assign(this.t, {
       event: { type, stream },
@@ -244,7 +255,6 @@ export class RestateHandlerDecorator {
     });
   }
 
-  // FIXME: options and type are somehow required
   kafka<T extends RestateKafkaTopic<string, any[]>>(
     options?: Record<string, string>,
     type?: ReceiveType<T>,
@@ -289,18 +299,26 @@ export class RestateHandlerDecorator {
 }
 
 type RestateClassFluidDecorator<T, D extends Function> = {
-  [K in keyof T]: K extends 'service' | 'object'
-    ? <For extends RestateService<string, any> | RestateObject<string, any>>(
+  [K in keyof T]: K extends 'service'
+    ? <For extends RestateService<string, any>>(
+        options?: ServiceOptions,
         type?: ReceiveType<For>,
       ) => D & RestateClassFluidDecorator<T, D>
-    : K extends 'saga'
-      ? <For extends RestateSaga<string, any>>(
+    : K extends 'object'
+      ? <For extends RestateObject<string, any>>(
+          options?: ObjectOptions,
           type?: ReceiveType<For>,
         ) => D & RestateClassFluidDecorator<T, D>
-      : T[K] extends (...args: infer K) => any
-        ? (...args: K) => D & RestateClassFluidDecorator<T, D>
-        : D &
-            RestateClassFluidDecorator<T, D> & { _data: ExtractApiDataType<T> };
+      : K extends 'saga'
+        ? <For extends RestateSaga<string, any>>(
+            type?: ReceiveType<For>,
+          ) => D & RestateClassFluidDecorator<T, D>
+        : T[K] extends (...args: infer K) => any
+          ? (...args: K) => D & RestateClassFluidDecorator<T, D>
+          : D &
+              RestateClassFluidDecorator<T, D> & {
+                _data: ExtractApiDataType<T>;
+              };
 };
 
 type RestateServiceDecoratorResult = RestateClassFluidDecorator<
@@ -334,19 +352,25 @@ export const restateSagaDecorator = createClassDecoratorContext(
 ) as RestateSagaDecoratorResult;
 
 type RestateMerge<U> = {
-  [K in keyof U]: K extends 'service' | 'object'
-    ? <For extends RestateService<string, any> | RestateObject<any, any>>(
+  [K in keyof U]: K extends 'service'
+    ? <For extends RestateService<string, any>>(
+        options?: ServiceOptions,
         type?: ReceiveType<For>,
       ) => (PropertyDecoratorFn | ClassDecoratorFn) & U
-    : K extends 'saga'
-      ? <For extends RestateSaga<string, any>>(
+    : K extends 'object'
+      ? <For extends RestateObject<string, any>>(
+          options?: ObjectOptions,
           type?: ReceiveType<For>,
         ) => (PropertyDecoratorFn | ClassDecoratorFn) & U
-      : U[K] extends (...a: infer A) => infer R
-        ? R extends DualDecorator
-          ? (...a: A) => (PropertyDecoratorFn | ClassDecoratorFn) & R & U
-          : (...a: A) => R
-        : never;
+      : K extends 'saga'
+        ? <For extends RestateSaga<string, any>>(
+            type?: ReceiveType<For>,
+          ) => (PropertyDecoratorFn | ClassDecoratorFn) & U
+        : U[K] extends (...a: infer A) => infer R
+          ? R extends DualDecorator
+            ? (...a: A) => (PropertyDecoratorFn | ClassDecoratorFn) & R & U
+            : (...a: A) => R
+          : never;
 };
 
 type MergedRestate<T extends any[]> = RestateMerge<

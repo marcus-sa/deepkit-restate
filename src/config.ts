@@ -16,12 +16,12 @@ export class RestateServerConfig {
    * Controls whether incoming request headers are propagated to outgoing service calls.
    * - `true`: All incoming headers are forwarded to downstream service calls
    * - `string[]`: Only the specified header names are forwarded
-   * - `undefined`: No headers are propagated (default)
+   * - `false`: No headers are propagated (default)
    *
    * This is useful for passing authentication tokens, correlation IDs, or other
    * context information through the service call chain.
    */
-  readonly propagateIncomingHeaders?: true | readonly string[];
+  readonly propagateIncomingHeaders?: boolean | readonly string[];
   // Indicates whether BSON (Binary JSON) is enabled.
   readonly bson?: boolean;
 }

@@ -6,5 +6,5 @@ export interface RestateMiddleware {
     ctx: RestateSharedContext,
     classMetadata: RestateClassMetadata,
     handlerMetadata?: RestateHandlerMetadata,
-  ): Promise<void>;
+  ): Promise<void> | void;
 }

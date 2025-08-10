@@ -412,7 +412,9 @@ describe('e2e', () => {
         expect(contextReceived).toHaveProperty('rand');
         expect(classMetadataReceived).toBeDefined();
         expect(classMetadataReceived?.name).toBe('user');
-        expect(classMetadataReceived?.classType).toBe(UserServiceWithMiddleware);
+        expect(classMetadataReceived?.classType).toBe(
+          UserServiceWithMiddleware,
+        );
         expect(handlerMetadataReceived).toBeDefined();
         expect(handlerMetadataReceived?.name).toBe('create');
       }
