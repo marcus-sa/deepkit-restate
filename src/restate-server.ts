@@ -69,21 +69,33 @@ export class RestateServer {
     for (const object of this.objects) {
       const handlers = this.createObjectHandlers(object);
       this.endpoint.bind(
-        restate.object({ name: object.metadata.name, handlers }),
+        restate.object({
+          name: object.metadata.name,
+          handlers,
+          options: object.metadata.options,
+        }),
       );
     }
 
     for (const service of this.services) {
       const handlers = this.createServiceHandlers(service);
       this.endpoint.bind(
-        restate.service({ name: service.metadata.name, handlers }),
+        restate.service({
+          name: service.metadata.name,
+          handlers,
+          options: service.metadata.options,
+        }),
       );
     }
 
     for (const saga of this.sagas) {
       const handlers = this.createSagaHandlers(saga);
       this.endpoint.bind(
-        restate.workflow({ name: saga.metadata.name, handlers }),
+        restate.workflow({
+          name: saga.metadata.name,
+          handlers,
+          options: saga.metadata.options,
+        }),
       );
     }
 
@@ -179,7 +191,7 @@ export class RestateServer {
       (handlers, handler) => ({
         ...handlers,
         [handler.name]: restate.handlers.handler(
-          DEFAULT_HANDLER_OPTS,
+          { ...DEFAULT_HANDLER_OPTS, ...handler.options },
           async (
             rsCtx: restate.Context,
             data: Uint8Array,
@@ -244,7 +256,7 @@ export class RestateServer {
         [handler.name]: (handler.shared
           ? restate.handlers.object.shared
           : restate.handlers.object.exclusive)(
-          DEFAULT_HANDLER_OPTS,
+          { ...DEFAULT_HANDLER_OPTS, ...handler.options },
           async (
             rsCtx: restate.ObjectContext,
             data: Uint8Array,
@@ -295,6 +307,7 @@ export class RestateServer {
           ).toString('base64'),
           {
             cause: error,
+            // TODO: mapper for custom error codes
             errorCode: CUSTOM_TERMINAL_ERROR_CODE,
           },
         );

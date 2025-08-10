@@ -52,6 +52,7 @@ export class RestateApiError extends Error {
 
 export class RestateIngressClientOptions {
   readonly url: string;
+  readonly bson?: boolean;
   readonly headers?: Record<string, string>;
 }
 

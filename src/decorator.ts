@@ -1,5 +1,11 @@
 import { ClassType } from '@deepkit/core';
 import {
+  ServiceHandlerOpts,
+  ServiceOptions,
+  ObjectOptions,
+  WorkflowOptions,
+} from '@restatedev/restate-sdk';
+import {
   BSONDeserializer,
   BSONSerializer,
   getBSONDeserializer,
@@ -56,11 +62,22 @@ export class RestateClassMetadata {
   readonly handlers = new Set<RestateHandlerMetadata>();
 }
 
-export class RestateServiceMetadata extends RestateClassMetadata {}
+// TODO: add enableLazyState for objects
+export interface RestateHandlerOptions
+  extends Omit<ServiceHandlerOpts<any, any>, 'input' | 'output' | 'accept'> {
+  readonly bson?: boolean;
+}
 
-export class RestateObjectMetadata extends RestateClassMetadata {}
+export class RestateServiceMetadata extends RestateClassMetadata {
+  readonly options?: ServiceOptions;
+}
+
+export class RestateObjectMetadata extends RestateClassMetadata {
+  readonly options?: ObjectOptions;
+}
 
 export class RestateSagaMetadata<T = unknown> extends RestateClassMetadata {
+  readonly options?: WorkflowOptions;
   readonly deserializeData: BSONDeserializer<T>;
   readonly serializeData: BSONSerializer;
 }
@@ -76,10 +93,14 @@ export class RestateServiceDecorator {
     this.t.handlers.add(action);
   }
 
-  service<T extends RestateService<string, any>>(type?: ReceiveType<T>) {
+  service<T extends RestateService<string, any>>(
+    options?: ServiceOptions,
+    type?: ReceiveType<T>,
+  ) {
     type = resolveReceiveType(type);
     const name = getRestateClassName(type);
     Object.assign(this.t, {
+      options,
       name,
       type,
     });
@@ -97,10 +118,14 @@ export class RestateObjectDecorator {
     this.t.handlers.add(action);
   }
 
-  object<T extends RestateObject<string, any>>(type?: ReceiveType<T>) {
+  object<T extends RestateObject<string, any>>(
+    options?: ObjectOptions,
+    type?: ReceiveType<T>,
+  ) {
     type = resolveReceiveType(type);
     const name = getRestateClassName(type);
     Object.assign(this.t, {
+      options,
       name,
       type,
     });
@@ -156,6 +181,7 @@ export class RestateHandlerMetadata<T = readonly unknown[]> {
   readonly exclusive?: boolean;
   readonly kafka?: RestateKafkaHandlerMetadata;
   readonly event?: RestateEventHandlerMetadata;
+  readonly options?: RestateHandlerOptions;
 }
 
 export class RestateHandlerDecorator {
@@ -189,7 +215,9 @@ export class RestateHandlerDecorator {
     restateSagaDecorator.addHandler(this.t)(classType);
   }
 
-  handler() {}
+  handler(options?: RestateHandlerOptions) {
+    Object.assign(this.t, { options });
+  }
 
   // FIXME: options and type are somehow required
   event<T>(type?: ReceiveType<T>, stream?: string) {

@@ -22,6 +22,8 @@ export class RestateServerConfig {
    * context information through the service call chain.
    */
   readonly propagateIncomingHeaders?: true | readonly string[];
+  // Indicates whether BSON (Binary JSON) is enabled.
+  readonly bson?: boolean;
 }
 
 export class RestateConfig {
