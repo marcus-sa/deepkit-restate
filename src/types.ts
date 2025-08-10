@@ -114,7 +114,7 @@ export interface RestateClient {
 
 export interface RestateSharedContext
   extends RestateClient,
-    Pick<Context, 'request' | 'rand' | 'date' | 'sleep'> {
+    Pick<Context, 'request' | 'rand' | 'date' | 'sleep' | 'console'> {
   awakeable<T>(type?: ReceiveType<T>): RestateAwakeable<T>;
   resolveAwakeable<T>(
     id: string,

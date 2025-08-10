@@ -38,7 +38,7 @@ export class RestateModule extends createModuleClass({
   readonly services = new InjectorServices();
   readonly objects = new InjectorObjects();
   readonly sagas = new InjectorSagas();
-  readonly defaultMiddlewares: ClassType<RestateMiddleware>[] = [];
+  readonly globalMiddlewares: ClassType<RestateMiddleware>[] = [];
 
   override process() {
     if (this.config.ingress) {
@@ -124,7 +124,7 @@ export class RestateModule extends createModuleClass({
     }
   }
 
-  private provideMiddleware(metadata: RestateClassMetadata): void {
+  private addClassMetadataMiddleware(metadata: RestateClassMetadata): void {
     for (const middleware of metadata.middlewares) {
       if (!this.isProvided(middleware))
         this.addProvider({ provide: middleware, scope: SCOPE });
@@ -143,7 +143,7 @@ export class RestateModule extends createModuleClass({
     metadata: RestateServiceMetadata,
   ): void {
     this.services.add({ classType, module, metadata });
-    this.provideMiddleware(metadata);
+    this.addClassMetadataMiddleware(metadata);
   }
 
   private addObject(
@@ -152,7 +152,7 @@ export class RestateModule extends createModuleClass({
     metadata: RestateObjectMetadata,
   ): void {
     this.objects.add({ classType, module, metadata });
-    this.provideMiddleware(metadata);
+    this.addClassMetadataMiddleware(metadata);
   }
 
   private addSaga(
@@ -161,7 +161,7 @@ export class RestateModule extends createModuleClass({
     metadata: RestateSagaMetadata,
   ): void {
     this.sagas.add({ classType, module, metadata });
-    this.provideMiddleware(metadata);
+    this.addClassMetadataMiddleware(metadata);
   }
 
   private addDeps(classType: ClassType): void {
@@ -212,8 +212,8 @@ export class RestateModule extends createModuleClass({
     }
   }
 
-  addDefaultMiddleware(...middlewares: ClassType<RestateMiddleware>[]): this {
-    this.defaultMiddlewares.push(...middlewares);
+  addGlobalMiddleware(...middlewares: ClassType<RestateMiddleware>[]): this {
+    this.globalMiddlewares.push(...middlewares);
     this.addProvider(
       ...middlewares.map(middleware => ({ provide: middleware, scope: SCOPE })),
     );

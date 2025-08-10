@@ -255,7 +255,7 @@ class AuthenticationMiddleware implements RestateMiddleware {
     handlerMetadata?: RestateHandlerMetadata,
   ): Promise<void> {
     // Access context properties like headers, request data, etc.
-    const headers = ctx.request?.headers;
+    const headers = ctx.request().headers;
 
     // Access metadata about the service/object and handler
     console.log(`Executing ${classMetadata.name}.${handlerMetadata?.name}`);
@@ -325,7 +325,7 @@ Apply middleware to all services and objects:
 ```ts
 new RestateModule({
   // ... other config
-}).addDefaultMiddleware(LoggingMiddleware, MetricsMiddleware);
+}).addGlobalMiddleware(LoggingMiddleware, MetricsMiddleware);
 ```
 
 ### Middleware Execution Order

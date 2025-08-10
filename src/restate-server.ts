@@ -5,8 +5,11 @@ import {
 } from '@deepkit/framework';
 import { InjectorContext } from '@deepkit/injector';
 import * as restate from '@restatedev/restate-sdk';
+import { LogMetadata } from '@restatedev/restate-sdk';
 import { entity, ReflectionKind } from '@deepkit/type';
 import { createServer } from 'node:http2';
+import { serializeBSON } from '@deepkit/bson';
+import { ScopedLogger } from '@deepkit/logger';
 
 import { SagaManager } from './saga/saga-manager.js';
 import { SAGA_STATE_KEY } from './saga/saga-instance.js';
@@ -31,7 +34,6 @@ import {
 } from './types.js';
 import { RestateIngressClient } from './restate-ingress-client.js';
 import { RestatePubSubConfig } from './event/config.js';
-import { serializeBSON } from '@deepkit/bson';
 import {
   createObjectContext,
   createSagaContext,
@@ -46,13 +48,13 @@ const DEFAULT_HANDLER_OPTS = {
 } as const;
 
 export class RestateServer {
-  readonly endpoint = restate.endpoint();
   private http2Server?: ReturnType<typeof createServer>;
 
   constructor(
     private readonly config: RestateConfig,
     private readonly module: RestateModule,
     private readonly injectorContext: InjectorContext,
+    private readonly logger: ScopedLogger,
   ) {}
 
   @eventDispatcher.listen(onServerMainShutdown)
@@ -66,9 +68,11 @@ export class RestateServer {
   async bootstrap() {
     const config = this.config.server!;
 
+    const services: restate.EndpointOptions['services'] = [];
+
     for (const object of this.module.objects) {
       const handlers = this.createObjectHandlers(object);
-      this.endpoint.bind(
+      services.push(
         restate.object({
           name: object.metadata.name,
           handlers,
@@ -79,7 +83,7 @@ export class RestateServer {
 
     for (const service of this.module.services) {
       const handlers = this.createServiceHandlers(service);
-      this.endpoint.bind(
+      services.push(
         restate.service({
           name: service.metadata.name,
           handlers,
@@ -90,7 +94,7 @@ export class RestateServer {
 
     for (const saga of this.module.sagas) {
       const handlers = this.createSagaHandlers(saga);
-      this.endpoint.bind(
+      services.push(
         restate.workflow({
           name: saga.metadata.name,
           handlers,
@@ -99,8 +103,25 @@ export class RestateServer {
       );
     }
 
+    const handler = restate.createEndpointHandler({
+      services,
+      defaultServiceOptions: {},
+      logger: (
+        params: LogMetadata,
+        message?: any,
+        ...optionalParams: any[]
+      ) => {
+        if (params.replaying) return;
+        if (params.context) {
+          this.logger.data(params.context);
+        }
+        if (params.level === 'trace') return;
+        this.logger[params.level](message, ...optionalParams);
+      },
+    });
+
     await new Promise<void>(resolve => {
-      this.http2Server = createServer(this.endpoint.http2Handler());
+      this.http2Server = createServer(handler);
       this.http2Server.listen(this.config.server?.port!, resolve);
     });
 
@@ -189,15 +210,21 @@ export class RestateServer {
     classMetadata: RestateClassMetadata,
     handlerMetadata?: RestateHandlerMetadata,
   ) {
-    for (const middleware of this.module.defaultMiddlewares) {
-      await injectorContext.get(middleware).execute(ctx, classMetadata, handlerMetadata);
+    for (const middleware of this.module.globalMiddlewares) {
+      await injectorContext
+        .get(middleware)
+        .execute(ctx, classMetadata, handlerMetadata);
     }
     for (const middleware of classMetadata.middlewares) {
-      await injectorContext.get(middleware).execute(ctx, classMetadata, handlerMetadata);
+      await injectorContext
+        .get(middleware)
+        .execute(ctx, classMetadata, handlerMetadata);
     }
     if (handlerMetadata) {
       for (const middleware of handlerMetadata.middlewares) {
-        await injectorContext.get(middleware).execute(ctx, classMetadata, handlerMetadata);
+        await injectorContext
+          .get(middleware)
+          .execute(ctx, classMetadata, handlerMetadata);
       }
     }
   }
@@ -224,7 +251,7 @@ export class RestateServer {
             injector.set(restateServiceContextType, ctx);
             await this.executeMiddlewares(injector, ctx, metadata, handler);
             const instance = injector.get(classType, module);
-            return await this.callHandler(instance, handler, data);
+            return await this.callHandler(ctx, instance, handler, data);
           },
         ),
       }),
@@ -295,7 +322,7 @@ export class RestateServer {
             injector.set(restateObjectContextType, ctx);
             await this.executeMiddlewares(injector, ctx, metadata, handler);
             const instance = injector.get(classType, module);
-            return await this.callHandler(instance, handler, data);
+            return await this.callHandler(ctx, instance, handler, data);
           },
         ),
       }),
@@ -304,13 +331,16 @@ export class RestateServer {
   }
 
   private async callHandler(
+    ctx: RestateSharedContext,
     instance: any,
     handler: RestateHandlerMetadata,
     data: Uint8Array,
   ): Promise<Uint8Array> {
     try {
       const args = handler.deserializeArgs(data);
+      ctx.console.debug('Calling handler', handler.name, 'with args', args);
       const result = await instance[handler.name].bind(instance)(...args);
+      ctx.console.debug('Handler', handler.name, 'returned', result);
       return serializeRestateHandlerResponse({
         success: true,
         data:
@@ -322,6 +352,7 @@ export class RestateServer {
         typeName: handler.returnType.typeName,
       });
     } catch (error: any) {
+      ctx.console.debug('Handler', handler.name, 'failed with', error);
       const entityData = entity._fetch(error.constructor);
       if (entityData?.name) {
         throw new restate.TerminalError(
