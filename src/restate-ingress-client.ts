@@ -73,12 +73,15 @@ export class RestateSagaClient<Data> {
   async state(id: string): Promise<SagaState<Data>> {
     const url = `${this.opts.url}/${this.serviceName}/${id}/state`;
 
+    const headers = new Headers({
+      ...this.opts.headers,
+      'content-type': 'application/octet-stream',
+      accept: 'application/octet-stream',
+    });
+
     const response = await fetch(url, {
       method: 'POST',
-      headers: {
-        'content-type': 'application/octet-stream',
-        accept: 'application/octet-stream',
-      },
+      headers,
     });
 
     if (!response.ok) {
@@ -98,12 +101,15 @@ export class RestateSagaClient<Data> {
   async start(id: string, data: Data): Promise<RestateInvocationHandle> {
     const url = `${this.opts.url}/${this.serviceName}/${id}/run/send`;
 
+    const headers = new Headers({
+      ...this.opts.headers,
+      'content-type': 'application/octet-stream',
+      accept: 'application/json',
+    });
+
     const response = await fetch(url, {
       method: 'POST',
-      headers: {
-        'content-type': 'application/octet-stream',
-        accept: 'application/json',
-      },
+      headers,
       body: this.serializeData(data),
     });
 
@@ -148,10 +154,12 @@ export class RestateIngressClient implements RestateClient {
         : `${this.opts.url}/${service}/${method}`,
     );
 
-    const headers = new Headers([
-      ['content-type', 'application/octet-stream'],
-      ['accept', 'application/octet-stream'],
-    ]);
+    const headers = new Headers({
+      ...this.opts.headers,
+      ...options?.headers,
+      'content-type': 'application/octet-stream',
+      accept: 'application/octet-stream',
+    });
     if (options?.idempotencyKey) {
       headers.set('idempotency-key', options.idempotencyKey);
     }
@@ -199,10 +207,12 @@ export class RestateIngressClient implements RestateClient {
       url.searchParams.set('delay', options.delay);
     }
 
-    const headers = new Headers([
-      ['content-type', 'application/octet-stream'],
-      ['accept', 'application/json'],
-    ]);
+    const headers = new Headers({
+      ...this.opts.headers,
+      ...options?.headers,
+      'content-type': 'application/octet-stream',
+      accept: 'application/octet-stream',
+    });
     if (options?.idempotencyKey) {
       headers.set('idempotency-key', options.idempotencyKey);
     }
