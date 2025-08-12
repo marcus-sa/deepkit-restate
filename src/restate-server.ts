@@ -51,7 +51,6 @@ export class RestateServer {
   private http2Server?: ReturnType<typeof createServer>;
 
   constructor(
-    private readonly config: RestateConfig,
     private readonly module: RestateModule,
     private readonly injectorContext: InjectorContext,
     private readonly logger: ScopedLogger,
@@ -66,8 +65,6 @@ export class RestateServer {
 
   @eventDispatcher.listen(onServerMainBootstrap)
   async bootstrap() {
-    const config = this.config.server!;
-
     const services: restate.EndpointOptions['services'] = [];
 
     for (const object of this.module.objects) {
@@ -122,19 +119,21 @@ export class RestateServer {
 
     await new Promise<void>(resolve => {
       this.http2Server = createServer(handler);
-      this.http2Server.listen(this.config.server?.port!, resolve);
+      this.http2Server.listen(this.module.config.server?.port!, resolve);
     });
 
-    if (this.config.admin?.deployOnStartup) {
+    if (this.module.config.admin?.deployOnStartup) {
       const admin = this.injectorContext.get(RestateAdminClient);
-      if (!config.host) {
+      if (!this.module.config.server?.host) {
         throw new Error('Restate server host is missing');
       }
-      await admin.deployments.create(`${config.host}:${config.port}`);
+      await admin.deployments.create(
+        `${this.module.config.server.host}:${this.module.config.server.port}`,
+      );
     }
 
-    if (this.config.kafka) {
-      if (!this.config.admin) {
+    if (this.module.config.kafka) {
+      if (!this.module.config.admin) {
         throw new Error('Restate admin config is missing for Kafka');
       }
       // TODO: filter out handlers by existing subscriptions
@@ -144,8 +143,8 @@ export class RestateServer {
       ]);
     }
 
-    if (this.config.pubsub) {
-      await this.registerEventHandlers(this.config.pubsub);
+    if (this.module.config.pubsub) {
+      await this.registerEventHandlers(this.module.config.pubsub);
     }
   }
 
@@ -190,10 +189,10 @@ export class RestateServer {
     await Promise.all(
       classesMetadata.flatMap(metadata => {
         return metadata.handlers.map(async handler => {
-          const url = `${this.config.admin!.url}/subscriptions`;
+          const url = `${this.module.config.admin!.url}/subscriptions`;
 
           await admin.kafka.subscriptions.create({
-            source: `kafka://${this.config.kafka!.clusterName}/${handler.kafka!.topic}`,
+            source: `kafka://${this.module.config.kafka!.clusterName}/${handler.kafka!.topic}`,
             // TODO: figure out if protocol "object://" is needed for objects
             sink: `${protocol}://${metadata.name}/${handler.name}`,
             options: handler.kafka?.options,
@@ -245,7 +244,7 @@ export class RestateServer {
           ): Promise<Uint8Array> => {
             const injector = this.createScopedInjector();
             injector.set(InjectorContext, injector);
-            const ctx = createServiceContext(rsCtx, this.config);
+            const ctx = createServiceContext(rsCtx, this.module.config);
             injector.set(restateClientType, ctx);
             injector.set(restateSharedContextType, ctx);
             injector.set(restateServiceContextType, ctx);
@@ -266,7 +265,7 @@ export class RestateServer {
         async (rsCtx: restate.WorkflowContext, request: Uint8Array) => {
           const injector = this.createScopedInjector();
           injector.set(InjectorContext, injector);
-          const ctx = createSagaContext(rsCtx, this.config);
+          const ctx = createSagaContext(rsCtx, this.module.config);
           injector.set(restateClientType, ctx);
           injector.set(restateSharedContextType, ctx);
           injector.set(restateSagaContextType, ctx);
@@ -315,8 +314,8 @@ export class RestateServer {
             const injector = this.createScopedInjector();
             injector.set(InjectorContext, injector);
             const ctx = handler.shared
-              ? createSharedObjectContext(rsCtx, this.config)
-              : createObjectContext(rsCtx, this.config);
+              ? createSharedObjectContext(rsCtx, this.module.config)
+              : createObjectContext(rsCtx, this.module.config);
             injector.set(restateClientType, ctx);
             injector.set(restateSharedContextType, ctx);
             injector.set(restateObjectContextType, ctx);
