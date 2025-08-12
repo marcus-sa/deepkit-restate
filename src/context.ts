@@ -25,6 +25,18 @@ export function createServiceContext(
   ctx: restate.Context,
   config?: RestateConfig,
 ): RestateServiceContext {
+  function extractContextHeaders(): Record<string, string> {
+    const entries = Object.entries(ctx.request().headers);
+    if (Array.isArray(config?.server?.propagateIncomingHeaders)) {
+      return Object.fromEntries(
+        entries.filter(([key]) =>
+          (config?.server?.propagateIncomingHeaders as string[]).includes(key),
+        ),
+      );
+    }
+    return Object.fromEntries(entries);
+  }
+
   return {
     workflowClient: ctx.workflowClient.bind(ctx),
     workflowSendClient: ctx.workflowSendClient.bind(ctx),
@@ -84,7 +96,7 @@ export function createServiceContext(
 
       const headers = config?.server?.propagateIncomingHeaders
         ? {
-            ...ctx.request().headers,
+            ...extractContextHeaders(),
             ...options?.headers,
           }
         : options?.headers;
@@ -108,7 +120,7 @@ export function createServiceContext(
 
       const headers = config?.server?.propagateIncomingHeaders
         ? {
-            ...ctx.request().headers,
+            ...extractContextHeaders(),
             ...options?.headers,
           }
         : options?.headers;
