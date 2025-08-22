@@ -1,5 +1,3 @@
-import { RestateModule } from './restate.module.js';
-
 export class InvocationClient {
   kill() {}
 
@@ -79,9 +77,6 @@ export class RestateAdminClient {
   readonly invocations = new InvocationClient();
   readonly deployments = new DeploymentClient(this);
   readonly kafka = new KafkaClient(this);
-  readonly opts: RestateAdminClientOptions;
 
-  constructor(module: RestateModule) {
-    this.opts = module.config.admin!;
-  }
+  constructor(public readonly opts: RestateAdminClientOptions) {}
 }

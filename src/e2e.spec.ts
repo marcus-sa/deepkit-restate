@@ -3,7 +3,7 @@ import { PrimaryKey, Unique, uuid, UUID } from '@deepkit/type';
 import { sleep } from '@deepkit/core';
 
 import { RestateModule } from './restate.module.js';
-import { RestateIngressClient } from './restate-ingress-client.js';
+import { RestateIngressClient } from './client/restate-ingress-client.js';
 import { restate } from './decorator.js';
 import {
   RestateService,
@@ -418,6 +418,256 @@ describe('e2e', () => {
         expect(handlerMetadataReceived).toBeDefined();
         expect(handlerMetadataReceived?.name).toBe('create');
       }
+    });
+
+    test('propagateIncomingHeaders', async () => {
+      let receivedHeaders: Record<string, string> = {};
+
+      class User {
+        readonly id: UUID = uuid();
+
+        constructor(public readonly username: string) {}
+      }
+
+      interface HeaderValidationServiceInterface {
+        validateHeaders(): Promise<Record<string, string>>;
+      }
+
+      type HeaderValidationServiceApi = RestateService<
+        'HeaderValidation',
+        HeaderValidationServiceInterface
+      >;
+
+      @restate.service<HeaderValidationServiceApi>()
+      class HeaderValidationService
+        implements HeaderValidationServiceInterface
+      {
+        constructor(private readonly ctx: RestateServiceContext) {}
+
+        @restate.handler()
+        async validateHeaders(): Promise<Record<string, string>> {
+          // Capture the headers received by this service
+          const headers = this.ctx.request().headers;
+          receivedHeaders = { ...headers };
+          return headers;
+        }
+      }
+
+      interface UserServiceWithHeaders {
+        createAndValidate(username: string): Promise<{
+          user: User;
+          headers: Record<string, string>;
+        }>;
+      }
+
+      type UserServiceWithHeadersApi = RestateService<
+        'UserWithHeaders',
+        UserServiceWithHeaders
+      >;
+
+      @restate.service<UserServiceWithHeadersApi>()
+      class UserServiceWithHeaders implements UserServiceWithHeaders {
+        constructor(
+          private readonly ctx: RestateServiceContext,
+          private readonly headerValidation: HeaderValidationServiceApi,
+        ) {}
+
+        @restate.handler()
+        async createAndValidate(username: string): Promise<{
+          user: User;
+          headers: Record<string, string>;
+        }> {
+          const user = new User(username);
+          // Call another service - headers should be propagated
+          const headers = await this.ctx.call(
+            this.headerValidation.validateHeaders(),
+          );
+          return { user, headers };
+        }
+      }
+
+      const app = createTestingApp({
+        imports: [
+          new RestateModule({
+            server: {
+              host: 'http://host.docker.internal',
+              port: 9089,
+              // Enable header propagation for specific headers
+              propagateIncomingHeaders: [
+                'x-correlation-id',
+                'authorization',
+                'x-tenant-id',
+              ],
+            },
+            admin: {
+              url: 'http://0.0.0.0:9070',
+              deployOnStartup: true,
+            },
+            ingress: {
+              url: 'http://0.0.0.0:8080',
+            },
+          }),
+        ],
+        controllers: [UserServiceWithHeaders, HeaderValidationService],
+      });
+      await app.startServer();
+
+      const client = app.app.getInjectorContext().get<RestateIngressClient>();
+
+      const userService = client.service<UserServiceWithHeadersApi>();
+
+      // Make a call with custom headers
+      const customHeaders = {
+        'x-correlation-id': 'test-correlation-123',
+        authorization: 'Bearer test-token',
+        'x-tenant-id': 'tenant-456',
+        'x-custom-header': 'should-not-propagate', // This should not be propagated
+      };
+
+      const result = await client.call(
+        userService.createAndValidate('TestUser'),
+        {
+          headers: customHeaders,
+        },
+      );
+
+      expect(result.user).toBeInstanceOf(User);
+      expect(result.user.username).toBe('TestUser');
+
+      // Verify that the specified headers were propagated
+      expect(receivedHeaders['x-correlation-id']).toBe('test-correlation-123');
+      expect(receivedHeaders['authorization']).toBe('Bearer test-token');
+      expect(receivedHeaders['x-tenant-id']).toBe('tenant-456');
+
+      // Verify that non-specified headers were NOT propagated
+      expect(receivedHeaders['x-custom-header']).toBeUndefined();
+
+      // Verify that the returned headers match what was received
+      expect(result.headers['x-correlation-id']).toBe('test-correlation-123');
+      expect(result.headers['authorization']).toBe('Bearer test-token');
+      expect(result.headers['x-tenant-id']).toBe('tenant-456');
+      expect(result.headers['x-custom-header']).toBeUndefined();
+    });
+
+    test('propagateIncomingHeaders with true (all headers)', async () => {
+      let receivedHeaders: Record<string, string> = {};
+
+      class User {
+        readonly id: UUID = uuid();
+
+        constructor(public readonly username: string) {}
+      }
+
+      interface HeaderValidationService2 {
+        validateHeaders(): Promise<Record<string, string>>;
+      }
+
+      type HeaderValidationService2Api = RestateService<
+        'HeaderValidation2',
+        HeaderValidationService2
+      >;
+
+      @restate.service<HeaderValidationService2Api>()
+      class HeaderValidationService2 implements HeaderValidationService2 {
+        constructor(private readonly ctx: RestateServiceContext) {}
+
+        @restate.handler()
+        async validateHeaders(): Promise<Record<string, string>> {
+          // Capture the headers received by this service
+          const headers = this.ctx.request().headers;
+          receivedHeaders = { ...headers };
+          return headers;
+        }
+      }
+
+      interface UserServiceWithAllHeaders {
+        createAndValidate(username: string): Promise<{
+          user: User;
+          headers: Record<string, string>;
+        }>;
+      }
+
+      type UserServiceWithAllHeadersApi = RestateService<
+        'UserWithAllHeaders',
+        UserServiceWithAllHeaders
+      >;
+
+      @restate.service<UserServiceWithAllHeadersApi>()
+      class UserServiceWithAllHeaders implements UserServiceWithAllHeaders {
+        constructor(
+          private readonly ctx: RestateServiceContext,
+          private readonly headerValidation: HeaderValidationService2Api,
+        ) {}
+
+        @restate.handler()
+        async createAndValidate(username: string): Promise<{
+          user: User;
+          headers: Record<string, string>;
+        }> {
+          const user = new User(username);
+          // Call another service - all headers should be propagated
+          const headers = await this.ctx.call(
+            this.headerValidation.validateHeaders(),
+          );
+          return { user, headers };
+        }
+      }
+
+      const app = createTestingApp({
+        imports: [
+          new RestateModule({
+            server: {
+              host: 'http://host.docker.internal',
+              port: 9090,
+              // Enable propagation of ALL incoming headers
+              propagateIncomingHeaders: true,
+            },
+            admin: {
+              url: 'http://0.0.0.0:9070',
+              deployOnStartup: true,
+            },
+            ingress: {
+              url: 'http://0.0.0.0:8080',
+            },
+          }),
+        ],
+        controllers: [UserServiceWithAllHeaders, HeaderValidationService2],
+      });
+      await app.startServer();
+
+      const client = app.app.getInjectorContext().get<RestateIngressClient>();
+
+      const userService = client.service<UserServiceWithAllHeadersApi>();
+
+      // Make a call with custom headers
+      const customHeaders = {
+        'x-correlation-id': 'test-correlation-456',
+        authorization: 'Bearer test-token-2',
+        'x-tenant-id': 'tenant-789',
+        'x-custom-header': 'should-propagate-now',
+      };
+
+      const result = await client.call(
+        userService.createAndValidate('TestUser2'),
+        {
+          headers: customHeaders,
+        },
+      );
+
+      expect(result.user).toBeInstanceOf(User);
+      expect(result.user.username).toBe('TestUser2');
+
+      // When propagateIncomingHeaders is true, ALL headers should be propagated
+      expect(receivedHeaders['x-correlation-id']).toBe('test-correlation-456');
+      expect(receivedHeaders['authorization']).toBe('Bearer test-token-2');
+      expect(receivedHeaders['x-tenant-id']).toBe('tenant-789');
+      expect(receivedHeaders['x-custom-header']).toBe('should-propagate-now');
+
+      // Verify that the returned headers match what was received
+      expect(result.headers['x-correlation-id']).toBe('test-correlation-456');
+      expect(result.headers['authorization']).toBe('Bearer test-token-2');
+      expect(result.headers['x-tenant-id']).toBe('tenant-789');
+      expect(result.headers['x-custom-header']).toBe('should-propagate-now');
     });
   });
 });

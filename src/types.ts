@@ -4,6 +4,7 @@ import {
   Context,
   InvocationId,
   type ObjectContext,
+  InvocationHandle,
   ObjectSharedContext,
   RestatePromise,
   RunOptions,
@@ -11,10 +12,6 @@ import {
   WorkflowContext,
 } from '@restatedev/restate-sdk';
 import type { Duration } from '@restatedev/restate-sdk-core';
-
-export interface RestateInvocationHandle {
-  readonly invocationId: string;
-}
 
 export type RestateRunAction<T> = () => Promise<T> | T;
 
@@ -95,12 +92,12 @@ export interface RestateClient {
     key: string,
     request: RestateObjectHandlerRequest,
     options?: RestateSendOptions,
-  ): Promise<RestateInvocationHandle> | void;
+  ): Promise<InvocationHandle>;
   // used for services
   send(
     request: RestateServiceHandlerRequest,
     options?: RestateSendOptions,
-  ): Promise<RestateInvocationHandle> | void;
+  ): Promise<InvocationHandle>;
   // used for objects
   call<R, A extends any[]>(
     key: string,
@@ -126,12 +123,6 @@ export interface RestateSharedContext
     invocationId: InvocationId,
     type?: ReceiveType<T>,
   ): RestatePromise<T>;
-  // run should only return a value if a generic is provided
-  run(
-    name: string,
-    action: RestateRunAction<unknown>,
-    options?: Omit<RunOptions<unknown>, 'serde'>,
-  ): RestatePromise<void>;
   run<T>(
     name: string,
     action: RestateRunAction<T>,

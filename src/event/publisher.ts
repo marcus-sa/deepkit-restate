@@ -3,13 +3,13 @@ import { resolveRuntimeType } from '@deepkit/type';
 import { isClassInstance } from '@deepkit/core';
 
 import { EventProcessorApi, PublishEvent, PublishOptions } from './types.js';
-import { RestatePubSubConfig } from './config.js';
 import { fastHash, getTypeHash, getTypeName } from '../utils.js';
 import { RestateClient } from '../types.js';
+import { RestatePubSubModule } from './module.js';
 
 export class RestateEventPublisher {
   constructor(
-    private readonly config: RestatePubSubConfig,
+    private readonly module: RestatePubSubModule,
     private readonly client: RestateClient,
     private readonly processor: EventProcessorApi,
   ) {}
@@ -38,10 +38,10 @@ export class RestateEventPublisher {
 
     const idempotencyKey = eventsToPublish.map(e => e.id).join('-');
 
-    await this.client.send(
+    void this.client.send(
       this.processor.process(eventsToPublish, {
-        stream: options?.stream || this.config.defaultStream,
-        cluster: options?.cluster || this.config.cluster,
+        stream: options?.stream || this.module.config.defaultStream,
+        cluster: options?.cluster || this.module.config.cluster,
         sse: options?.sse,
       }),
       {

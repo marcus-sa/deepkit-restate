@@ -18,9 +18,9 @@ import { InjectorService } from './services.js';
 import { InjectorObject } from './objects.js';
 import { InjectorSaga } from './sagas.js';
 import { RestateClassMetadata, RestateHandlerMetadata } from './decorator.js';
-import { CUSTOM_TERMINAL_ERROR_CODE, RestateConfig } from './config.js';
+import { CUSTOM_TERMINAL_ERROR_CODE } from './config.js';
 import { getTypeHash, getTypeName } from './utils.js';
-import { RestateAdminClient } from './restate-admin-client.js';
+import { RestateAdminClient } from './client/restate-admin-client.js';
 import { serializeRestateHandlerResponse } from './serde.js';
 import {
   RestateCustomTerminalErrorMessage,
@@ -32,7 +32,7 @@ import {
   restateSharedContextType,
   RestateSharedContext,
 } from './types.js';
-import { RestateIngressClient } from './restate-ingress-client.js';
+import { RestateIngressClient } from './client/restate-ingress-client.js';
 import { RestatePubSubConfig } from './event/config.js';
 import {
   createObjectContext,

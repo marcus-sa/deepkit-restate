@@ -8,7 +8,6 @@ import {
 } from './serde.js';
 import {
   RestateAwakeable,
-  RestateInvocationHandle,
   RestateObjectContext,
   RestateRunAction,
   RestateSagaContext,
@@ -16,6 +15,7 @@ import {
   RestateSharedObjectContext,
 } from './types.js';
 import {
+  InvocationHandle,
   InvocationId,
   RestatePromise,
   RunOptions,
@@ -25,16 +25,16 @@ export function createServiceContext(
   ctx: restate.Context,
   config?: RestateConfig,
 ): RestateServiceContext {
-  function extractContextHeaders(): Record<string, string> {
-    const entries = Object.entries(ctx.request().headers);
-    if (Array.isArray(config?.server?.propagateIncomingHeaders)) {
+  function propagateRequestHeaders() {
+    const headers = ctx.request().headers.entries();
+    if (config?.server?.propagateIncomingHeaders) {
       return Object.fromEntries(
-        entries.filter(([key]) =>
-          (config?.server?.propagateIncomingHeaders as string[]).includes(key),
+        headers.filter(([key]) =>
+          config.server!.propagateIncomingHeaders!.includes(key),
         ),
       );
     }
-    return Object.fromEntries(entries);
+    return Object.fromEntries(headers);
   }
 
   return {
@@ -68,7 +68,7 @@ export function createServiceContext(
       const serde = createBSONSerde<T>(type);
       return ctx.awakeable<T>(serde) as RestateAwakeable<T>;
     },
-    run<T = void>(
+    run<T>(
       name: string,
       action: RestateRunAction<T>,
       options: RunOptions<unknown> = {},
@@ -82,26 +82,20 @@ export function createServiceContext(
         }) as RestatePromise<T>;
       }
 
-      return ctx.run(
-        name,
-        async () => {
-          await action();
-        },
-        options,
-      ) as RestatePromise<never>;
+      return ctx.run(name, action, options) as RestatePromise<T>;
     },
-    send(...args: readonly any[]): Promise<RestateInvocationHandle> {
+    async send(...args: readonly any[]): Promise<InvocationHandle> {
       const [key, { service, method, data }, options] =
         typeof args[0] !== 'string' ? [undefined, ...args] : args;
 
       const headers = config?.server?.propagateIncomingHeaders
         ? {
-            ...extractContextHeaders(),
+            ...propagateRequestHeaders(),
             ...options?.headers,
           }
         : options?.headers;
 
-      const { invocationId } = ctx.genericSend({
+      return ctx.genericSend({
         service,
         method,
         parameter: data,
@@ -109,10 +103,6 @@ export function createServiceContext(
         headers,
         key,
       });
-
-      return invocationId.then(invocationId => ({
-        invocationId,
-      }));
     },
     call<T>(...args: readonly any[]): RestatePromise<T> {
       const [key, { service, method, data, deserializeReturn }, options] =
@@ -120,7 +110,7 @@ export function createServiceContext(
 
       const headers = config?.server?.propagateIncomingHeaders
         ? {
-            ...extractContextHeaders(),
+            ...propagateRequestHeaders(),
             ...options?.headers,
           }
         : options?.headers;
@@ -159,9 +149,12 @@ export function createSharedObjectContext(
   return Object.assign(createServiceContext(ctx, config), {
     key: ctx.key,
     stateKeys: ctx.stateKeys.bind(ctx),
-    async get<T>(name: string, type?: ReceiveType<T>): Promise<T | null> {
-      const serde = createBSONSerde<T>(type);
-      return await ctx.get<T>(name, serde);
+    get<T>(name: string, type?: ReceiveType<T>): Promise<T | null> {
+      if (type) {
+        const serde = createBSONSerde<T>(type);
+        return ctx.get<T>(name, serde);
+      }
+      return ctx.get<T>(name);
     },
   });
 }
@@ -174,8 +167,12 @@ export function createObjectContext(
     clearAll: ctx.clearAll.bind(ctx),
     clear: ctx.clear.bind(ctx),
     set<T>(name: string, value: T, type?: ReceiveType<T>) {
-      const serde = createBSONSerde<T>(type);
-      ctx.set(name, value, serde);
+      if (type) {
+        const serde = createBSONSerde<T>(type);
+        ctx.set(name, value, serde);
+      } else {
+        ctx.set(name, value);
+      }
     },
   });
 }

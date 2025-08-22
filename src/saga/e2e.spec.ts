@@ -11,7 +11,7 @@ import {
   RestateService,
 } from '../types.js';
 import { RestateModule } from '../restate.module.js';
-import { RestateIngressClient } from '../restate-ingress-client.js';
+import { RestateIngressClient } from '../client/restate-ingress-client.js';
 import { Saga } from './saga.js';
 import { SagaManager } from './saga-manager.js';
 import { getRestateSagaMetadata } from '../metadata.js';

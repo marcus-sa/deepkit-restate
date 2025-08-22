@@ -10,18 +10,18 @@ import {
   typeSettings,
 } from '@deepkit/type';
 
-import { SagaState } from './saga/saga-instance.js';
+import { SagaState } from '../saga/saga-instance.js';
 import {
   deserializeResponseData,
   getSagaDataDeserializer,
   getSagaDataSerializer,
   deserializeBSONAndThrowCustomTerminalError,
-} from './serde.js';
-import { getRestateClassName } from './metadata.js';
+} from '../serde.js';
+import { getRestateClassName } from '../metadata.js';
 import {
   makeInterfaceProxy,
   decodeRestateServiceMethodResponse,
-} from './utils.js';
+} from '../utils.js';
 import {
   RestateObject,
   RestateObjectHandlerRequest,
@@ -32,9 +32,9 @@ import {
   RestateServiceHandlerRequest,
   RestateCustomTerminalErrorMessage,
   RestateClient,
-  RestateInvocationHandle,
-} from './types.js';
-import { CUSTOM_TERMINAL_ERROR_CODE } from './config.js';
+} from '../types.js';
+import { CUSTOM_TERMINAL_ERROR_CODE } from '../config.js';
+import { InvocationHandle } from '@restatedev/restate-sdk';
 
 interface RestateApiResponseError {
   readonly code: string;
@@ -98,7 +98,7 @@ export class RestateSagaClient<Data> {
     };
   }
 
-  async start(id: string, data: Data): Promise<RestateInvocationHandle> {
+  async start(id: string, data: Data): Promise<InvocationHandle> {
     const url = `${this.opts.url}/${this.serviceName}/${id}/run/send`;
 
     const headers = new Headers({
@@ -113,7 +113,7 @@ export class RestateSagaClient<Data> {
       body: this.serializeData(data),
     });
 
-    return (await response.json()) as RestateInvocationHandle;
+    return (await response.json()) as InvocationHandle;
   }
 }
 
@@ -189,12 +189,12 @@ export class RestateIngressClient implements RestateClient {
     key: string,
     request: Omit<RestateObjectHandlerRequest, 'deserializeReturn'>,
     options?: RestateSendOptions,
-  ): Promise<RestateInvocationHandle>;
+  ): Promise<InvocationHandle>;
   send(
     request: Omit<RestateServiceHandlerRequest, 'deserializeReturn'>,
     options?: RestateSendOptions,
-  ): Promise<RestateInvocationHandle>;
-  async send(...args: readonly any[]): Promise<RestateInvocationHandle> {
+  ): Promise<InvocationHandle>;
+  async send(...args: readonly any[]): Promise<InvocationHandle> {
     const [key, { service, method, data }, options] =
       typeof args[0] !== 'string' ? [undefined, ...args] : args;
 
@@ -227,6 +227,6 @@ export class RestateIngressClient implements RestateClient {
       throw new Error(message);
     }
 
-    return (await response.json()) as RestateInvocationHandle;
+    return (await response.json()) as InvocationHandle;
   }
 }

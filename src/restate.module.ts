@@ -1,14 +1,14 @@
 import { AppModule, ControllerConfig, createModuleClass } from '@deepkit/app';
 import { ClassType } from '@deepkit/core';
 
-import { RestateAdminClient } from './restate-admin-client.js';
-import { RestateIngressClient } from './restate-ingress-client.js';
+import { RestateAdminClient } from './client/restate-admin-client.js';
+import { RestateIngressClient } from './client/restate-ingress-client.js';
 import { RestateConfig } from './config.js';
 import { InjectorServices } from './services.js';
 import { InjectorObjects } from './objects.js';
 import { InjectorSagas } from './sagas.js';
 import { RestateServer } from './restate-server.js';
-import { RestateEventModule } from './event/module.js';
+import { RestatePubSubModule } from './event/module.js';
 import {
   RestateClassMetadata,
   RestateObjectMetadata,
@@ -42,7 +42,10 @@ export class RestateModule extends createModuleClass({
 
   override process() {
     if (this.config.ingress) {
-      this.addProvider(RestateIngressClient);
+      this.addProvider({
+        provide: RestateIngressClient,
+        useValue: new RestateIngressClient(this.config.ingress),
+      });
     } else {
       this.addProvider({
         provide: RestateIngressClient,
@@ -57,11 +60,14 @@ export class RestateModule extends createModuleClass({
     });
 
     if (this.config.pubsub) {
-      this.addImport(new RestateEventModule(this.config.pubsub));
+      this.addImport(new RestatePubSubModule(this.config.pubsub));
     }
 
     if (this.config.admin) {
-      this.addProvider(RestateAdminClient);
+      this.addProvider({
+        provide: RestateAdminClient,
+        useValue: new RestateAdminClient(this.config.admin),
+      });
     }
 
     if (this.config.server) {
@@ -81,14 +87,6 @@ export class RestateModule extends createModuleClass({
         provide: InjectorSagas,
         useValue: this.sagas,
       });
-
-      // this.addProvider({
-      //   provide: restateClientType,
-      //   scope: SCOPE,
-      //   useFactory() {
-      //     throw new Error('Client has not been provided yet');
-      //   },
-      // })
 
       this.addProvider({
         provide: restateSharedContextType,

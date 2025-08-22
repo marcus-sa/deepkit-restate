@@ -1,5 +1,7 @@
-import { RestateIngressClientOptions } from './restate-ingress-client.js';
-import { RestateAdminClientOptions } from './restate-admin-client.js';
+import {
+  RestateAdminClientOptions,
+  RestateIngressClientOptions,
+} from './client/index.js';
 import { RestatePubSubConfig } from './event/config.js';
 
 // indicates that it is a custom error that has to be deserialized
@@ -14,14 +16,10 @@ export class RestateServerConfig {
   readonly port?: number = 9080;
   /**
    * Controls whether incoming request headers are propagated to outgoing service calls.
-   * - `true`: All incoming headers are forwarded to downstream service calls
-   * - `string[]`: Only the specified header names are forwarded
-   * - `false`: No headers are propagated (default)
-   *
    * This is useful for passing authentication tokens, correlation IDs, or other
    * context information through the service call chain.
    */
-  readonly propagateIncomingHeaders?: boolean | readonly string[];
+  readonly propagateIncomingHeaders?: string[];
   // Indicates whether BSON (Binary JSON) is enabled.
   readonly bson?: boolean;
 }

@@ -11,7 +11,7 @@ import { sleep } from '@deepkit/core';
 import { RestateModule } from '../restate.module.js';
 import { RestateService } from '../types.js';
 import { restate } from '../decorator.js';
-import { RestateIngressClient } from '../restate-ingress-client.js';
+import { RestateIngressClient } from '../client/restate-ingress-client.js';
 import { RestateEventPublisher } from './publisher.js';
 import { RestatePubSubServerModule } from './server/module.js';
 import { RestateEventSubscriber } from './subscriber.js';
