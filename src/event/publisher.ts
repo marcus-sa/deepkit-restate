@@ -28,11 +28,14 @@ export class RestateEventPublisher {
       }
       const type = eventTypes[i];
       const data = serializeBSON(event, undefined, type);
+      const version = this.module.config.eventVersioning
+        ? getTypeHash(type)
+        : undefined;
       return {
         name: getTypeName(type),
-        version: getTypeHash(type),
         id: fastHash(data),
         data: Array.from(data),
+        version,
       };
     });
 

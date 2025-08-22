@@ -26,7 +26,12 @@ export class RestateEventSubscriber {
       }
     }
     const events = new Map(
-      types.map(type => [`${getTypeName(type)}:${getTypeHash(type)}`, type]),
+      types.map(type => [
+        this.config.eventVersioning
+          ? `${getTypeName(type)}:${getTypeHash(type)}`
+          : getTypeName(type),
+        type,
+      ]),
     );
     const stream = options?.stream || this.config.defaultStream;
     const eventSource = new EventSource(

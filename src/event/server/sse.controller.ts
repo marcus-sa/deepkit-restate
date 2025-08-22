@@ -70,7 +70,10 @@ export class ServerSentEventsController {
         .get(cluster)
         .get(stream)
         .subscribe(event => {
-          if (`${event.name}:${event.version}` === id) {
+          if (
+            (event.version ? `${event.name}:${event.version}` : event.name) ===
+            id
+          ) {
             this.logger.debug('publish', event);
             response.write(`event: ${id}\n`);
             const data = new Uint8Array(event.data);
