@@ -65,7 +65,7 @@ describe('event', () => {
 
       @restate.service<AccountServiceProxy>()
       class AccountService implements AccountServiceHandlers {
-        @(restate.event(CustomerCreated).handler())
+        @(restate.event<CustomerCreated>().handler())
         async create(event: CustomerCreated) {
           expect(event).toBeInstanceOf(CustomerCreated);
         }
@@ -136,7 +136,7 @@ describe('event', () => {
 
       @restate.service<AccountServiceProxy>()
       class AccountService implements AccountServiceHandlers {
-        @(restate.event(CustomerCreated).handler())
+        @(restate.event<CustomerCreated>().handler())
         async create(_event: CustomerCreated) {
           expect(_event).toBeInstanceOf(CustomerCreated);
           event = _event;

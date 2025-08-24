@@ -6,7 +6,12 @@ import {
 import { InjectorContext } from '@deepkit/injector';
 import * as restate from '@restatedev/restate-sdk';
 import { LogMetadata } from '@restatedev/restate-sdk';
-import { entity, ReflectionKind } from '@deepkit/type';
+import {
+  entity,
+  ReflectionKind,
+  TypeClass,
+  TypeObjectLiteral,
+} from '@deepkit/type';
 import { createServer } from 'node:http2';
 import { serializeBSON } from '@deepkit/bson';
 import { ScopedLogger } from '@deepkit/logger';
@@ -153,15 +158,25 @@ export class RestateServer {
     for (const { metadata } of this.module.services) {
       for (const handler of metadata.handlers) {
         if (handler.event) {
-          handlers = [
-            ...handlers,
-            {
-              service: metadata.name,
-              method: handler.name,
-              eventName: getTypeName(handler.event.type),
-              eventVersion: getTypeHash(handler.event.type),
-            },
-          ];
+          function addHandler(type: TypeClass | TypeObjectLiteral) {
+            handlers = [
+              ...handlers,
+              {
+                service: metadata.name,
+                method: handler.name,
+                eventName: getTypeName(type),
+                eventVersion: getTypeHash(type),
+              },
+            ];
+          }
+
+          if (handler.event.type.kind === ReflectionKind.union) {
+            for (const type of handler.event.type.types) {
+              addHandler(type as TypeClass | TypeObjectLiteral);
+            }
+          } else {
+            addHandler(handler.event.type);
+          }
         }
       }
     }

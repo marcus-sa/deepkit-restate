@@ -38,13 +38,13 @@ type Service1Api = RestateService<'one', Service1ApiHandlers>;
 
 @restate.service<Service1Api>()
 class Service1 {
-  @(restate.event(CompanyCreatedEvent).handler())
+  @(restate.event<CompanyCreatedEvent>().handler())
   async onUserCreatedEvent(event: UserCreatedEvent): Promise<void> {
     console.log('one', 'onUserCreatedEvent', new Date());
     receivedEventsCount++;
   }
 
-  @(restate.event(CompanyCreatedEvent).handler())
+  @(restate.event<CompanyCreatedEvent>().handler())
   async onCompanyCreatedEvent(event: CompanyCreatedEvent): Promise<void> {
     console.log('one', 'onCompanyCreatedEvent', new Date());
     receivedEventsCount++;
@@ -55,13 +55,13 @@ type Service2Api = RestateService<'two', {}>;
 
 @restate.service<Service2Api>()
 class Service2 {
-  @(restate.event(UserCreatedEvent).handler())
+  @(restate.event<UserCreatedEvent>().handler())
   async onUserCreatedEvent(event: UserCreatedEvent): Promise<void> {
     console.log('two', 'onUserCreatedEvent', new Date());
     receivedEventsCount++;
   }
 
-  @(restate.event(CompanyCreatedEvent).handler())
+  @(restate.event<CompanyCreatedEvent>().handler())
   async onCompanyCreatedEvent(event: CompanyCreatedEvent): Promise<void> {
     console.log('two', 'onCompanyCreatedEvent', new Date());
     receivedEventsCount++;
@@ -72,13 +72,13 @@ type Service3Api = RestateService<'three', {}>;
 
 @restate.service<Service3Api>()
 class Service3 {
-  @(restate.event(CompanyCreatedEvent).handler())
+  @(restate.event<CompanyCreatedEvent>().handler())
   async onUserCreatedEvent(event: UserCreatedEvent): Promise<void> {
     console.log('two', 'onUserCreatedEvent', new Date());
     receivedEventsCount++;
   }
 
-  @(restate.event(CompanyCreatedEvent).handler())
+  @(restate.event<CompanyCreatedEvent>().handler())
   async onCompanyCreatedEvent(event: CompanyCreatedEvent): Promise<void> {
     throw new Error('Failed');
     console.log('two', 'onCompanyCreatedEvent', new Date());

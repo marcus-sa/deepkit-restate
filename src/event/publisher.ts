@@ -1,6 +1,7 @@
 import { serializeBSON } from '@deepkit/bson';
 import { resolveRuntimeType } from '@deepkit/type';
 import { isClassInstance } from '@deepkit/core';
+import { InvocationHandle } from '@restatedev/restate-sdk';
 
 import { EventProcessorApi, PublishEvent, PublishOptions } from './types.js';
 import { fastHash, getTypeHash, getTypeName } from '../utils.js';
@@ -17,7 +18,7 @@ export class RestateEventPublisher {
   async publish<E extends any[]>(
     events: E,
     options?: PublishOptions,
-  ): Promise<void> {
+  ): Promise<InvocationHandle> {
     const eventTypes = events.map(event =>
       resolveRuntimeType(event.constructor),
     );
@@ -41,7 +42,7 @@ export class RestateEventPublisher {
 
     const idempotencyKey = eventsToPublish.map(e => e.id).join('-');
 
-    void this.client.send(
+    return this.client.send(
       this.processor.process(eventsToPublish, {
         stream: options?.stream || this.module.config.defaultStream,
         cluster: options?.cluster || this.module.config.cluster,

@@ -30,6 +30,7 @@ import {
   TypeClass,
   TypeObjectLiteral,
   TypeTuple,
+  TypeUnion,
   UnionToIntersection,
 } from '@deepkit/type';
 
@@ -179,8 +180,12 @@ export interface RestateKafkaHandlerMetadata {
   readonly options?: RestateKafkaHandlerOptions;
 }
 
+export interface RestateEventHandlerTypeUnion extends TypeUnion {
+  readonly types: (TypeObjectLiteral | TypeClass)[];
+}
+
 export interface RestateEventHandlerMetadata {
-  readonly type: TypeClass | TypeObjectLiteral;
+  readonly type: TypeClass | TypeObjectLiteral | RestateEventHandlerTypeUnion;
   readonly stream?: string;
 }
 
@@ -216,19 +221,6 @@ export class RestateHandlerDecorator {
     const deserializeArgs =
       this.t.deserializeArgs || getBSONDeserializer(undefined, argsType);
 
-    if (this.t.event) {
-      if (argsType.types.length !== 1) {
-        throw new Error('Event handler must have exactly one argument');
-      }
-      if (!isSameType(this.t.event.type, argsType.types[0].type)) {
-        throw new Error(
-          `Event handler argument type ${stringifyType(
-            argsType.types[0].type,
-          )} does not match event type ${stringifyType(this.t.event.type)}`,
-        );
-      }
-    }
-
     Object.assign(this.t, {
       name: property,
       classType,
@@ -247,7 +239,8 @@ export class RestateHandlerDecorator {
     Object.assign(this.t, { options });
   }
 
-  event<T>(type: ClassType<T>, stream?: string) {
+  event<T>(stream?: string, type?: ReceiveType<T>) {
+    type = resolveReceiveType(type);
     const deserialize = getBSONDeserializer(undefined, type);
     Object.assign(this.t, {
       event: { type, stream },
@@ -366,11 +359,16 @@ type RestateMerge<U> = {
         ? <For extends RestateSaga<string, any>>(
             type?: ReceiveType<For>,
           ) => (PropertyDecoratorFn | ClassDecoratorFn) & U
-        : U[K] extends (...a: infer A) => infer R
-          ? R extends DualDecorator
-            ? (...a: A) => (PropertyDecoratorFn | ClassDecoratorFn) & R & U
-            : (...a: A) => R
-          : never;
+        : K extends 'event'
+          ? <T>(
+              stream?: string,
+              type?: ReceiveType<T>,
+            ) => (PropertyDecoratorFn | ClassDecoratorFn) & U
+          : U[K] extends (...a: infer A) => infer R
+            ? R extends DualDecorator
+              ? (...a: A) => (PropertyDecoratorFn | ClassDecoratorFn) & R & U
+              : (...a: A) => R
+            : never;
 };
 
 type MergedRestate<T extends any[]> = RestateMerge<
