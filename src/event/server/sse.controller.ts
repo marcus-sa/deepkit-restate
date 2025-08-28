@@ -15,7 +15,6 @@ export class ServerSentEventsController {
   constructor(
     private readonly clusters: Clusters,
     private readonly sseConfig: RestateSseConfig,
-    private readonly eventConfig: RestatePubSubConfig,
     private readonly logger: ScopedLogger,
   ) {}
 

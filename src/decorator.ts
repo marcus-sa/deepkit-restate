@@ -8,6 +8,7 @@ import {
 import {
   BSONDeserializer,
   BSONSerializer,
+  deserializeBSON,
   getBSONDeserializer,
 } from '@deepkit/bson';
 import {
@@ -24,6 +25,7 @@ import {
   PropertyDecoratorResult,
   ReceiveType,
   ReflectionClass,
+  ReflectionKind,
   resolveReceiveType,
   stringifyType,
   Type,
@@ -35,6 +37,8 @@ import {
 } from '@deepkit/type';
 
 import {
+  deserializeResponseData,
+  getResponseDataDeserializer,
   getResponseDataSerializer,
   getSagaDataDeserializer,
   getSagaDataSerializer,
@@ -48,6 +52,7 @@ import {
 import {
   assertValidKafkaTopicName,
   getReflectionFunctionArgsType,
+  getTypeName,
   getUnwrappedReflectionFunctionReturnType,
 } from './utils.js';
 import {
@@ -189,13 +194,15 @@ export interface RestateEventHandlerMetadata {
   readonly stream?: string;
 }
 
+export type EventBSONDeserializer<T> = (name: string, bson: Uint8Array) => T;
+
 export class RestateHandlerMetadata<T = readonly unknown[]> {
   readonly name: string;
   readonly classType: ClassType;
   readonly returnType: Type;
   readonly argsType: TypeTuple;
   readonly serializeReturn: BSONSerializer;
-  readonly deserializeArgs: BSONDeserializer<T>;
+  readonly deserializeArgs: BSONDeserializer<T> | EventBSONDeserializer<T>;
   readonly shared?: boolean;
   readonly exclusive?: boolean;
   readonly kafka?: RestateKafkaHandlerMetadata;
@@ -241,10 +248,18 @@ export class RestateHandlerDecorator {
 
   event<T>(stream?: string, type?: ReceiveType<T>) {
     type = resolveReceiveType(type);
-    const deserialize = getBSONDeserializer(undefined, type);
     Object.assign(this.t, {
       event: { type, stream },
-      deserializeArgs: (bson: Uint8Array) => [deserialize(bson)],
+      deserializeArgs: (name: string, data: Uint8Array) => [
+        type.kind === ReflectionKind.union
+          ? deserializeBSON(
+              data,
+              undefined,
+              undefined,
+              type.types.find(type => getTypeName(type) === name)!,
+            )
+          : deserializeBSON(data, undefined, undefined, type),
+      ],
     });
   }
 

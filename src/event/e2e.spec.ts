@@ -184,6 +184,92 @@ describe('event', () => {
 
       expect(event).toBeInstanceOf(CustomerCreated);
     });
+
+    test.only('union types event handler', async () => {
+      class Customer {
+        readonly id: UUID = uuid();
+
+        constructor(public readonly name: string) {}
+      }
+
+      class CustomerCreated {
+        constructor(public readonly customer: Customer) {}
+      }
+
+      class CustomerUpdated {
+        constructor(public readonly customer: Customer) {}
+      }
+
+      interface AccountServiceHandlers {}
+
+      type AccountServiceProxy = RestateService<
+        'Account',
+        AccountServiceHandlers
+      >;
+
+      let event: CustomerCreated | CustomerUpdated | undefined;
+
+      @restate.service<AccountServiceProxy>()
+      class AccountService implements AccountServiceHandlers {
+        // needs discriminators
+        @(restate.event<CustomerCreated | CustomerUpdated>().handler())
+        async create(_event: CustomerCreated | CustomerUpdated) {
+          console.log('event', event);
+          event = _event;
+        }
+      }
+
+      const app = new App({
+        imports: [
+          new FrameworkModule({
+            port: 9020,
+          }),
+          new RestateModule({
+            server: {
+              host: 'http://host.docker.internal',
+              port: 9093,
+            },
+            admin: {
+              url: 'http://0.0.0.0:9070',
+              deployOnStartup: true,
+            },
+            ingress: {
+              url: 'http://0.0.0.0:8080',
+            },
+            pubsub: {
+              sse: {
+                url: 'http://localhost:9020',
+              },
+            },
+          }),
+          new RestatePubSubServerModule({
+            sse: {
+              nodes: ['localhost:9020'],
+            },
+          }),
+        ],
+        controllers: [AccountService],
+      });
+      await app.get<ApplicationServer>().start();
+
+      const publisher = app.get<RestateEventPublisher>();
+
+      await publisher.publish([new CustomerCreated(new Customer('Test'))]);
+
+      await sleep(1);
+
+      console.log(event);
+
+      expect(event).toBeInstanceOf(CustomerCreated);
+
+      await publisher.publish([new CustomerUpdated(new Customer('Test'))]);
+
+      await sleep(1);
+
+      console.log(event);
+
+      expect(event).toBeInstanceOf(CustomerUpdated);
+    });
   });
 
   describe('sse', () => {

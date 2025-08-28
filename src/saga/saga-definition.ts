@@ -7,16 +7,7 @@ import { SagaExecutionState } from './saga-execution-state.js';
 import { StepToExecute } from './step-to-execute.js';
 import { SagaInstance } from './saga-instance.js';
 import { SagaActions } from './saga-actions.js';
-import {
-  deserializeResponseData,
-  deserializeRestateTerminalErrorType,
-} from '../serde.js';
-import { getRegisteredEntity } from '../utils.js';
-import {
-  RestateHandlerRequest,
-  RestateHandlerResponse,
-  restateTerminalErrorType,
-} from '../types.js';
+import { RestateHandlerRequest, RestateHandlerResponse } from '../types.js';
 
 export class SagaDefinition<Data> {
   constructor(readonly steps: readonly SagaStep<Data>[]) {}

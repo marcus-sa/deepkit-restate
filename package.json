@@ -1,6 +1,6 @@
 {
   "name": "deepkit-restate",
-  "version": "1.2.43",
+  "version": "1.2.58",
   "license": "MIT",
   "repository": "https://github.com/marcus-sa/deepkit-restate.git",
   "author": "Marcus S. Abildskov <work@marcus-sa.dev>",
@@ -53,6 +53,7 @@
   "peerDependencies": {
     "@restatedev/restate-sdk": "^1.8.1",
     "@restatedev/restate-sdk-clients": "^1.8.1",
+    "@restatedev/restate-sdk-core": "^1.8.1",
     "@deepkit/app": "^1.0.15",
     "@deepkit/broker": "^1.0.15",
     "@deepkit/bson": "^1.0.15",
@@ -83,6 +84,7 @@
     "@deepkit/vite": "^1.0.15",
     "@restatedev/restate-sdk": "1.8.1",
     "@restatedev/restate-sdk-clients": "1.8.1",
+    "@restatedev/restate-sdk-core": "1.8.1",
     "@restatedev/restate-sdk-testcontainers": "1.8.1",
     "@swc/core": "^1.12.7",
     "@types/bun": "^1.2.17",

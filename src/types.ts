@@ -1,14 +1,13 @@
 import { ReceiveType, typeOf } from '@deepkit/type';
 import { BSONDeserializer } from '@deepkit/bson';
-import {
+import type {
   Context,
   InvocationId,
-  type ObjectContext,
+  ObjectContext,
   InvocationHandle,
   ObjectSharedContext,
   RestatePromise,
   RunOptions,
-  TerminalError,
   WorkflowContext,
 } from '@restatedev/restate-sdk';
 import type { Duration } from '@restatedev/restate-sdk-core';
@@ -191,7 +190,5 @@ export const restateSharedContextType = typeOf<RestateSharedContext>();
 export const restateObjectContextType = typeOf<RestateObjectContext>();
 
 export const restateSagaContextType = typeOf<RestateSagaContext>();
-
-export const restateTerminalErrorType = typeOf<TerminalError>();
 
 export const SCOPE = 'restate';

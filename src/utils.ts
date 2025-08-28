@@ -1,6 +1,4 @@
 import { ClassType, sleep, toFastProperties } from '@deepkit/core';
-import { TerminalError } from '@restatedev/restate-sdk';
-import { FactoryProvider } from '@deepkit/injector';
 import { xxHash32 } from 'js-xxhash';
 import {
   BSONDeserializer,
@@ -44,7 +42,7 @@ import {
   getResponseDataDeserializer,
   serializeResponseData,
 } from './serde.js';
-import { MissingTypeName } from './event/index.js';
+import { MissingTypeName } from './event/errors.js';
 
 export function getRestateClassDeps(classType: ClassType): readonly Type[] {
   const serviceType = reflect(classType);
@@ -205,7 +203,7 @@ export function makeInterfaceProxy<
 
 export function provideRestateServiceProxy<
   T extends RestateService<string, any>,
->(type?: ReceiveType<T>): FactoryProvider<T> {
+>(type?: ReceiveType<T>) {
   type = resolveReceiveType(type);
   return {
     provide: type,
@@ -215,7 +213,7 @@ export function provideRestateServiceProxy<
 
 export function provideRestateObjectProxy<T extends RestateObject<string, any>>(
   type?: ReceiveType<T>,
-): FactoryProvider<T> {
+) {
   type = resolveReceiveType(type);
   return {
     provide: type,

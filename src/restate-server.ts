@@ -351,7 +351,12 @@ export class RestateServer {
     data: Uint8Array,
   ): Promise<Uint8Array> {
     try {
-      const args = handler.deserializeArgs(data);
+      const eventName = ctx.request().headers.get('x-restate-event');
+      const args = eventName
+        ? // @ts-expect-error types mismatch
+          handler.deserializeArgs(eventName, data)
+        : // @ts-expect-error types mismatch
+          handler.deserializeArgs(data);
       ctx.console.debug('Calling handler', handler.name, 'with args', args);
       const result = await instance[handler.name].bind(instance)(...args);
       ctx.console.debug('Handler', handler.name, 'returned', result);

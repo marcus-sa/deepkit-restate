@@ -5,5 +5,8 @@ export class RestateSseConfig {
 }
 
 export class RestatePubSubServerConfig {
+  readonly defaultStream?: string = 'all';
+  readonly cluster?: string = 'default';
+  readonly eventVersioning?: boolean = false;
   readonly sse: RestateSseConfig = new RestateSseConfig();
 }

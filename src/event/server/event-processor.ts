@@ -10,15 +10,17 @@ import {
   EventStoreApi,
 } from '../types.js';
 import { RestatePubSubConfig } from '../config.js';
-import { RestateSseConfig } from './config.js';
+import { RestatePubSubServerConfig, RestateSseConfig } from './config.js';
+import { RestatePubSubModule } from '../module.js';
+import { RestateConfig } from '../../config.js';
 
 @restate.service<EventProcessorApi>()
 export class RestateEventProcessor implements EventProcessorHandlers {
   constructor(
     private readonly ctx: RestateServiceContext,
     private readonly store: EventStoreApi,
-    private readonly config: RestatePubSubConfig,
     private readonly sseConfig: RestateSseConfig,
+    private readonly config: RestatePubSubServerConfig,
   ) {}
 
   @restate.handler()
@@ -31,9 +33,7 @@ export class RestateEventProcessor implements EventProcessorHandlers {
 
     for (const event of events) {
       const eventHandlers = allHandlers.filter(
-        handler =>
-          handler.eventName === event.name &&
-          handler.eventVersion === event.version,
+        handler => handler.eventName === event.name,
       );
       for (const handler of eventHandlers) {
         this.ctx.genericSend({
@@ -41,6 +41,9 @@ export class RestateEventProcessor implements EventProcessorHandlers {
           method: handler.method,
           // TODO: provide stream as second argument
           parameter: new Uint8Array(event.data),
+          headers: {
+            'x-restate-event': event.name,
+          },
           inputSerde: serde.binary,
           idempotencyKey: event.id,
         });

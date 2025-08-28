@@ -50,8 +50,30 @@ export function createServiceContext(
     request: ctx.request.bind(ctx),
     sleep: ctx.sleep.bind(ctx),
     rejectAwakeable: ctx.rejectAwakeable.bind(ctx),
-    genericCall: ctx.genericCall.bind(ctx),
-    genericSend: ctx.genericSend.bind(ctx),
+    genericCall(call) {
+      const headers = config?.server?.propagateIncomingHeaders
+        ? {
+            ...propagateRequestHeaders(),
+            ...call?.headers,
+          }
+        : call?.headers;
+      return ctx.genericCall({
+        ...call,
+        headers,
+      });
+    },
+    genericSend(call) {
+      const headers = config?.server?.propagateIncomingHeaders
+        ? {
+            ...propagateRequestHeaders(),
+            ...call?.headers,
+          }
+        : call?.headers;
+      return ctx.genericSend({
+        ...call,
+        headers,
+      });
+    },
     cancel: ctx.cancel.bind(ctx),
     attach<T>(
       invocationId: InvocationId,

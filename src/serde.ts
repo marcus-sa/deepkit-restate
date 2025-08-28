@@ -1,4 +1,4 @@
-import { Serde, TerminalError } from '@restatedev/restate-sdk';
+import { Serde } from '@restatedev/restate-sdk-core';
 import {
   deserialize,
   ReceiveType,
@@ -23,7 +23,6 @@ import {
   RestateCustomTerminalErrorMessage,
   RestateHandlerResponse,
   restateHandlerResponseType,
-  restateTerminalErrorType,
 } from './types.js';
 
 export function createBSONSerde<T>(type?: ReceiveType<T>) {
@@ -104,12 +103,12 @@ export function deserializeBSONAndThrowCustomTerminalError(
   const response = deserializeBSON<RestateCustomTerminalErrorMessage>(
     Buffer.from(message, 'base64'),
   );
-  const entity = typeSettings.registeredEntities[response.entityName];
-  if (!entity) {
-    throw new TerminalError(`Unknown entity "${response.entityName}"`, {
-      errorCode: 500,
-    });
-  }
+  const entity = typeSettings.registeredEntities[response.entityName]!;
+  // if (!entity) {
+  //   throw new TerminalError(`Unknown entity "${response.entityName}"`, {
+  //     errorCode: 500,
+  //   });
+  // }
   throw deserializeBSON(response.data, undefined, undefined, entity);
 }
 
@@ -189,20 +188,7 @@ export const deserializeRestateHandlerResponse =
     restateHandlerResponseType,
   );
 
-export const serializeCustomError = getBSONSerializer(
-  undefined,
-  restateHandlerResponseType,
-);
-
 export const serializeRestateHandlerResponse = getBSONSerializer(
   undefined,
   restateHandlerResponseType,
 );
-
-export const serializeRestateTerminalErrorType = getBSONSerializer(
-  undefined,
-  restateTerminalErrorType,
-);
-
-export const deserializeRestateTerminalErrorType =
-  getBSONDeserializer<TerminalError>(undefined, restateTerminalErrorType);

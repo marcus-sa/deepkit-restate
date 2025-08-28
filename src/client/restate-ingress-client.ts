@@ -34,7 +34,7 @@ import {
   RestateClient,
 } from '../types.js';
 import { CUSTOM_TERMINAL_ERROR_CODE } from '../config.js';
-import { InvocationHandle } from '@restatedev/restate-sdk';
+import type { InvocationHandle } from '@restatedev/restate-sdk';
 
 interface RestateApiResponseError {
   readonly code: string;
