@@ -67,7 +67,7 @@ export class RestateClassMetadata {
   readonly classType: ClassType;
   readonly type: TypeObjectLiteral | TypeClass;
   readonly handlers = new Set<RestateHandlerMetadata>();
-  readonly middlewares: ClassType<RestateMiddleware>[] = [];
+  readonly middlewares = new Set<ClassType<RestateMiddleware>>();
 }
 
 // TODO: add enableLazyState for objects
@@ -115,7 +115,9 @@ export class RestateServiceDecorator {
   }
 
   middleware(...middlewares: ClassType<RestateMiddleware>[]) {
-    this.t.middlewares.push(...middlewares);
+    for (const middleware of middlewares) {
+      this.t.middlewares.add(middleware);
+    }
   }
 }
 
@@ -144,7 +146,9 @@ export class RestateObjectDecorator {
   }
 
   middleware(...middlewares: ClassType<RestateMiddleware>[]) {
-    this.t.middlewares.push(...middlewares);
+    for (const middleware of middlewares) {
+      this.t.middlewares.add(middleware);
+    }
   }
 }
 
@@ -173,7 +177,9 @@ export class RestateSagaDecorator {
   }
 
   middleware(...middlewares: ClassType<RestateMiddleware>[]) {
-    this.t.middlewares.push(...middlewares);
+    for (const middleware of middlewares) {
+      this.t.middlewares.add(middleware);
+    }
   }
 }
 
