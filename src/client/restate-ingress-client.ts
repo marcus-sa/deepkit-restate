@@ -81,6 +81,7 @@ export class RestateSagaClient<Data> {
 
     const response = await fetch(url, {
       method: 'POST',
+      credentials: 'include',
       headers,
     });
 
@@ -109,6 +110,7 @@ export class RestateSagaClient<Data> {
 
     const response = await fetch(url, {
       method: 'POST',
+      credentials: 'include',
       headers,
       body: this.serializeData(data),
     });
@@ -166,6 +168,7 @@ export class RestateIngressClient implements RestateClient {
 
     const response = await fetch(url, {
       method: 'POST',
+      credentials: 'include',
       headers,
       body: data,
     } as RequestInit);
@@ -219,6 +222,7 @@ export class RestateIngressClient implements RestateClient {
 
     const response = await fetch(url, {
       method: 'POST',
+      credentials: 'include',
       headers,
       body: data,
     } as RequestInit);

@@ -37,6 +37,9 @@ export class RestateEventSubscriber {
     const stream = options?.stream || this.config.defaultStream;
     const eventSource = new EventSource(
       `${this.config.sse!.url}/sse/${this.config.cluster}/${stream}/${events.keys().toArray().join(',')}`,
+      {
+        withCredentials: true,
+      },
     );
     for (const [id, type] of events.entries()) {
       eventSource.addEventListener(id, event => {
