@@ -1,6 +1,6 @@
 {
   "name": "deepkit-restate",
-  "version": "1.2.59",
+  "version": "1.2.62",
   "license": "MIT",
   "repository": "https://github.com/marcus-sa/deepkit-restate.git",
   "author": "Marcus S. Abildskov <work@marcus-sa.dev>",
@@ -43,6 +43,7 @@
     "postinstall": "deepkit-type-install",
     "build": "rm -rf lib && tsc -p tsconfig.cjs.json && tsc -p tsconfig.esm.json && tsc -p tsconfig.types.json",
     "test": "vitest run",
+    "publish": "bunx npm publish",
     "prepublish": "bun run build"
   },
   "dependencies": {

@@ -11,6 +11,7 @@ import type {
   WorkflowContext,
 } from '@restatedev/restate-sdk';
 import type { Duration } from '@restatedev/restate-sdk-core';
+import { InjectorContext } from '@deepkit/injector';
 
 export type RestateRunAction<T> = () => Promise<T> | T;
 
@@ -101,16 +102,19 @@ export interface RestateClient {
   call<R, A extends any[]>(
     key: string,
     request: RestateObjectHandlerRequest<R, A>,
+    options?: RestateCallOptions,
   ): Promise<R>;
   // used for services
   call<R, A extends any[]>(
     call: RestateServiceHandlerRequest<R, A>,
+    options?: RestateCallOptions,
   ): Promise<R>;
 }
 
 export interface RestateSharedContext
   extends RestateClient,
     Pick<Context, 'request' | 'rand' | 'date' | 'sleep' | 'console'> {
+  injector: InjectorContext;
   awakeable<T>(type?: ReceiveType<T>): RestateAwakeable<T>;
   resolveAwakeable<T>(
     id: string,

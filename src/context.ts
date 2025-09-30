@@ -1,5 +1,6 @@
 import * as restate from '@restatedev/restate-sdk';
 import { ReceiveType } from '@deepkit/type';
+import { InjectorContext } from '@deepkit/injector';
 import { CUSTOM_TERMINAL_ERROR_CODE, RestateConfig } from './config.js';
 import { decodeRestateServiceMethodResponse } from './utils.js';
 import {
@@ -23,6 +24,7 @@ import {
 
 export function createServiceContext(
   ctx: restate.Context,
+  injector: InjectorContext,
   config?: RestateConfig,
 ): RestateServiceContext {
   function propagateRequestHeaders() {
@@ -38,6 +40,7 @@ export function createServiceContext(
   }
 
   return {
+    injector,
     workflowClient: ctx.workflowClient.bind(ctx),
     workflowSendClient: ctx.workflowSendClient.bind(ctx),
     serviceClient: ctx.serviceClient.bind(ctx),
@@ -166,9 +169,10 @@ export function createServiceContext(
 
 export function createSharedObjectContext(
   ctx: restate.ObjectSharedContext,
+  injector: InjectorContext,
   config?: RestateConfig,
 ): RestateSharedObjectContext {
-  return Object.assign(createServiceContext(ctx, config), {
+  return Object.assign(createServiceContext(ctx, injector, config), {
     key: ctx.key,
     stateKeys: ctx.stateKeys.bind(ctx),
     get<T>(name: string, type?: ReceiveType<T>): Promise<T | null> {
@@ -183,9 +187,10 @@ export function createSharedObjectContext(
 
 export function createObjectContext(
   ctx: restate.ObjectContext,
+  injector: InjectorContext,
   config?: RestateConfig,
 ): RestateObjectContext {
-  return Object.assign(createSharedObjectContext(ctx, config), {
+  return Object.assign(createSharedObjectContext(ctx, injector, config), {
     clearAll: ctx.clearAll.bind(ctx),
     clear: ctx.clear.bind(ctx),
     set<T>(name: string, value: T, type?: ReceiveType<T>) {
@@ -201,9 +206,10 @@ export function createObjectContext(
 
 export function createSagaContext(
   ctx: restate.WorkflowContext | restate.WorkflowSharedContext,
+  injector: InjectorContext,
   config?: RestateConfig,
 ): RestateSagaContext {
-  return Object.assign(createObjectContext(ctx as any, config), {
+  return Object.assign(createObjectContext(ctx as any, injector, config), {
     send: undefined,
     call: undefined,
   });

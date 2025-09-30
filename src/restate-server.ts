@@ -46,6 +46,7 @@ import {
   createSharedObjectContext,
 } from './context.js';
 import { RestateModule } from './restate.module.js';
+import { isRestateMiddlewareFn } from './middleware.js';
 
 const DEFAULT_HANDLER_OPTS = {
   input: restate.serde.binary,
@@ -225,20 +226,32 @@ export class RestateServer {
     handlerMetadata?: RestateHandlerMetadata,
   ) {
     for (const middleware of this.module.globalMiddlewares) {
-      await injectorContext
-        .get(middleware)
-        .execute(ctx, classMetadata, handlerMetadata);
-    }
-    for (const middleware of classMetadata.middlewares) {
-      await injectorContext
-        .get(middleware)
-        .execute(ctx, classMetadata, handlerMetadata);
-    }
-    if (handlerMetadata) {
-      for (const middleware of handlerMetadata.middlewares) {
+      if (isRestateMiddlewareFn(middleware)) {
+        await middleware(ctx, classMetadata, handlerMetadata);
+      } else {
         await injectorContext
           .get(middleware)
           .execute(ctx, classMetadata, handlerMetadata);
+      }
+    }
+    for (const middleware of classMetadata.middlewares) {
+      if (isRestateMiddlewareFn(middleware)) {
+        await middleware(ctx, classMetadata, handlerMetadata);
+      } else {
+        await injectorContext
+          .get(middleware)
+          .execute(ctx, classMetadata, handlerMetadata);
+      }
+    }
+    if (handlerMetadata) {
+      for (const middleware of handlerMetadata.middlewares) {
+        if (isRestateMiddlewareFn(middleware)) {
+          await middleware(ctx, classMetadata, handlerMetadata);
+        } else {
+          await injectorContext
+            .get(middleware)
+            .execute(ctx, classMetadata, handlerMetadata);
+        }
       }
     }
   }
@@ -259,7 +272,11 @@ export class RestateServer {
           ): Promise<Uint8Array> => {
             const injector = this.createScopedInjector();
             injector.set(InjectorContext, injector);
-            const ctx = createServiceContext(rsCtx, this.module.config);
+            const ctx = createServiceContext(
+              rsCtx,
+              injector,
+              this.module.config,
+            );
             injector.set(restateClientType, ctx);
             injector.set(restateSharedContextType, ctx);
             injector.set(restateServiceContextType, ctx);
@@ -280,7 +297,7 @@ export class RestateServer {
         async (rsCtx: restate.WorkflowContext, request: Uint8Array) => {
           const injector = this.createScopedInjector();
           injector.set(InjectorContext, injector);
-          const ctx = createSagaContext(rsCtx, this.module.config);
+          const ctx = createSagaContext(rsCtx, injector, this.module.config);
           injector.set(restateClientType, ctx);
           injector.set(restateSharedContextType, ctx);
           injector.set(restateSagaContextType, ctx);
@@ -329,8 +346,8 @@ export class RestateServer {
             const injector = this.createScopedInjector();
             injector.set(InjectorContext, injector);
             const ctx = handler.shared
-              ? createSharedObjectContext(rsCtx, this.module.config)
-              : createObjectContext(rsCtx, this.module.config);
+              ? createSharedObjectContext(rsCtx, injector, this.module.config)
+              : createObjectContext(rsCtx, injector, this.module.config);
             injector.set(restateClientType, ctx);
             injector.set(restateSharedContextType, ctx);
             injector.set(restateObjectContextType, ctx);

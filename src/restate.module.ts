@@ -29,7 +29,7 @@ import {
   getRestateSagaMetadata,
   getRestateServiceMetadata,
 } from './metadata.js';
-import { RestateMiddleware } from './middleware.js';
+import { isRestateMiddlewareClass, RestateMiddleware } from './middleware.js';
 
 export class RestateModule extends createModuleClass({
   config: RestateConfig,
@@ -124,12 +124,15 @@ export class RestateModule extends createModuleClass({
 
   private addClassMetadataMiddleware(metadata: RestateClassMetadata): void {
     for (const middleware of metadata.middlewares) {
-      if (!this.isProvided(middleware))
+      if (isRestateMiddlewareClass(middleware) && !this.isProvided(middleware))
         this.addProvider({ provide: middleware, scope: SCOPE });
     }
     for (const handler of metadata.handlers) {
       for (const middleware of handler.middlewares) {
-        if (!this.isProvided(middleware))
+        if (
+          isRestateMiddlewareClass(middleware) &&
+          !this.isProvided(middleware)
+        )
           this.addProvider({ provide: middleware, scope: SCOPE });
       }
     }

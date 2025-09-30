@@ -1,14 +1,5 @@
-import {
-  BSONDeserializer,
-  BSONSerializer,
-  deserializeBSON,
-} from '@deepkit/bson';
-import {
-  ReceiveType,
-  resolveReceiveType,
-  Type,
-  typeSettings,
-} from '@deepkit/type';
+import { BSONDeserializer, BSONSerializer } from '@deepkit/bson';
+import { ReceiveType, resolveReceiveType, Type } from '@deepkit/type';
 
 import { SagaState } from '../saga/saga-instance.js';
 import {
@@ -30,7 +21,6 @@ import {
   RestateSendOptions,
   RestateService,
   RestateServiceHandlerRequest,
-  RestateCustomTerminalErrorMessage,
   RestateClient,
 } from '../types.js';
 import { CUSTOM_TERMINAL_ERROR_CODE } from '../config.js';

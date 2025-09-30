@@ -60,14 +60,14 @@ import {
   getRestateKafkaTopicArgsType,
   getRestateKafkaTopicSource,
 } from './metadata.js';
-import { RestateMiddleware } from './middleware.js';
+import { RestateMiddleware, RestateMiddlewareType } from './middleware.js';
 
 export class RestateClassMetadata {
   readonly name: string;
   readonly classType: ClassType;
   readonly type: TypeObjectLiteral | TypeClass;
   readonly handlers = new Set<RestateHandlerMetadata>();
-  readonly middlewares = new Set<ClassType<RestateMiddleware>>();
+  readonly middlewares = new Set<RestateMiddlewareType>();
 }
 
 // TODO: add enableLazyState for objects
@@ -114,7 +114,7 @@ export class RestateServiceDecorator {
     });
   }
 
-  middleware(...middlewares: ClassType<RestateMiddleware>[]) {
+  middleware(...middlewares: RestateMiddlewareType[]) {
     for (const middleware of middlewares) {
       this.t.middlewares.add(middleware);
     }
@@ -145,7 +145,7 @@ export class RestateObjectDecorator {
     });
   }
 
-  middleware(...middlewares: ClassType<RestateMiddleware>[]) {
+  middleware(...middlewares: RestateMiddlewareType[]) {
     for (const middleware of middlewares) {
       this.t.middlewares.add(middleware);
     }
@@ -176,7 +176,7 @@ export class RestateSagaDecorator {
     });
   }
 
-  middleware(...middlewares: ClassType<RestateMiddleware>[]) {
+  middleware(...middlewares: RestateMiddlewareType[]) {
     for (const middleware of middlewares) {
       this.t.middlewares.add(middleware);
     }
