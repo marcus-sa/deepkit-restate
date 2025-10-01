@@ -37,8 +37,6 @@ import {
 } from '@deepkit/type';
 
 import {
-  deserializeResponseData,
-  getResponseDataDeserializer,
   getResponseDataSerializer,
   getSagaDataDeserializer,
   getSagaDataSerializer,
@@ -214,7 +212,7 @@ export class RestateHandlerMetadata<T = readonly unknown[]> {
   readonly kafka?: RestateKafkaHandlerMetadata;
   readonly event?: RestateEventHandlerMetadata;
   readonly options?: RestateHandlerOptions;
-  readonly middlewares: ClassType<RestateMiddleware>[] = [];
+  readonly middlewares = new Set<RestateMiddlewareType>();
 }
 
 export class RestateHandlerDecorator {
@@ -307,8 +305,10 @@ export class RestateHandlerDecorator {
     Object.assign(this.t, { exclusive: true });
   }
 
-  middleware(...middlewares: ClassType<RestateMiddleware>[]) {
-    this.t.middlewares.push(...middlewares);
+  middleware(...middlewares: RestateMiddlewareType[]) {
+    for (const middleware of middlewares) {
+      this.t.middlewares.add(middleware);
+    }
   }
 }
 
