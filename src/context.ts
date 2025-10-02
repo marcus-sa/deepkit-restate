@@ -121,6 +121,7 @@ export function createServiceContext(
         : options?.headers;
 
       return ctx.genericSend({
+        idempotencyKey: options?.idempotencyKey,
         service,
         method,
         parameter: data,
@@ -142,6 +143,7 @@ export function createServiceContext(
 
       return ctx
         .genericCall({
+          idempotencyKey: options?.idempotencyKey,
           service,
           method,
           parameter: data,
