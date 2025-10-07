@@ -8,6 +8,7 @@ import * as restate from '@restatedev/restate-sdk';
 import { LogMetadata } from '@restatedev/restate-sdk';
 import {
   entity,
+  hasTypeInformation,
   ReflectionKind,
   TypeClass,
   TypeObjectLiteral,
@@ -390,12 +391,12 @@ export class RestateServer {
     } catch (error: any) {
       ctx.console.debug('Handler', handler.name, 'failed with', error);
       const entityData = entity._fetch(error.constructor);
-      if (entityData?.name) {
+      if (entityData?.name || hasTypeInformation(error.constructor)) {
         throw new restate.TerminalError(
           Buffer.from(
             serializeBSON<RestateCustomTerminalErrorMessage>({
               data: serializeBSON(error, undefined, error.constructor),
-              entityName: entityData.name,
+              entityName: entityData?.name || getTypeName(error.constructor),
             }),
           ).toString('base64'),
           {
