@@ -5,7 +5,7 @@ import {
 } from '@deepkit/framework';
 import { InjectorContext } from '@deepkit/injector';
 import * as restate from '@restatedev/restate-sdk';
-import { LogMetadata } from '@restatedev/restate-sdk';
+import { LogMetadata, RetryableError } from '@restatedev/restate-sdk';
 import {
   entity,
   hasTypeInformation,
@@ -391,7 +391,10 @@ export class RestateServer {
     } catch (error: any) {
       ctx.console.debug('Handler', handler.name, 'failed with', error);
       const entityData = entity._fetch(error.constructor);
-      if (entityData?.name || hasTypeInformation(error.constructor)) {
+      if (
+        !(error instanceof RetryableError) &&
+        (entityData?.name || hasTypeInformation(error.constructor))
+      ) {
         throw new restate.TerminalError(
           Buffer.from(
             serializeBSON<RestateCustomTerminalErrorMessage>({
