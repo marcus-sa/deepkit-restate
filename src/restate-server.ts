@@ -157,7 +157,11 @@ export class RestateServer {
 
   private async registerEventHandlers(config: RestatePubSubConfig) {
     let handlers: EventHandlers = [];
-    for (const { metadata } of this.module.services) {
+
+    for (const { metadata } of [
+      ...this.module.objects,
+      ...this.module.services,
+    ]) {
       for (const handler of metadata.handlers) {
         if (handler.event) {
           function addHandler(type: TypeClass | TypeObjectLiteral) {
@@ -182,6 +186,7 @@ export class RestateServer {
         }
       }
     }
+
     if (handlers.length) {
       const eventStore = this.injectorContext.get<EventStoreApi>();
       const client = this.injectorContext.get(RestateIngressClient);

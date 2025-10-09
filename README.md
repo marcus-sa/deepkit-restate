@@ -619,7 +619,9 @@ await publisher.publish([new UserCreatedEvent(user)]);
 
 ### Handling Events
 
-Only services can define event handlers:
+Both services and objects can define event handlers:
+
+#### Service Event Handlers
 
 ```ts
 @restate.service<UserServiceApi>()
@@ -629,6 +631,25 @@ class UserService {
     // handle event
   }
 }
+```
+
+#### Object Event Handlers
+
+Objects can also handle events. When publishing events for object handlers, provide a `key` to route the event to a specific object instance:
+
+```ts
+@restate.object<UserObjectApi>()
+class UserObject {
+  @(restate.event<UserCreatedEvent>().handler())
+  async onUserCreated(event: UserCreatedEvent): Promise<void> {
+    // handle event for this specific object instance
+  }
+}
+
+// Publish event with key for object routing
+await publisher.publish([new UserCreatedEvent(user)], {
+  key: 'user-123'
+});
 ```
 
 ### SSE Delivery

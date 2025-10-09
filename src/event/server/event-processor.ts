@@ -9,10 +9,7 @@ import {
   EventProcessorApi,
   EventStoreApi,
 } from '../types.js';
-import { RestatePubSubConfig } from '../config.js';
 import { RestatePubSubServerConfig, RestateSseConfig } from './config.js';
-import { RestatePubSubModule } from '../module.js';
-import { RestateConfig } from '../../config.js';
 
 @restate.service<EventProcessorApi>()
 export class RestateEventProcessor implements EventProcessorHandlers {
@@ -39,8 +36,8 @@ export class RestateEventProcessor implements EventProcessorHandlers {
         this.ctx.genericSend({
           service: handler.service,
           method: handler.method,
-          // TODO: provide stream as second argument
           parameter: new Uint8Array(event.data),
+          key: options?.key,
           headers: {
             'x-restate-event': event.name,
           },

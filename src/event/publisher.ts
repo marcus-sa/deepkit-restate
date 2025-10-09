@@ -57,6 +57,7 @@ export class RestateEventPublisher {
         stream,
         cluster,
         sse: options?.sse,
+        key: options?.key,
       }),
       {
         delay: options?.delay,

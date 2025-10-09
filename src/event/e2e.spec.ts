@@ -9,7 +9,7 @@ import { App } from '@deepkit/app';
 import { sleep } from '@deepkit/core';
 
 import { RestateModule } from '../restate.module.js';
-import { RestateService } from '../types.js';
+import { RestateService, RestateObject } from '../types.js';
 import { restate } from '../decorator.js';
 import { RestateIngressClient } from '../client/restate-ingress-client.js';
 import { RestateEventPublisher } from './publisher.js';
@@ -185,7 +185,7 @@ describe('event', () => {
       expect(event).toBeInstanceOf(CustomerCreated);
     });
 
-    test.only('union types event handler', async () => {
+    test('union types event handler', async () => {
       class Customer {
         readonly id: UUID = uuid();
 
@@ -477,6 +477,84 @@ describe('event', () => {
       await sleep(1);
 
       expect(fn).toHaveBeenCalled();
+    });
+
+    test('object event handler with key', async () => {
+      class User {
+        readonly id: UUID = uuid();
+        constructor(readonly name: string) {}
+      }
+
+      class UserCreated {
+        constructor(readonly user: User) {}
+      }
+
+      interface UserObjectHandlers {
+        getName(): Promise<string>;
+      }
+
+      type UserObjectProxy = RestateObject<'User', UserObjectHandlers>;
+
+      let receivedEvent: UserCreated | undefined;
+
+      @restate.object<UserObjectProxy>()
+      class UserObject implements UserObjectHandlers {
+        @restate.handler()
+        async getName(): Promise<string> {
+          return 'test';
+        }
+
+        @(restate.event<UserCreated>().handler())
+        async onUserCreated(event: UserCreated) {
+          expect(event).toBeInstanceOf(UserCreated);
+          receivedEvent = event;
+        }
+      }
+
+      const app = new App({
+        imports: [
+          new FrameworkModule({
+            port: 9095,
+          }),
+          new RestateModule({
+            server: {
+              host: 'http://host.docker.internal',
+              port: 9096,
+            },
+            admin: {
+              url: 'http://0.0.0.0:9070',
+              deployOnStartup: true,
+            },
+            ingress: {
+              url: 'http://0.0.0.0:8080',
+            },
+            pubsub: {
+              sse: {
+                url: 'http://localhost:9095',
+              },
+            },
+          }),
+          new RestatePubSubServerModule({
+            sse: {
+              nodes: ['localhost:9095'],
+            },
+          }),
+        ],
+        controllers: [UserObject],
+      });
+      await app.get<ApplicationServer>().start();
+
+      const publisher = app.get<RestateEventPublisher>();
+
+      // Publish event with key for object routing
+      await publisher.publish([new UserCreated(new User('Test'))], {
+        key: 'user-123',
+      });
+
+      await sleep(1);
+
+      expect(receivedEvent).toBeInstanceOf(UserCreated);
+      expect(receivedEvent?.user.name).toBe('Test');
     });
   });
 });

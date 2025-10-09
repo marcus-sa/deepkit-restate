@@ -23,6 +23,8 @@ export interface PublishOptions {
   // defaults to `all`
   readonly stream?: string;
   readonly sse?: boolean;
+  // optional key for routing events to specific object instances
+  readonly key?: string;
 }
 
 export interface SubscribeOptions {
