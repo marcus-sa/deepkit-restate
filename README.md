@@ -635,7 +635,10 @@ class UserService {
 
 #### Object Event Handlers
 
-Objects can also handle events. When publishing events for object handlers, provide a `key` to route the event to a specific object instance:
+Objects can also handle events. When publishing events:
+
+- **Service handlers** receive events regardless of whether a `key` is provided
+- **Object handlers** only receive events when a `key` is provided to route to a specific object instance
 
 ```ts
 @restate.object<UserObjectApi>()
@@ -646,10 +649,13 @@ class UserObject {
   }
 }
 
-// Publish event with key for object routing
+// Publish event with key - both service and object handlers receive the event
 await publisher.publish([new UserCreatedEvent(user)], {
   key: 'user-123'
 });
+
+// Publish event without key - only service handlers receive the event
+await publisher.publish([new UserCreatedEvent(user)]);
 ```
 
 ### SSE Delivery

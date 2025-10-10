@@ -158,10 +158,8 @@ export class RestateServer {
   private async registerEventHandlers(config: RestatePubSubConfig) {
     let handlers: EventHandlers = [];
 
-    for (const { metadata } of [
-      ...this.module.objects,
-      ...this.module.services,
-    ]) {
+    // Register service event handlers
+    for (const { metadata } of this.module.services) {
       for (const handler of metadata.handlers) {
         if (handler.event) {
           function addHandler(type: TypeClass | TypeObjectLiteral) {
@@ -172,6 +170,35 @@ export class RestateServer {
                 method: handler.name,
                 eventName: getTypeName(type),
                 eventVersion: getTypeHash(type),
+                handlerType: 'service' as const,
+              },
+            ];
+          }
+
+          if (handler.event.type.kind === ReflectionKind.union) {
+            for (const type of handler.event.type.types) {
+              addHandler(type as TypeClass | TypeObjectLiteral);
+            }
+          } else {
+            addHandler(handler.event.type);
+          }
+        }
+      }
+    }
+
+    // Register object event handlers
+    for (const { metadata } of this.module.objects) {
+      for (const handler of metadata.handlers) {
+        if (handler.event) {
+          function addHandler(type: TypeClass | TypeObjectLiteral) {
+            handlers = [
+              ...handlers,
+              {
+                service: metadata.name,
+                method: handler.name,
+                eventName: getTypeName(type),
+                eventVersion: getTypeHash(type),
+                handlerType: 'object' as const,
               },
             ];
           }

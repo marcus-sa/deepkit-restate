@@ -33,17 +33,33 @@ export class RestateEventProcessor implements EventProcessorHandlers {
         handler => handler.eventName === event.name,
       );
       for (const handler of eventHandlers) {
-        this.ctx.genericSend({
-          service: handler.service,
-          method: handler.method,
-          parameter: new Uint8Array(event.data),
-          key: options?.key,
-          headers: {
-            'x-restate-event': event.name,
-          },
-          inputSerde: serde.binary,
-          idempotencyKey: event.id,
-        });
+        if (handler.handlerType === 'service') {
+          // Service handlers: send regardless of key, but exclude key from call
+          this.ctx.genericSend({
+            service: handler.service,
+            method: handler.method,
+            parameter: new Uint8Array(event.data),
+            headers: {
+              'x-restate-event': event.name,
+            },
+            inputSerde: serde.binary,
+            idempotencyKey: event.id,
+          });
+        } else if (handler.handlerType === 'object' && options?.key) {
+          // Object handlers: only send when key is present, include key in call
+          this.ctx.genericSend({
+            service: handler.service,
+            method: handler.method,
+            key: options.key,
+            parameter: new Uint8Array(event.data),
+            headers: {
+              'x-restate-event': event.name,
+            },
+            inputSerde: serde.binary,
+            idempotencyKey: `${options.key}:${event.id}`,
+          });
+        }
+        // Object handlers without key are skipped
       }
     }
 

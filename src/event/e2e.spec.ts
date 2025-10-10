@@ -495,7 +495,12 @@ describe('event', () => {
 
       type UserObjectProxy = RestateObject<'User', UserObjectHandlers>;
 
-      let receivedEvent: UserCreated | undefined;
+      interface UserServiceHandlers {}
+
+      type UserServiceProxy = RestateService<'UserService', UserServiceHandlers>;
+
+      let objectReceivedEvent: UserCreated | undefined;
+      let serviceReceivedEvent: UserCreated | undefined;
 
       @restate.object<UserObjectProxy>()
       class UserObject implements UserObjectHandlers {
@@ -507,7 +512,16 @@ describe('event', () => {
         @(restate.event<UserCreated>().handler())
         async onUserCreated(event: UserCreated) {
           expect(event).toBeInstanceOf(UserCreated);
-          receivedEvent = event;
+          objectReceivedEvent = event;
+        }
+      }
+
+      @restate.service<UserServiceProxy>()
+      class UserService implements UserServiceHandlers {
+        @(restate.event<UserCreated>().handler())
+        async onUserCreated(event: UserCreated) {
+          expect(event).toBeInstanceOf(UserCreated);
+          serviceReceivedEvent = event;
         }
       }
 
@@ -540,21 +554,36 @@ describe('event', () => {
             },
           }),
         ],
-        controllers: [UserObject],
+        controllers: [UserObject, UserService],
       });
       await app.get<ApplicationServer>().start();
 
       const publisher = app.get<RestateEventPublisher>();
 
-      // Publish event with key for object routing
+      // Test 1: Publish event with key - both service and object should receive
       await publisher.publish([new UserCreated(new User('Test'))], {
         key: 'user-123',
       });
 
       await sleep(1);
 
-      expect(receivedEvent).toBeInstanceOf(UserCreated);
-      expect(receivedEvent?.user.name).toBe('Test');
+      expect(objectReceivedEvent).toBeInstanceOf(UserCreated);
+      expect(objectReceivedEvent?.user.name).toBe('Test');
+      expect(serviceReceivedEvent).toBeInstanceOf(UserCreated);
+      expect(serviceReceivedEvent?.user.name).toBe('Test');
+
+      // Reset for next test
+      objectReceivedEvent = undefined;
+      serviceReceivedEvent = undefined;
+
+      // Test 2: Publish event without key - only service should receive
+      await publisher.publish([new UserCreated(new User('Test2'))]);
+
+      await sleep(1);
+
+      expect(objectReceivedEvent).toBeUndefined(); // Object handler should not receive
+      expect(serviceReceivedEvent).toBeInstanceOf(UserCreated);
+      expect(serviceReceivedEvent?.user.name).toBe('Test2');
     });
   });
 });

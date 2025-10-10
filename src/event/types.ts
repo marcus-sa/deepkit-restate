@@ -5,6 +5,7 @@ export interface EventHandler {
   readonly method: string;
   readonly eventName: string;
   readonly eventVersion: string;
+  readonly handlerType: 'service' | 'object';
 }
 
 export type EventHandlers = readonly EventHandler[];

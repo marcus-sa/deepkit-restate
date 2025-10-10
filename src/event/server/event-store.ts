@@ -6,12 +6,16 @@ import {
   EventStoreApi,
   EventStoreHandlers,
 } from '../types.js';
+import { RestatePubSubServerConfig } from './config.js';
 
 const HANDLERS_STATE_KEY = 'handlers';
 
 @restate.object<EventStoreApi>()
 export class RestateEventStore implements EventStoreHandlers {
-  constructor(private readonly ctx: RestateObjectContext) {}
+  constructor(
+    private readonly ctx: RestateObjectContext,
+    private readonly config: RestatePubSubServerConfig,
+  ) {}
 
   async #getHandlers(): Promise<EventHandlers> {
     return (await this.ctx.get<EventHandlers>(HANDLERS_STATE_KEY)) || [];
@@ -28,7 +32,10 @@ export class RestateEventStore implements EventStoreHandlers {
     const allHandlers = new Map<string, EventHandler>();
 
     const generateKey = (sub: EventHandler) =>
-      `${sub.service}-${sub.method}-${sub.eventName}:${sub.eventVersion}`;
+      `${sub.service}-${sub.method}-${sub.eventName}` +
+      this.config.eventVersioning
+        ? `:${sub.eventVersion}`
+        : '';
 
     currentHandlers.forEach(sub => {
       const key = generateKey(sub);
