@@ -5,6 +5,7 @@ import { CUSTOM_TERMINAL_ERROR_CODE, RestateConfig } from './config.js';
 import { decodeRestateServiceMethodResponse } from './utils.js';
 import {
   createBSONSerde,
+  createJSONSerde,
   deserializeBSONAndThrowCustomTerminalError,
 } from './serde.js';
 import {
@@ -82,15 +83,15 @@ export function createServiceContext(
       invocationId: InvocationId,
       type?: ReceiveType<T>,
     ): RestatePromise<T> {
-      const serde = createBSONSerde(type);
+      const serde = createJSONSerde<T>(type);
       return ctx.attach(invocationId, serde);
     },
     resolveAwakeable<T>(id: string, payload?: T, type?: ReceiveType<T>) {
-      const serde = createBSONSerde(type);
+      const serde = createJSONSerde<T>(type);
       ctx.resolveAwakeable(id, payload, serde);
     },
     awakeable<T>(type?: ReceiveType<T>): RestateAwakeable<T> {
-      const serde = createBSONSerde<T>(type);
+      const serde = createJSONSerde<T>(type);
       return ctx.awakeable<T>(serde) as RestateAwakeable<T>;
     },
     run<T>(
@@ -100,7 +101,7 @@ export function createServiceContext(
       type?: ReceiveType<T>,
     ): RestatePromise<T> {
       if (type) {
-        const serde = createBSONSerde<T>(type);
+        const serde = createJSONSerde<T>(type);
         return ctx.run(name, action, {
           serde,
           ...options,
@@ -179,7 +180,7 @@ export function createSharedObjectContext(
     stateKeys: ctx.stateKeys.bind(ctx),
     get<T>(name: string, type?: ReceiveType<T>): Promise<T | null> {
       if (type) {
-        const serde = createBSONSerde<T>(type);
+        const serde = createJSONSerde<T>(type);
         return ctx.get<T>(name, serde);
       }
       return ctx.get<T>(name);
@@ -197,7 +198,7 @@ export function createObjectContext(
     clear: ctx.clear.bind(ctx),
     set<T>(name: string, value: T, type?: ReceiveType<T>) {
       if (type) {
-        const serde = createBSONSerde<T>(type);
+        const serde = createJSONSerde<T>(type);
         ctx.set(name, value, serde);
       } else {
         ctx.set(name, value);

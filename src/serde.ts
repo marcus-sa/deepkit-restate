@@ -35,10 +35,6 @@ export function createJSONSerde<T>(type?: ReceiveType<T>) {
   return new JSONSerde<T>(type);
 }
 
-export function createSerde<T>(type?: ReceiveType<T>) {
-  return createBSONSerde(type);
-}
-
 export class BSONSerde<T> implements Serde<T> {
   readonly contentType = 'application/octet-stream';
 
@@ -60,7 +56,7 @@ export class JSONSerde<T> implements Serde<T> {
 
   deserialize(data: Uint8Array): T {
     return deserialize<T>(
-      JSON.parse(data.toString()),
+      JSON.parse(new TextDecoder().decode(data)),
       undefined,
       undefined,
       undefined,
@@ -69,7 +65,7 @@ export class JSONSerde<T> implements Serde<T> {
   }
 
   serialize(value: T): Uint8Array {
-    return Buffer.from(
+    return new TextEncoder().encode(
       JSON.stringify(
         serialize<T>(value, undefined, undefined, undefined, this.type),
       ),

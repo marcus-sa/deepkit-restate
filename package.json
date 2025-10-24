@@ -1,6 +1,6 @@
 {
   "name": "deepkit-restate",
-  "version": "1.2.74",
+  "version": "1.2.76",
   "license": "MIT",
   "repository": "https://github.com/marcus-sa/deepkit-restate.git",
   "author": "Marcus S. Abildskov <work@marcus-sa.dev>",
@@ -92,9 +92,5 @@
     "typescript": "5.7.3",
     "vite": "7.0.0",
     "vitest": "3.2.4"
-  },
-  "overrides": {
-    "@restatedev/restate-sdk": "1.9.0",
-    "@restatedev/restate-sdk-clients": "1.9.0"
   }
 }
