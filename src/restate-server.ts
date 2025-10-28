@@ -5,7 +5,7 @@ import {
 } from '@deepkit/framework';
 import { InjectorContext } from '@deepkit/injector';
 import * as restate from '@restatedev/restate-sdk';
-import { LogMetadata, RetryableError } from '@restatedev/restate-sdk';
+import { LogMetadata } from '@restatedev/restate-sdk';
 import {
   entity,
   hasTypeInformation,
@@ -70,9 +70,42 @@ export class RestateServer {
     });
   }
 
+  private handleError(error: any): restate.TerminalError | undefined {
+    if (
+      !(error instanceof restate.RetryableError) &&
+      hasTypeInformation(error.constructor)
+    ) {
+      const entityData = entity._fetch(error.constructor);
+
+      throw new restate.TerminalError(
+        Buffer.from(
+          serializeBSON<RestateCustomTerminalErrorMessage>({
+            data: serializeBSON(error, undefined, error.constructor),
+            entityName: entityData?.name || getTypeName(error.constructor),
+          }),
+        ).toString('base64'),
+        {
+          cause: error,
+          // TODO: mapper for custom error codes
+          errorCode: CUSTOM_TERMINAL_ERROR_CODE,
+        },
+      );
+    }
+    if (error instanceof TypeError) {
+      return new restate.TerminalError(error.message, {
+        cause: error,
+        errorCode: 500,
+      });
+    }
+
+    return undefined;
+  }
+
   @eventDispatcher.listen(onServerMainBootstrap)
   async bootstrap() {
     const services: restate.EndpointOptions['services'] = [];
+
+    const asTerminalError = (error: any) => this.handleError(error);
 
     for (const object of this.module.objects) {
       const handlers = this.createObjectHandlers(object);
@@ -80,7 +113,10 @@ export class RestateServer {
         restate.object({
           name: object.metadata.name,
           handlers,
-          options: object.metadata.options,
+          options: {
+            ...object.metadata.options,
+            asTerminalError,
+          },
         }),
       );
     }
@@ -91,7 +127,10 @@ export class RestateServer {
         restate.service({
           name: service.metadata.name,
           handlers,
-          options: service.metadata.options,
+          options: {
+            ...service.metadata.options,
+            asTerminalError,
+          },
         }),
       );
     }
@@ -102,7 +141,10 @@ export class RestateServer {
         restate.workflow({
           name: saga.metadata.name,
           handlers,
-          options: saga.metadata.options,
+          options: {
+            ...saga.metadata.options,
+            asTerminalError,
+          },
         }),
       );
     }
@@ -400,54 +442,22 @@ export class RestateServer {
     handler: RestateHandlerMetadata,
     data: Uint8Array,
   ): Promise<Uint8Array> {
-    try {
-      const eventName = ctx.request().headers.get('x-restate-event');
-      const args = eventName
-        ? // @ts-expect-error types mismatch
-          handler.deserializeArgs(eventName, data)
-        : // @ts-expect-error types mismatch
-          handler.deserializeArgs(data);
-      ctx.console.debug('Calling handler', handler.name, 'with args', args);
-      const result = await instance[handler.name].bind(instance)(...args);
-      ctx.console.debug('Handler', handler.name, 'returned', result);
-      return serializeRestateHandlerResponse({
-        success: true,
-        data:
-          handler.returnType.kind !== ReflectionKind.void &&
-          handler.returnType.kind !== ReflectionKind.undefined
-            ? handler.serializeReturn(result)
-            : new Uint8Array(),
-        // TODO: use entity name
-        typeName: handler.returnType.typeName,
-      });
-    } catch (error: any) {
-      ctx.console.debug('Handler', handler.name, 'failed with', error);
-      const entityData = entity._fetch(error.constructor);
-      if (
-        !(error instanceof RetryableError) &&
-        (entityData?.name || hasTypeInformation(error.constructor))
-      ) {
-        throw new restate.TerminalError(
-          Buffer.from(
-            serializeBSON<RestateCustomTerminalErrorMessage>({
-              data: serializeBSON(error, undefined, error.constructor),
-              entityName: entityData?.name || getTypeName(error.constructor),
-            }),
-          ).toString('base64'),
-          {
-            cause: error,
-            // TODO: mapper for custom error codes
-            errorCode: CUSTOM_TERMINAL_ERROR_CODE,
-          },
-        );
-      }
-      if (error instanceof TypeError) {
-        throw new restate.TerminalError(error.message, {
-          cause: error,
-          errorCode: 500,
-        });
-      }
-      throw error;
-    }
+    const eventName = ctx.request().headers.get('x-restate-event');
+    const args = eventName
+      ? // @ts-expect-error types mismatch
+        handler.deserializeArgs(eventName, data)
+      : // @ts-expect-error types mismatch
+        handler.deserializeArgs(data);
+    const result = await instance[handler.name].bind(instance)(...args);
+    return serializeRestateHandlerResponse({
+      success: true,
+      data:
+        handler.returnType.kind !== ReflectionKind.void &&
+        handler.returnType.kind !== ReflectionKind.undefined
+          ? handler.serializeReturn(result)
+          : new Uint8Array(),
+      // TODO: use entity name
+      typeName: handler.returnType.typeName,
+    });
   }
 }

@@ -1,10 +1,16 @@
 import * as restate from '@restatedev/restate-sdk';
-import { ReceiveType } from '@deepkit/type';
+import {
+  InvocationHandle,
+  InvocationId,
+  RestatePromise,
+  RunOptions,
+  TerminalError,
+} from '@restatedev/restate-sdk';
+import { ReceiveType, ReflectionKind, resolveReceiveType } from '@deepkit/type';
 import { InjectorContext } from '@deepkit/injector';
 import { CUSTOM_TERMINAL_ERROR_CODE, RestateConfig } from './config.js';
 import { decodeRestateServiceMethodResponse } from './utils.js';
 import {
-  createBSONSerde,
   createJSONSerde,
   deserializeBSONAndThrowCustomTerminalError,
 } from './serde.js';
@@ -16,12 +22,6 @@ import {
   RestateServiceContext,
   RestateSharedObjectContext,
 } from './types.js';
-import {
-  InvocationHandle,
-  InvocationId,
-  RestatePromise,
-  RunOptions,
-} from '@restatedev/restate-sdk';
 
 export function createServiceContext(
   ctx: restate.Context,
@@ -100,15 +100,31 @@ export function createServiceContext(
       options: RunOptions<unknown> = {},
       type?: ReceiveType<T>,
     ): RestatePromise<T> {
-      if (type) {
-        const serde = createJSONSerde<T>(type);
-        return ctx.run(name, action, {
-          serde,
-          ...options,
-        }) as RestatePromise<T>;
+      type = resolveReceiveType(type);
+
+      if (type.kind === ReflectionKind.unknown) {
+        throw new TerminalError('run type cannot be unknown');
       }
 
-      return ctx.run(name, action, options) as RestatePromise<T>;
+      // nothing
+      if (
+        type.kind === ReflectionKind.void ||
+        type.kind === ReflectionKind.undefined
+      ) {
+        return ctx.run(
+          name,
+          async () => {
+            await action();
+          },
+          options,
+        ) as RestatePromise<T>;
+      }
+
+      const serde = createJSONSerde<T>(type);
+      return ctx.run(name, action, {
+        serde,
+        ...options,
+      }) as RestatePromise<T>;
     },
     async send(...args: readonly any[]): Promise<InvocationHandle> {
       const [key, { service, method, data }, options] =
