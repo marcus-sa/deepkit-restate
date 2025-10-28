@@ -100,10 +100,17 @@ export function createServiceContext(
       options: RunOptions<unknown> = {},
       type?: ReceiveType<T>,
     ): RestatePromise<T> {
+      if (!type) {
+        throw new TerminalError(
+          `Missing required type for run operation "${name}"`,
+        );
+      }
       type = resolveReceiveType(type);
 
       if (type.kind === ReflectionKind.unknown) {
-        throw new TerminalError('run type cannot be unknown');
+        throw new TerminalError(
+          `Type for run operation "${name}" cannot be unknown`,
+        );
       }
 
       // nothing

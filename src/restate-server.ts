@@ -71,6 +71,13 @@ export class RestateServer {
   }
 
   private handleError(error: any): restate.TerminalError | undefined {
+    if (error.message.startsWith('No type resolved')) {
+      return new restate.TerminalError(error.message, {
+        cause: error,
+        errorCode: 500,
+      });
+    }
+
     if (
       !(error instanceof restate.RetryableError) &&
       hasTypeInformation(error.constructor)
