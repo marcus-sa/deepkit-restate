@@ -1,4 +1,9 @@
-import { ReceiveType, ReflectionKind, resolveReceiveType } from '@deepkit/type';
+import {
+  cast,
+  ReceiveType,
+  ReflectionKind,
+  resolveReceiveType,
+} from '@deepkit/type';
 import { base64ToUint8Array } from '@deepkit/core';
 import { EventSource } from 'eventsource';
 import { deserializeBSON } from '@deepkit/bson';
@@ -44,12 +49,7 @@ export class RestateEventSubscriber {
     for (const [id, type] of events.entries()) {
       eventSource.addEventListener(id, event => {
         callback(
-          deserializeBSON(
-            base64ToUint8Array(event.data),
-            undefined,
-            undefined,
-            type,
-          ),
+          cast(JSON.parse(event.data), undefined, undefined, undefined, type),
         );
       });
     }

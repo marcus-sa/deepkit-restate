@@ -53,10 +53,6 @@
       },
     },
   },
-  "overrides": {
-    "@restatedev/restate-sdk": "1.9.0",
-    "@restatedev/restate-sdk-clients": "1.9.0",
-  },
   "packages": {
     "@babel/runtime": ["@babel/runtime@7.27.6", "", {}, "sha512-vbavdySgbTTrmFE+EsiqUTzlOr5bzlnJtUv9PynGCAKvfQqjIXbvFdumPM/GxMDfyuGMJaJAU6TO4zc1Jf1i8Q=="],
 
@@ -108,7 +104,7 @@
 
     "@deepkit/sql": ["@deepkit/sql@1.0.15", "", { "dependencies": { "@types/sqlstring": "^2.2.1", "date-fns": "^2.17.0", "fast-glob": "^3.2.5", "sqlstring": "^2.3.2", "sqlstring-sqlite": "^0.1.1" }, "peerDependencies": { "@deepkit/app": "^1.0.1", "@deepkit/core": "^1.0.1", "@deepkit/injector": "^1.0.1", "@deepkit/logger": "^1.0.1", "@deepkit/orm": "^1.0.1", "@deepkit/stopwatch": "^1.0.1", "@deepkit/type": "^1.0.1" }, "bin": { "deepkit-sql": "./bin/deepkit-sql.js" } }, "sha512-GwFosrpEoAO428c6vJMZP23W9KIegPKXWgyMa/sudHQ8DCKHNJaJCpvj0R0HazFJKbY8ot/szQgaa8sNXDUPOg=="],
 
-    "@deepkit/stopwatch": ["@deepkit/stopwatch@1.0.15", "", { "peerDependencies": { "@deepkit/core": "^1.0.1", "@deepkit/type": "^1.0.1" } }, "sha512-c9OHIvz4WOYTEg5W40+cRaX1fdeWwoThKy3OZeGfGVbGXi4wlKrk6Tkw9q7ZZTH1pWIyUFqLrezDP4Jis2PEVg=="],
+    "@deepkit/stopwatch": ["@deepkit/stopwatch@1.0.19", "", { "peerDependencies": { "@deepkit/core": "^1.0.1", "@deepkit/type": "^1.0.1" } }, "sha512-Q1I5R2RDMuuzjFAYmo24l0j+R//pc0nRJYJamufGLdYsF9uTwyUSchTaL3o5JMr2BgSCNF39biazIPT25Y1pNw=="],
 
     "@deepkit/template": ["@deepkit/template@1.0.15", "", { "dependencies": { "@types/estree": "^0.0.45", "abstract-syntax-tree": "^2.9.4" }, "peerDependencies": { "@deepkit/core": "^1.0.1", "@deepkit/injector": "^1.0.1", "@deepkit/stopwatch": "^1.0.1", "@deepkit/type": "^1.0.1" } }, "sha512-1mmvqfJZpANiKcSe6L06MfrTpbBnDMXD8wM20YyeL+0zkYPfIS5trtt46ASWLQ6inwyyDwxyKNJhCMoZ283BlA=="],
 
@@ -122,7 +118,7 @@
 
     "@deepkit/vite": ["@deepkit/vite@1.0.19", "", { "dependencies": { "@rollup/pluginutils": "^5.0.2" }, "peerDependencies": { "@deepkit/type-compiler": "^1.0.1" } }, "sha512-QPlHi0lyp34mURMF600r8ShCvmzWqrPco4vD5f8C2Ofpkzj3LwyDaih/AFEVGHese3fzt7rPKf1xuD7e720fxQ=="],
 
-    "@deepkit/workflow": ["@deepkit/workflow@1.0.15", "", { "peerDependencies": { "@deepkit/core": "^1.0.1", "@deepkit/event": "^1.0.1", "@deepkit/injector": "^1.0.1", "@deepkit/stopwatch": "^1.0.1", "@deepkit/type": "^1.0.1" } }, "sha512-SjBBjYiyMMDGTXerWpnl825pEe+LVTGxG1OhKkHyYwkeaNpIl90PmFmQ8fWcKK0lOalqvlL+HkZ9jC/FAusYAQ=="],
+    "@deepkit/workflow": ["@deepkit/workflow@1.0.19", "", { "peerDependencies": { "@deepkit/core": "^1.0.1", "@deepkit/event": "^1.0.1", "@deepkit/injector": "^1.0.1", "@deepkit/stopwatch": "^1.0.1", "@deepkit/type": "^1.0.1" } }, "sha512-rLADAWPaKA7eg6kDWySFcWn4Bg4pFSlxRslRA6l80X3dSdu6wAy5LBBQ6y7U3QF5hJnCXvEg6FCRGfHYjvmWSQ=="],
 
     "@esbuild/aix-ppc64": ["@esbuild/aix-ppc64@0.25.5", "", { "os": "aix", "cpu": "ppc64" }, "sha512-9o3TMmpmftaCMepOdA5k/yDw8SfInyzWWTjYTFCX3kPSDJMROQTb8jg+h9Cnwnmm1vOzvxN7gIfB5V2ewpjtGA=="],
 

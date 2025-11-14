@@ -11,7 +11,7 @@ export interface EventHandler {
 export type EventHandlers = readonly EventHandler[];
 
 export interface PublishEvent {
-  readonly data: number[];
+  readonly data: any;
   readonly id: string;
   readonly name: string;
   readonly version?: string;
@@ -40,11 +40,13 @@ export interface EventStoreHandlers {
 
 export type EventStoreApi = RestateObject<'event-store', EventStoreHandlers>;
 
+export interface ProcessArgs {
+  readonly events: readonly PublishEvent[];
+  readonly options?: PublishOptions;
+}
+
 export interface EventProcessorHandlers {
-  process(
-    events: readonly PublishEvent[],
-    options?: PublishOptions,
-  ): Promise<void>;
+  process(args: ProcessArgs): Promise<void>;
 }
 
 export type EventProcessorApi = RestateService<

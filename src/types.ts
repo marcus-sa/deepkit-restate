@@ -1,5 +1,5 @@
-import { ReceiveType, typeOf } from '@deepkit/type';
-import { BSONDeserializer } from '@deepkit/bson';
+import { JSONSingle, ReceiveType, Type, typeOf } from '@deepkit/type';
+import { JSONDeserializer } from './serde.js';
 import type {
   Context,
   InvocationId,
@@ -33,8 +33,9 @@ export interface RestateHandlerRequest<
 > {
   readonly service: string;
   readonly method: string;
-  readonly data: Uint8Array;
-  readonly deserializeReturn: BSONDeserializer<R>;
+  readonly data: unknown;
+  readonly deserializeReturn: JSONDeserializer<R>;
+  readonly returnType: Type;
   /** @internal */
   readonly __type?: T;
 }

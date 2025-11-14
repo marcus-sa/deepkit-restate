@@ -4,16 +4,19 @@ import {
   InvocationId,
   RestatePromise,
   RunOptions,
+  serde,
   TerminalError,
 } from '@restatedev/restate-sdk';
-import { ReceiveType, ReflectionKind, resolveReceiveType } from '@deepkit/type';
+import {
+  deserialize,
+  ReceiveType,
+  ReflectionKind,
+  resolveReceiveType,
+  typeSettings,
+} from '@deepkit/type';
 import { InjectorContext } from '@deepkit/injector';
 import { CUSTOM_TERMINAL_ERROR_CODE, RestateConfig } from './config.js';
-import { decodeRestateServiceMethodResponse } from './utils.js';
-import {
-  createJSONSerde,
-  deserializeBSONAndThrowCustomTerminalError,
-} from './serde.js';
+import { createJSONSerde } from './serde.js';
 import {
   RestateAwakeable,
   RestateObjectContext,
@@ -22,6 +25,7 @@ import {
   RestateServiceContext,
   RestateSharedObjectContext,
 } from './types.js';
+import { handleCustomTerminalErrorResponse } from './shared.js';
 
 export function createServiceContext(
   ctx: restate.Context,
@@ -149,13 +153,14 @@ export function createServiceContext(
         service,
         method,
         parameter: data,
+        inputSerde: serde.json,
         delay: options?.delay,
         headers,
         key,
       });
     },
     call<T>(...args: readonly any[]): RestatePromise<T> {
-      const [key, { service, method, data, deserializeReturn }, options] =
+      const [key, { service, method, data, returnType }, options] =
         typeof args[0] !== 'string' ? [undefined, ...args] : args;
 
       const headers = config?.server?.propagateIncomingHeaders
@@ -173,18 +178,19 @@ export function createServiceContext(
           parameter: data,
           headers,
           key,
-          outputSerde: restate.serde.binary,
+          inputSerde: serde.json,
+          outputSerde: createJSONSerde(returnType),
         })
         .map((value, failure) => {
-          if (value) {
-            return decodeRestateServiceMethodResponse(value, deserializeReturn);
-          }
-
-          if (
-            failure instanceof restate.TerminalError &&
-            failure.code === CUSTOM_TERMINAL_ERROR_CODE
-          ) {
-            deserializeBSONAndThrowCustomTerminalError(failure.message);
+          if (!failure) return value as T;
+          if (failure?.code === CUSTOM_TERMINAL_ERROR_CODE) {
+            let error: any;
+            try {
+              error = handleCustomTerminalErrorResponse(failure.message);
+            } catch {
+              throw failure;
+            }
+            throw error;
           }
 
           throw failure;

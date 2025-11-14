@@ -16,6 +16,7 @@ import {
   createClassDecoratorContext,
   createPropertyDecoratorContext,
   DecoratorAndFetchSignature,
+  deserialize,
   DualDecorator,
   ExtractApiDataType,
   ExtractClass,
@@ -27,6 +28,7 @@ import {
   ReflectionClass,
   ReflectionKind,
   resolveReceiveType,
+  Serializer,
   stringifyType,
   Type,
   TypeClass,
@@ -37,11 +39,6 @@ import {
 } from '@deepkit/type';
 
 import {
-  getResponseDataSerializer,
-  getSagaDataDeserializer,
-  getSagaDataSerializer,
-} from './serde.js';
-import {
   RestateKafkaTopic,
   RestateObject,
   RestateSaga,
@@ -49,9 +46,13 @@ import {
 } from './types.js';
 import {
   assertValidKafkaTopicName,
+  getJSONDeserializer,
+  getJSONSerializer,
   getReflectionFunctionArgsType,
   getTypeName,
   getUnwrappedReflectionFunctionReturnType,
+  JSONDeserializer,
+  JSONSerializer,
 } from './utils.js';
 import {
   getRestateClassName,
@@ -71,7 +72,7 @@ export class RestateClassMetadata {
 // TODO: add enableLazyState for objects
 export interface RestateHandlerOptions
   extends Omit<ServiceHandlerOpts<any, any>, 'input' | 'output' | 'accept'> {
-  readonly bson?: boolean;
+  readonly serde?: 'json' | 'binary';
 }
 
 export class RestateServiceMetadata extends RestateClassMetadata {
@@ -161,19 +162,6 @@ export class RestateSagaDecorator {
     this.t.handlers.add(action);
   }
 
-  saga<T extends RestateSaga<string, any>>(type?: ReceiveType<T>) {
-    type = resolveReceiveType(type);
-    const name = getRestateClassName(type);
-    const deserializeData = getSagaDataDeserializer(type);
-    const serializeData = getSagaDataSerializer(type);
-    Object.assign(this.t, {
-      name,
-      type,
-      deserializeData,
-      serializeData,
-    });
-  }
-
   middleware(...middlewares: RestateMiddlewareType[]) {
     for (const middleware of middlewares) {
       this.t.middlewares.add(middleware);
@@ -204,9 +192,8 @@ export class RestateHandlerMetadata<T = readonly unknown[]> {
   readonly name: string;
   readonly classType: ClassType;
   readonly returnType: Type;
-  readonly argsType: TypeTuple;
-  readonly serializeReturn: BSONSerializer;
-  readonly deserializeArgs: BSONDeserializer<T> | EventBSONDeserializer<T>;
+  readonly argsType?: Type;
+  readonly deserializeArgs: JSONDeserializer<T> | EventBSONDeserializer<T>;
   readonly shared?: boolean;
   readonly exclusive?: boolean;
   readonly kafka?: RestateKafkaHandlerMetadata;
@@ -226,11 +213,21 @@ export class RestateHandlerDecorator {
 
     const returnType =
       getUnwrappedReflectionFunctionReturnType(reflectionMethod);
-    const serializeReturn = getResponseDataSerializer(returnType);
+    const serializeReturn = getJSONSerializer(
+      undefined,
+      undefined,
+      undefined,
+      returnType,
+    );
 
-    const argsType = getReflectionFunctionArgsType(reflectionMethod);
+    if (reflectionMethod.parameters.length > 1) {
+      throw new Error(`Handler "${property}" can only have one argument`);
+    }
+
+    const argsType = reflectionMethod.parameters[0]?.type;
     const deserializeArgs =
-      this.t.deserializeArgs || getBSONDeserializer(undefined, argsType);
+      this.t.deserializeArgs ||
+      getJSONDeserializer(undefined, undefined, undefined, argsType);
 
     Object.assign(this.t, {
       name: property,
@@ -254,16 +251,6 @@ export class RestateHandlerDecorator {
     type = resolveReceiveType(type);
     Object.assign(this.t, {
       event: { type, stream },
-      deserializeArgs: (name: string, data: Uint8Array) => [
-        type.kind === ReflectionKind.union
-          ? deserializeBSON(
-              data,
-              undefined,
-              undefined,
-              type.types.find(type => getTypeName(type) === name)!,
-            )
-          : deserializeBSON(data, undefined, undefined, type),
-      ],
     });
   }
 
@@ -272,6 +259,9 @@ export class RestateHandlerDecorator {
     type?: ReceiveType<T>,
   ) {
     type = resolveReceiveType(type);
+    if (!this.t.argsType) {
+      throw new Error('Missing args type');
+    }
 
     const topic = getRestateKafkaTopicSource(type);
     assertValidKafkaTopicName(topic);

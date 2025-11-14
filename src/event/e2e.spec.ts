@@ -1,15 +1,15 @@
-import {
-  ApplicationServer,
-  createTestingApp,
-  FrameworkModule,
-} from '@deepkit/framework';
+import { ApplicationServer, FrameworkModule } from '@deepkit/framework';
 import { uuid, UUID } from '@deepkit/type';
 import { describe, test } from 'vitest';
 import { App } from '@deepkit/app';
 import { sleep } from '@deepkit/core';
 
 import { RestateModule } from '../restate.module.js';
-import { RestateService, RestateObject } from '../types.js';
+import {
+  RestateService,
+  RestateObject,
+  RestateServiceContext,
+} from '../types.js';
 import { restate } from '../decorator.js';
 import { RestateIngressClient } from '../client/restate-ingress-client.js';
 import { RestateEventPublisher } from './publisher.js';
@@ -497,7 +497,10 @@ describe('event', () => {
 
       interface UserServiceHandlers {}
 
-      type UserServiceProxy = RestateService<'UserService', UserServiceHandlers>;
+      type UserServiceProxy = RestateService<
+        'UserService',
+        UserServiceHandlers
+      >;
 
       let objectReceivedEvent: UserCreated | undefined;
       let serviceReceivedEvent: UserCreated | undefined;

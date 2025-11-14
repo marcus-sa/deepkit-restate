@@ -8,6 +8,7 @@ import {
   EventProcessorHandlers,
   EventProcessorApi,
   EventStoreApi,
+  ProcessArgs,
 } from '../types.js';
 import { RestatePubSubServerConfig, RestateSseConfig } from './config.js';
 
@@ -21,10 +22,7 @@ export class RestateEventProcessor implements EventProcessorHandlers {
   ) {}
 
   @restate.handler()
-  async process(
-    events: readonly PublishEvent[],
-    options?: PublishOptions,
-  ): Promise<void> {
+  async process({ events, options }: ProcessArgs): Promise<void> {
     const cluster = options?.cluster || this.config.cluster!;
     const allHandlers = await this.ctx.call(cluster, this.store.getHandlers());
 
@@ -38,11 +36,11 @@ export class RestateEventProcessor implements EventProcessorHandlers {
           this.ctx.genericSend({
             service: handler.service,
             method: handler.method,
-            parameter: new Uint8Array(event.data),
+            parameter: event.data,
             headers: {
               'x-restate-event': event.name,
             },
-            inputSerde: serde.binary,
+            inputSerde: serde.json,
             idempotencyKey: event.id,
           });
         } else if (handler.handlerType === 'object' && options?.key) {
@@ -51,11 +49,11 @@ export class RestateEventProcessor implements EventProcessorHandlers {
             service: handler.service,
             method: handler.method,
             key: options.key,
-            parameter: new Uint8Array(event.data),
+            parameter: event.data,
             headers: {
               'x-restate-event': event.name,
             },
-            inputSerde: serde.binary,
+            inputSerde: serde.json,
             idempotencyKey: `${options.key}:${event.id}`,
           });
         }
@@ -81,7 +79,7 @@ export class RestateEventProcessor implements EventProcessorHandlers {
   ) {
     await RestatePromise.all(
       nodes.map(node =>
-        this.ctx.run(
+        this.ctx.run<void>(
           `fan-out server-sent events to node "${node}"`,
           async () => {
             // TODO: only publish to controllers that do have active subscriptions

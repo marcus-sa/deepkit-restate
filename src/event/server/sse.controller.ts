@@ -75,9 +75,8 @@ export class ServerSentEventsController {
           ) {
             this.logger.debug('publish', event);
             response.write(`event: ${id}\n`);
-            const data = new Uint8Array(event.data);
-            response.write(`id: ${fastHash(data)}\n`);
-            response.write(`data: ${Buffer.from(data).toString('base64')}\n\n`);
+            response.write(`id: ${event.id}\n`);
+            response.write(`data: ${JSON.stringify(event.data)}\n\n`);
           }
         });
 

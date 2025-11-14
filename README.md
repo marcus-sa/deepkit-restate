@@ -103,7 +103,7 @@ This is particularly useful for:
 
 ## Serialization (Serde) and Error Handling
 
-All serialization and deserialization in Deepkit Restate is handled via **BSON** by default.
+All serialization and deserialization in Deepkit Restate is handled via **JSON** by default.
 
 This means you can **return** and **accept** any types in your service handlers or saga steps, including:
 

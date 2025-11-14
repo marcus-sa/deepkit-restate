@@ -6,7 +6,6 @@ import { RestateIngressClient } from './client/restate-ingress-client.js';
 import { RestateConfig } from './config.js';
 import { InjectorServices } from './services.js';
 import { InjectorObjects } from './objects.js';
-import { InjectorSagas } from './sagas.js';
 import { RestateServer } from './restate-server.js';
 import { RestatePubSubModule } from './event/module.js';
 import {
@@ -37,7 +36,6 @@ export class RestateModule extends createModuleClass({
 }) {
   readonly services = new InjectorServices();
   readonly objects = new InjectorObjects();
-  readonly sagas = new InjectorSagas();
   readonly globalMiddlewares: ClassType<RestateMiddleware>[] = [];
 
   override process() {
@@ -81,11 +79,6 @@ export class RestateModule extends createModuleClass({
       this.addProvider({
         provide: InjectorObjects,
         useValue: this.objects,
-      });
-
-      this.addProvider({
-        provide: InjectorSagas,
-        useValue: this.sagas,
       });
 
       this.addProvider({
@@ -156,15 +149,6 @@ export class RestateModule extends createModuleClass({
     this.addClassMetadataMiddleware(metadata);
   }
 
-  private addSaga(
-    module: AppModule<any>,
-    classType: ClassType,
-    metadata: RestateSagaMetadata,
-  ): void {
-    this.sagas.add({ classType, module, metadata });
-    this.addClassMetadataMiddleware(metadata);
-  }
-
   private addDeps(classType: ClassType): void {
     const restateServiceDeps = getRestateClassDeps(classType);
 
@@ -192,13 +176,6 @@ export class RestateModule extends createModuleClass({
       const objectMetadata = getRestateObjectMetadata(controller);
       if (objectMetadata) {
         this.addObject(module, controller, objectMetadata);
-      } else {
-        const sagaMetadata = getRestateSagaMetadata(controller);
-        if (sagaMetadata) {
-          this.addSaga(module, controller, sagaMetadata);
-        } else {
-          return;
-        }
       }
     }
 

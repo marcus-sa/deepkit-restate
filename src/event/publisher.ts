@@ -1,5 +1,5 @@
 import { serializeBSON } from '@deepkit/bson';
-import { resolveRuntimeType } from '@deepkit/type';
+import { resolveRuntimeType, serialize } from '@deepkit/type';
 import { isClassInstance } from '@deepkit/core';
 import { InvocationHandle, TerminalError } from '@restatedev/restate-sdk';
 
@@ -28,14 +28,15 @@ export class RestateEventPublisher {
         throw new Error('Event must be a class instance');
       }
       const type = eventTypes[i];
-      const data = serializeBSON(event, undefined, type);
+      const data = serialize(event, undefined, undefined, undefined, type);
+      const id = fastHash(serializeBSON(event, undefined, type));
       const version = this.module?.config.eventVersioning
         ? getTypeHash(type)
         : undefined;
       return {
         name: getTypeName(type),
-        id: fastHash(data),
-        data: Array.from(data),
+        id,
+        data,
         version,
       };
     });
@@ -53,11 +54,14 @@ export class RestateEventPublisher {
     }
 
     return this.client.send(
-      this.processor.process(eventsToPublish, {
-        stream,
-        cluster,
-        sse: options?.sse,
-        key: options?.key,
+      this.processor.process({
+        events: eventsToPublish,
+        options: {
+          stream,
+          cluster,
+          sse: options?.sse,
+          key: options?.key,
+        },
       }),
       {
         delay: options?.delay,

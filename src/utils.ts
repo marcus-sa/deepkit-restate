@@ -8,22 +8,31 @@ import {
 } from '@deepkit/bson';
 import {
   assertType,
+  cast,
+  deserialize,
   getTypeJitContainer,
   isExtendable,
+  JSONEntity,
   ReceiveType,
   reflect,
   ReflectionClass,
   ReflectionFunction,
   ReflectionKind,
   resolveReceiveType,
+  serialize,
   SerializedTypes,
   serializeType,
   Type,
   TypeClass,
   TypeObjectLiteral,
+  NamingStrategy,
+  SerializationOptions,
+  serializer,
+  Serializer,
   TypeParameter,
   typeSettings,
   TypeTuple,
+  JSONSingle,
   TypeTupleMember,
 } from '@deepkit/type';
 
@@ -37,11 +46,6 @@ import {
   RestateService,
   restateServiceType,
 } from './types.js';
-import {
-  deserializeRestateHandlerResponse,
-  getResponseDataDeserializer,
-  serializeResponseData,
-} from './serde.js';
 import { MissingTypeName } from './event/errors.js';
 
 export function getRestateClassDeps(classType: ClassType): readonly Type[] {
@@ -126,8 +130,10 @@ export function getTypeArgument(type: Type, index: number): Type | undefined {
 }
 
 interface ClassProxyMethod<T> {
-  readonly serializeArgs: BSONSerializer;
-  readonly deserializeReturn: BSONDeserializer<T>;
+  readonly serializeArgs: JSONSerializer<unknown>;
+  readonly argsType: Type;
+  readonly returnType: Type;
+  readonly deserializeReturn: JSONDeserializer<T>;
 }
 
 export function getReflectionFunctionArgsType(
@@ -175,24 +181,49 @@ export function makeInterfaceProxy<
       get(target: any, method: string) {
         if (!methods[method]) {
           const reflectionMethod = reflectionClass.getMethod(method);
+          if (reflectionMethod.parameters.length > 1) {
+            throw new Error(`Handler "${method}" can only have one argument`);
+          }
 
-          const argsType = getReflectionFunctionArgsType(reflectionMethod);
-          const serializeArgs = getBSONSerializer(undefined, argsType);
+          const argsType = reflectionMethod.parameters[0]?.type;
+          const serializeArgs = getJSONSerializer(
+            undefined,
+            undefined,
+            undefined,
+            argsType,
+          );
 
           const returnType =
             getUnwrappedReflectionFunctionReturnType(reflectionMethod);
-          const deserializeReturn = getResponseDataDeserializer(returnType);
+          const deserializeReturn = getJSONDeserializer(
+            undefined,
+            undefined,
+            undefined,
+            returnType,
+          );
 
-          methods[method] = { serializeArgs, deserializeReturn };
+          methods[method] = {
+            serializeArgs,
+            deserializeReturn,
+            argsType,
+            returnType,
+          };
         }
-        const { serializeArgs, deserializeReturn } = methods[method];
+        const { serializeArgs, deserializeReturn, returnType, argsType } =
+          methods[method];
 
         return (...args: readonly unknown[]): RestateHandlerRequest => {
-          const data = serializeArgs(args);
+          if (args.length > 1) {
+            throw new Error(
+              `Handler "${method}" can only have one argument, but got ${args.length}`,
+            );
+          }
+          const data = argsType ? serializeArgs(args[0]) : undefined;
           return {
             service,
             method,
             data,
+            returnType,
             deserializeReturn,
           };
         };
@@ -227,52 +258,12 @@ export function getRegisteredEntity(className: string): ClassType | undefined {
   );
 }
 
-export function decodeRestateServiceMethodResponse<T>(
-  response: Uint8Array,
-  deserialize: BSONDeserializer<T>,
-): T {
-  const internalResponse = deserializeRestateHandlerResponse(response);
-  return internalResponse.data
-    ? deserialize(internalResponse.data)
-    : (undefined as T);
-}
-
 export function assertValidKafkaTopicName(topicName: string): void {
   if (!/^[a-zA-Z0-9._-]+$/.test(topicName)) {
     throw new Error(
       `Invalid topic name validation pattern ^[a-zA-Z0-9._-]+$ failed for ${topicName}`,
     );
   }
-}
-
-export function success<T>(
-  reply?: T,
-  type?: ReceiveType<T>,
-): RestateHandlerResponse {
-  if (reply) {
-    type = resolveReceiveType(type);
-    return {
-      success: true,
-      data: serializeResponseData(reply, type),
-    };
-  }
-
-  return { success: true };
-}
-
-export function failure<T>(
-  reply?: T,
-  type?: ReceiveType<T>,
-): RestateHandlerResponse {
-  if (reply) {
-    type = resolveReceiveType(type);
-    return {
-      success: false,
-      data: serializeResponseData(reply, type),
-    };
-  }
-
-  return { success: false };
 }
 
 export function waitUntil(
@@ -308,6 +299,7 @@ export function getTypeName(type: Type): string {
   return type.typeName;
 }
 
+// TODO: remove id from type
 export function getTypeHash(type: Type): string {
   const jit = getTypeJitContainer(type);
   if (jit['hash']) return jit['hash'];
@@ -315,3 +307,26 @@ export function getTypeHash(type: Type): string {
   toFastProperties(jit);
   return jit['hash'];
 }
+
+export function getJSONSerializer<T>(
+  options?: SerializationOptions,
+  serializerToUse: Serializer = serializer,
+  namingStrategy?: NamingStrategy,
+  type?: ReceiveType<T>,
+): (data: T) => JSONSingle<T> {
+  return data =>
+    serialize<T>(data, options, serializerToUse, namingStrategy, type);
+}
+
+export type JSONSerializer<T> = (data: T) => JSONSingle<T>;
+
+export function getJSONDeserializer<T>(
+  options?: SerializationOptions,
+  serializerToUse: Serializer = serializer,
+  namingStrategy?: NamingStrategy,
+  type?: ReceiveType<T>,
+): (data: JSONSingle<T>) => T {
+  return data => cast<T>(data, options, serializerToUse, namingStrategy, type);
+}
+
+export type JSONDeserializer<T> = (data: JSONSingle<T>) => T;
