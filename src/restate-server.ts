@@ -74,12 +74,16 @@ export class RestateServer {
       hasTypeInformation(error.constructor)
     ) {
       const entityData = entity._fetch(error.constructor);
-      if (!entityData) return undefined;
-
-      throw new restate.TerminalError(
+      return new restate.TerminalError(
         JSON.stringify({
-          data: serialize(error, undefined, error.constructor),
-          entityName: entityData.name,
+          data: serialize(
+            error,
+            undefined,
+            undefined,
+            undefined,
+            error.constructor,
+          ),
+          entityName: entityData?.name || error.constructor.name,
         }),
         {
           cause: error,
